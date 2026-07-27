@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#194433">
+  <title>منصة طلبات التين والزيتون</title>
+  <meta name="description" content="اطلب منتجات التين والزيتون الطبيعية والصحية للتوصيل أو الاستلام.">
+  <meta property="og:title" content="منصة طلبات التين والزيتون">
+  <meta property="og:description" content="طبيعي، صحي، مصنوع بحب">
+  <meta property="og:image" content="og.png">
+  <link rel="icon" href="logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="brand"><img src="logo.png" alt="التين والزيتون"><div><strong>التين والزيتون</strong><span>طبيعي، صحي، مصنوع بحب</span></div></div>
+      <button class="header-cart" id="headerCart">سلتك <b id="headerCount">0</b></button>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div>
+        <span class="eyebrow">توصيل لجميع مناطق الكويت</span>
+        <h1>أكل صحي بطعم<br>يستحق التكرار</h1>
+        <p>اختر من منتجاتنا الطبيعية والمخبوزات الطازجة، ونحن نتكفل بالباقي.</p>
+        <div class="hero-badges"><span>مكونات طبيعية</span><span>تحضير يومي</span><span>دفع آمن</span></div>
+      </div>
+      <div class="hero-logo"><img src="logo.png" alt=""></div>
+    </section>
+
+    <section class="catalog">
+      <div class="catalog-heading">
+        <div><span class="kicker">قائمتنا</span><h2>ماذا تشتهي اليوم؟</h2></div>
+        <label class="search-box">⌕ <input id="searchInput" placeholder="ابحث عن منتج…"></label>
+      </div>
+      <div class="categories" id="categories"></div>
+      <div class="results-line"><strong id="resultTitle">كل المنتجات</strong><span id="resultCount"></span></div>
+      <div class="product-grid" id="productGrid">
+        <div class="loading">جاري تحميل المنتجات…</div>
+      </div>
+    </section>
+  </main>
+
+  <div class="floating-cart hidden" id="floatingCart">
+    <button class="cart-summary" id="cartSummary"><span class="bag">▣<b id="cartBadge">0</b></span><span><small>الإجمالي</small><strong id="cartTotal">0.000 د.ك</strong></span></button>
+    <button class="checkout-btn" id="checkoutBtn">إتمام الدفع ←</button>
+  </div>
+
+  <div class="modal hidden" id="checkoutModal">
+    <section class="checkout-panel">
+      <div class="checkout-head"><div><span class="kicker">طلبك</span><h2 id="checkoutTitle">إتمام الطلب</h2></div><button id="closeCheckout">×</button></div>
+      <div class="steps" id="steps">
+        <div data-step="1"><i>✓</i><span>المراجعة</span></div>
+        <div data-step="2"><i>⌖</i><span>تفاصيل التسليم</span></div>
+        <div data-step="3"><i>◈</i><span>الدفع</span></div>
+      </div>
+      <div id="checkoutBody"></div>
+    </section>
+  </div>
+
+  <div class="invoice-host"><div class="invoice" id="invoice"></div></div>
+  <div class="toast hidden" id="toast"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
