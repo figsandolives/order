@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#194433">
   <title>منصة طلبات التين والزيتون</title>
   <meta name="description" content="اطلب منتجات التين والزيتون الطبيعية والصحية للتوصيل أو الاستلام.">
@@ -12,57 +12,91 @@
   <link rel="icon" href="logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://static.mypaydo.com" crossorigin>
+  <link rel="dns-prefetch" href="//static.mypaydo.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@400;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="payment.css">
+  <link rel="stylesheet" href="account.css">
 </head>
 <body>
   <header class="site-header">
     <div class="header-inner">
-      <div class="brand"><img src="logo.png" alt="التين والزيتون"><div><strong>التين والزيتون</strong><span>طبيعي، صحي، مصنوع بحب</span></div></div>
-      <button class="header-cart" id="headerCart">سلتك <b id="headerCount">0</b></button>
+      <div class="brand"><img src="logo.png" alt="التين والزيتون"><div><strong data-i18n="brand">التين والزيتون</strong><span data-i18n="tagline">طبيعي، صحي، مصنوع بحب</span></div></div>
+      <div class="header-actions">
+        <button class="language-toggle" id="languageToggle" aria-label="Change language"><span id="languageLabel">English</span></button>
+        <button class="account-trigger" id="accountButton" aria-label="تسجيل الدخول">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4.25 4.25 0 1 0 0-8.5 4.25 4.25 0 0 0 0 8.5Zm7.25 8.5a7.25 7.25 0 0 0-14.5 0"/></svg>
+          <span id="accountButtonLabel">تسجيل الدخول</span>
+        </button>
+        <button class="header-cart" id="headerCart">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 4h2l1.6 10.1a2 2 0 0 0 2 1.7h7.8a2 2 0 0 0 2-1.7L20 7H6.1M9 20h.01M17 20h.01"/></svg>
+          <span data-i18n="yourCart">سلتك</span> <b id="headerCount">0</b>
+        </button>
+      </div>
     </div>
   </header>
 
   <main>
     <section class="hero">
       <div>
-        <span class="eyebrow">توصيل لجميع مناطق الكويت</span>
-        <h1>أكل صحي بطعم<br>يستحق التكرار</h1>
-        <p>اختر من منتجاتنا الطبيعية والمخبوزات الطازجة، ونحن نتكفل بالباقي.</p>
-        <div class="hero-badges"><span>مكونات طبيعية</span><span>تحضير يومي</span><span>دفع آمن</span></div>
+        <span class="eyebrow" data-i18n="deliveryEverywhere">توصيل لجميع مناطق الكويت</span>
+        <h1 data-i18n-html="heroTitle">أكل صحي بطعم<br>يستحق التكرار</h1>
+        <p data-i18n="heroText">اختر من منتجاتنا الطبيعية والمخبوزات الطازجة، ونحن نتكفل بالباقي.</p>
+        <div class="hero-badges"><span data-i18n="naturalIngredients">مكونات طبيعية</span><span data-i18n="dailyPreparation">تحضير يومي</span><span data-i18n="securePayment">دفع آمن</span></div>
       </div>
       <div class="hero-logo"><img src="logo.png" alt=""></div>
     </section>
 
     <section class="catalog">
       <div class="catalog-heading">
-        <div><span class="kicker">قائمتنا</span><h2>ماذا تشتهي اليوم؟</h2></div>
-        <label class="search-box">⌕ <input id="searchInput" placeholder="ابحث عن منتج…"></label>
+        <div><span class="kicker" data-i18n="ourMenu">قائمتنا</span><h2 data-i18n="whatToday">ماذا تشتهي اليوم؟</h2></div>
+        <label class="search-box">⌕ <input id="searchInput" data-i18n-placeholder="searchPlaceholder" placeholder="ابحث عن منتج…"></label>
       </div>
       <div class="categories" id="categories"></div>
-      <div class="results-line"><strong id="resultTitle">كل المنتجات</strong><span id="resultCount"></span></div>
-      <div class="product-grid" id="productGrid">
+      <div class="product-sections" id="productSections">
         <div class="loading">جاري تحميل المنتجات…</div>
       </div>
     </section>
   </main>
 
   <div class="floating-cart hidden" id="floatingCart">
-    <button class="cart-summary" id="cartSummary"><span class="bag">▣<b id="cartBadge">0</b></span><span><small>الإجمالي</small><strong id="cartTotal">0.000 د.ك</strong></span></button>
-    <button class="checkout-btn" id="checkoutBtn">إتمام الدفع ←</button>
+    <button class="cart-summary" id="cartSummary"><span class="bag"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 8.5h13l-1 11h-11l-1-11Zm3 0V6a3.5 3.5 0 0 1 7 0v2.5"/></svg><b id="cartBadge">0</b></span><span><small data-i18n="total">الإجمالي</small><strong id="cartTotal">0.000 د.ك</strong></span></button>
+    <button class="checkout-btn" id="checkoutBtn" data-i18n="checkout">إتمام الدفع ←</button>
   </div>
+
+  <section class="product-page hidden" id="productPage" aria-hidden="true">
+    <div class="product-page-inner">
+      <button class="product-back" id="productBack">← <span data-i18n="back">رجوع</span></button>
+      <div id="productDetail"></div>
+    </div>
+  </section>
 
   <div class="modal hidden" id="checkoutModal">
     <section class="checkout-panel">
       <div class="checkout-head"><div><span class="kicker">طلبك</span><h2 id="checkoutTitle">إتمام الطلب</h2></div><button id="closeCheckout">×</button></div>
       <div class="steps" id="steps">
-        <div data-step="1"><i>✓</i><span>المراجعة</span></div>
-        <div data-step="2"><i>⌖</i><span>تفاصيل التسليم</span></div>
-        <div data-step="3"><i>◈</i><span>الدفع</span></div>
+        <div data-step="1"><i><svg viewBox="0 0 24 24"><path d="M4 5h2l1.3 9h9.6l1.4-6.5H7M9 19h.01M17 19h.01"/></svg></i><span>المراجعة</span></div>
+        <div data-step="2"><i><svg viewBox="0 0 24 24"><path d="M12 21s6-5.3 6-11a6 6 0 1 0-12 0c0 5.7 6 11 6 11Zm0-8.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"/></svg></i><span>تفاصيل التسليم</span></div>
+        <div data-step="3"><i><svg viewBox="0 0 24 24"><path d="M3 7.5h18v11H3v-11Zm0 4h18M7 15.5h3"/></svg></i><span>تأكيد ودفع</span></div>
       </div>
       <div id="checkoutBody"></div>
     </section>
+  </div>
+
+  <div class="modal hidden auth-modal" id="authModal" aria-hidden="true">
+    <section class="auth-panel" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+      <button class="auth-close" id="authClose" aria-label="إغلاق">×</button>
+      <div id="authBody"></div>
+    </section>
+  </div>
+
+  <div class="drawer-layer hidden" id="accountDrawer" aria-hidden="true">
+    <button class="drawer-backdrop" id="drawerBackdrop" aria-label="إغلاق القائمة"></button>
+    <aside class="account-drawer">
+      <header><button id="drawerClose" aria-label="إغلاق">×</button><img src="logo.png" alt=""><span data-i18n="myAccount">حسابي</span></header>
+      <div id="accountContent"></div>
+    </aside>
   </div>
 
   <div class="invoice-host"><div class="invoice" id="invoice"></div></div>

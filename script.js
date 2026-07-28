@@ -1,42 +1,1254 @@
-const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
-const state={products:[],areas:[],cart:{},category:"الكل",search:"",step:1,mode:"delivery",payment:"cash",area:null,branch:"",name:"",phone:"",address:"",order:"W00001",paymentRequestId:""};
-const orderingConfig=window.ORDERING_CONFIG||{};
-let paymentWatchVersion=0;
-const cats={"Basket":"السلال","Bowls":"الأطباق","Bowls with olive oil":"أطباق بزيت الزيتون","Bread":"الخبز","Cake":"الكيك","Chapati Section":"الشباتي","Dairy":"منتجات الألبان","Fatayer":"الفطائر","Frozen Section":"المجمدات","Gluten-free":"خالي من الجلوتين","Jam":"المربى","Juices":"العصائر","Organic Products":"منتجات عضوية","Protein bars":"ألواح البروتين","Ramadan products":"منتجات رمضان","Sprouted Chickpea chips":"شيبس الحمص المبرعم","Sweets & biscuits":"الحلويات والبسكويت","Toast and samoon":"التوست والصمون","Whole grain sweets":"حلويات الحبوب الكاملة","Za'ater":"الزعتر","diabetes and insulin resistance Products":"منتجات السكري ومقاومة الإنسولين","keto diet (Made with almond flour)":"منتجات الكيتو","olive oil":"زيت الزيتون","talbeenah":"التلبينة","منتجات مختارة":"منتجات مختارة"};
-const branches=[{id:"hawalli",name:"فرع حولي",brand:"صحي ولذيذ للتجهيزات الغذائية",address:"حولي، شارع تونس، مجمع علي فهد الخالد، دور الميزانين",phone:"66906605 | 22085888"},{id:"yarmouk",name:"فرع اليرموك",brand:"مخبز التين والزيتون",address:"اليرموك، قطعة 2، شارع 2",phone:"22085889 | 65162277"},{id:"abu",name:"فرع أبو الحصانية",brand:"مطعم التين الطبيعي",address:"أبو الحصانية، مول 30",phone:"22085886 | 99176512"}];
-const money=n=>`${Number(n).toFixed(3)} د.ك`;
-const product=id=>state.products.find(p=>p.id===id);
-const items=()=>Object.entries(state.cart).map(([id,q])=>({p:product(id),q})).filter(x=>x.p);
-const count=()=>items().reduce((s,x)=>s+x.q,0);
-const subtotal=()=>items().reduce((s,x)=>s+x.p.price*x.q,0);
-const delivery=()=>state.mode==="delivery"&&state.area?state.area.price:0;
-const total=()=>subtotal()+delivery();
-function toast(t){$("#toast").textContent=t;$("#toast").classList.remove("hidden");setTimeout(()=>$("#toast").classList.add("hidden"),1700)}
-function qty(id,d){state.cart[id]=Math.max(0,(state.cart[id]||0)+d);if(!state.cart[id])delete state.cart[id];state.paymentRequestId="";renderCartBar();renderProducts();if(!$("#checkoutModal").classList.contains("hidden"))renderCheckout()}
-function renderCartBar(){const n=count();$("#headerCount").textContent=n;$("#cartBadge").textContent=n;$("#cartTotal").textContent=money(subtotal());$("#floatingCart").classList.toggle("hidden",!n)}
-function renderCategories(){const map={};state.products.forEach(p=>map[p.category]=(map[p.category]||0)+1);$("#categories").innerHTML=`<button class="${state.category==="الكل"?"active":""}" data-cat="الكل">الكل <small>${state.products.length}</small></button>`+Object.entries(map).sort((a,b)=>b[1]-a[1]).map(([c,n])=>`<button class="${state.category===c?"active":""}" data-cat="${c.replace(/"/g,"&quot;")}">${cats[c]||c} <small>${n}</small></button>`).join("");$$("[data-cat]").forEach(b=>b.onclick=()=>{state.category=b.dataset.cat;renderCategories();renderProducts()})}
-function renderProducts(){const q=state.search.trim().toLowerCase();const list=state.products.filter(p=>(state.category==="الكل"||p.category===state.category)&&(!q||`${p.name} ${p.nameEn} ${p.description}`.toLowerCase().includes(q)));$("#resultTitle").textContent=state.category==="الكل"?"كل المنتجات":cats[state.category]||state.category;$("#resultCount").textContent=`${list.length} منتج`;$("#productGrid").innerHTML=list.map(p=>`<article class="product-card"><div class="product-image"><img loading="lazy" src="${p.image}" alt="${p.name}">${state.cart[p.id]?`<b class="in-cart">في السلة × ${state.cart[p.id]}</b>`:""}</div><div class="product-info"><small>${cats[p.category]||p.category}</small><h3>${p.name}</h3><p>${p.description||p.nameEn}</p><div class="product-foot"><strong>${money(p.price)}</strong><button data-add="${p.id}">إضافة +</button></div></div></article>`).join("");$$("[data-add]").forEach(b=>b.onclick=()=>{qty(b.dataset.add,1);toast("تمت إضافة المنتج")})}
-function totals(){return `<div class="totals"><span>مجموع المنتجات <b>${money(subtotal())}</b></span>${delivery()?`<span>رسوم التوصيل <b>${money(delivery())}</b></span>`:""}<strong>الإجمالي <b>${money(total())}</b></strong></div>`}
-function openCheckout(){if(!count())return;state.step=1;$("#checkoutModal").classList.remove("hidden");renderCheckout()}
-function setSteps(){$$(".steps div").forEach((x,i)=>{x.classList.toggle("active",i+1===state.step);x.classList.toggle("done",i+1<state.step)})}
-function renderCheckout(){setSteps();$("#steps").classList.remove("hidden");$("#checkoutTitle").textContent="إتمام الطلب";if(state.step===1){$("#checkoutBody").innerHTML=`<div class="cart-list">${items().map(({p,q})=>`<div class="cart-row"><img src="${p.image}"><div><h4>${p.name}</h4><strong>${money(p.price*q)}</strong></div><div class="qty"><button data-plus="${p.id}">+</button><span>${q}</span><button data-minus="${p.id}">${q===1?"×":"−"}</button></div></div>`).join("")}</div>${totals()}<button class="primary" id="next1">تأكيد ومتابعة</button>`;$$("[data-plus]").forEach(b=>b.onclick=()=>qty(b.dataset.plus,1));$$("[data-minus]").forEach(b=>b.onclick=()=>qty(b.dataset.minus,-1));$("#next1").onclick=()=>{state.step=2;renderCheckout()}}else if(state.step===2)renderDelivery();else renderPayment()}
-function renderDelivery(){let content=state.mode==="delivery"?`<div class="form"><label>الاسم<input id="name" value="${state.name}" placeholder="اكتب الاسم الكامل"></label><label>رقم الهاتف<input id="phone" dir="ltr" inputmode="tel" value="${state.phone}" placeholder="9999 9999"></label><label class="full">المنطقة<div class="area-wrap"><input id="areaSearch" placeholder="${state.area?`${state.area.name} — ${money(state.area.price)}`:"ابحث واختر المنطقة"}"><div class="area-list hidden" id="areaList"></div></div>${state.area?`<small class="selected-area">تم اختيار ${state.area.name} — ${money(state.area.price)}</small>`:""}</label><label class="full">تفاصيل العنوان<textarea id="address" placeholder="القطعة، الشارع، المنزل والدور…">${state.address}</textarea></label></div>`:`<div class="branches">${branches.map(b=>`<button class="option ${state.branch===b.id?"selected":""}" data-branch="${b.id}"><span class="radio"></span><div><strong>${b.name}</strong><b>${b.brand}</b><small>${b.address}<br>${b.phone}</small></div></button>`).join("")}</div>`;$("#checkoutBody").innerHTML=`<div class="tabs"><button class="${state.mode==="delivery"?"active":""}" id="deliveryTab">🚚 توصيل</button><button class="${state.mode==="pickup"?"active":""}" id="pickupTab">⌂ استلام</button></div>${content}<div class="actions"><button class="secondary" id="back1">رجوع</button><button class="primary" id="next2">تأكيد ومتابعة</button></div>`;$("#deliveryTab").onclick=()=>{state.mode="delivery";renderDelivery()};$("#pickupTab").onclick=()=>{state.mode="pickup";renderDelivery()};$("#back1").onclick=()=>{state.step=1;renderCheckout()};$$("[data-branch]").forEach(b=>b.onclick=()=>{state.branch=b.dataset.branch;renderDelivery()});if(state.mode==="delivery"){$("#name").oninput=e=>state.name=e.target.value;$("#phone").oninput=e=>{state.phone=e.target.value.replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/[^\d+ ]/g,"");e.target.value=state.phone};$("#address").oninput=e=>state.address=e.target.value;$("#areaSearch").oninput=e=>{const q=e.target.value.trim();const list=state.areas.filter(a=>a.name.includes(q)).slice(0,14);$("#areaList").innerHTML=list.map(a=>`<button data-area="${a.name}"><span>${a.name}</span><b>${money(a.price)}</b></button>`).join("");$("#areaList").classList.toggle("hidden",!q);$$("[data-area]").forEach(b=>b.onclick=()=>{state.area=state.areas.find(a=>a.name===b.dataset.area);renderDelivery()})}}$("#next2").onclick=()=>{if(state.mode==="delivery"&&(!state.name.trim()||state.phone.replace(/\D/g,"").length<8||!state.area||!state.address.trim()))return toast("يرجى استكمال بيانات التوصيل");if(state.mode==="pickup"&&!state.branch)return toast("يرجى اختيار الفرع");state.step=3;renderCheckout()}}
-function renderPayment(){const pickupContact=state.payment==="online"&&state.mode==="pickup"?`<div class="form payment-contact"><label>اسم العميل<input id="payName" value="${state.name}" placeholder="اكتب الاسم الكامل"></label><label>رقم الهاتف<input id="payPhone" dir="ltr" inputmode="numeric" autocomplete="tel" value="${state.phone}" placeholder="99999999"></label></div>`:"";$("#checkoutBody").innerHTML=`<div class="payments"><button class="option ${state.payment==="cash"?"selected":""}" data-pay="cash"><span class="radio"></span><div><strong>الدفع كاش</strong><small>الدفع عند استلام الطلب</small></div></button><button class="option ${state.payment==="online"?"selected":""}" data-pay="online"><span class="radio"></span><div><strong>الدفع أونلاين</strong><small>يتم تحويلك بأمان إلى بوابة Bede</small></div></button></div>${pickupContact}${totals()}<div class="actions"><button class="secondary" id="back2">رجوع</button><button class="primary" id="finish">تأكيد الطلب</button></div>`;$$("[data-pay]").forEach(b=>b.onclick=()=>{state.payment=b.dataset.pay;state.paymentRequestId="";renderPayment()});$("#back2").onclick=()=>{state.step=2;renderCheckout()};if($("#payName"))$("#payName").oninput=e=>{state.name=e.target.value;state.paymentRequestId=""};if($("#payPhone"))$("#payPhone").oninput=e=>{state.phone=normalizePhone(e.target.value);e.target.value=state.phone;state.paymentRequestId=""};$("#finish").onclick=finish}
-function normalizePhone(value){return String(value).replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/[۰-۹]/g,d=>"۰۱۲۳۴۵۶۷۸۹".indexOf(d)).replace(/\D/g,"").slice(0,8)}
-function requestId(){if(window.crypto?.randomUUID)return crypto.randomUUID().replace(/-/g,"");return`${Date.now()}_${Math.random().toString(36).slice(2)}_${Math.random().toString(36).slice(2)}`}
-function paymentPayload(){return{idempotencyKey:state.paymentRequestId,customer:{name:state.name.trim(),phone:normalizePhone(state.phone)},items:items().map(({p,q})=>({id:String(p.id),quantity:q})),delivery:{mode:state.mode,areaName:state.area?.name||"",branchId:state.branch||""}}}
-function pendingSnapshot(payment){return{...payment,checkout:{cart:state.cart,mode:state.mode,areaName:state.area?.name||"",branch:state.branch,name:state.name,phone:state.phone,address:state.address,payment:"online"}}}
-function restorePending(pending){const saved=pending.checkout||{};state.cart=saved.cart||state.cart;state.mode=saved.mode||state.mode;state.area=state.areas.find(a=>a.name===saved.areaName)||state.area;state.branch=saved.branch||state.branch;state.name=saved.name||state.name;state.phone=saved.phone||state.phone;state.address=saved.address||state.address;state.payment="online";state.order=pending.orderId||state.order;renderCartBar()}
-async function finish(){if(state.payment==="cash"){const n=Number(localStorage.getItem("webOrderCounter")||1);state.order=`W${String(n).padStart(5,"0")}`;localStorage.setItem("webOrderCounter",n+1);$("#steps").classList.add("hidden");$("#checkoutBody").innerHTML=`<div class="loading-state"><div class="spinner"></div><h3>لحظة واحدة…</h3><p>نعتمد طلبك ونجهز رقم الفاتورة</p></div>`;return setTimeout(success,1000)}if(!state.name.trim()||normalizePhone(state.phone).length!==8)return toast("الدفع أونلاين يتطلب الاسم ورقم هاتف من 8 أرقام");if(!orderingConfig.paymentWebhookUrl||!orderingConfig.paymentStatusWebhookUrl)return paymentError("خدمة الدفع الإلكتروني ومتابعة حالتها لم يتم ربطهما بالخادم بعد.");state.paymentRequestId=state.paymentRequestId||requestId();$("#steps").classList.add("hidden");$("#checkoutTitle").textContent="الدفع الإلكتروني";$("#checkoutBody").innerHTML=`<div class="loading-state"><div class="spinner"></div><h3>جاري التحويل إلى بوابة الدفع</h3><p>ننشئ رابط دفع آمن لطلبك في نفس الصفحة…</p></div>`;const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),75000);try{const response=await fetch(orderingConfig.paymentWebhookUrl,{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify(paymentPayload()),signal:controller.signal,cache:"no-store"});const data=await response.json().catch(()=>({}));if(!response.ok||!data.ok)throw new Error(data.error||"تعذر إنشاء رابط الدفع");const target=new URL(data.paymentUrl);if(target.protocol!=="https:")throw new Error("رابط الدفع المستلم غير آمن");state.order=data.orderId||state.order;const pending=pendingSnapshot({orderId:state.order,statusToken:data.statusToken||"",paymentUrl:target.href,createdAt:Date.now()});sessionStorage.setItem("pendingBedeOrder",JSON.stringify(pending));window.location.replace(target.href)}catch(error){paymentError(error.name==="AbortError"?"استغرق إنشاء الرابط وقتاً أطول من المتوقع. يمكنك إعادة المحاولة بأمان.":error.message)}finally{clearTimeout(timer)}}
-function showPaymentWaiting(pending){$("#checkoutTitle").textContent="جارٍ التحقق من الدفع";$("#checkoutBody").innerHTML=`<div class="loading-state"><div class="spinner"></div><h3>نتحقق من نتيجة عملية الدفع</h3><p id="paymentStatusText">سيتم نقلك إلى صفحة قبول الطلب فور تأكيد العملية.</p><button class="secondary" id="reopenPayment" style="width:min(360px,100%);margin-top:18px">العودة إلى بوابة الدفع</button></div>`;$("#reopenPayment").onclick=()=>window.location.replace(pending.paymentUrl)}
-const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-async function watchPayment(pending){const version=++paymentWatchVersion,started=Date.now();let errors=0,firstCheck=true;while(version===paymentWatchVersion&&Date.now()-started<30*60*1000){if(!firstCheck)await delay(5000);firstCheck=false;try{const response=await fetch(orderingConfig.paymentStatusWebhookUrl,{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({orderId:pending.orderId,statusToken:pending.statusToken}),cache:"no-store"});const data=await response.json().catch(()=>({}));if(!response.ok||!data.ok)throw new Error(data.error||"تعذر التحقق");errors=0;if(data.status==="paid"){paymentWatchVersion++;sessionStorage.removeItem("pendingBedeOrder");history.replaceState({},"",location.pathname);return success()}if(data.status==="failed"){paymentWatchVersion++;sessionStorage.removeItem("pendingBedeOrder");history.replaceState({},"",location.pathname);return paymentDeclined()}if($("#paymentStatusText"))$("#paymentStatusText").textContent="الدفع ما زال قيد الانتظار… نتحقق تلقائياً."}catch{errors++;if(errors>=3&&$("#paymentStatusText"))$("#paymentStatusText").textContent="تعذر التحقق مؤقتاً، سنواصل المحاولة تلقائياً…"}}if(version===paymentWatchVersion)paymentPendingTimeout(pending)}
-function paymentDeclined(){state.paymentRequestId="";$("#checkoutTitle").textContent="لم يتم قبول الدفع";$("#checkoutBody").innerHTML=`<div class="payment-error"><div class="error-mark">×</div><h3>لم يتم قبول عملية الدفع</h3><p>لم يتم اعتماد الطلب ولم يُسجل كطلب مدفوع. يمكنك المحاولة مرة أخرى.</p><div class="actions"><button class="secondary" id="declinedBack">العودة للدفع</button><button class="primary" id="declinedRetry">المحاولة من جديد</button></div></div>`;$("#declinedBack").onclick=$("#declinedRetry").onclick=()=>{state.step=3;$("#steps").classList.remove("hidden");renderCheckout()}}
-function paymentPendingTimeout(pending){$("#checkoutTitle").textContent="تعذر تأكيد حالة الدفع";$("#checkoutBody").innerHTML=`<div class="payment-error"><div class="error-mark">!</div><h3>العملية ما زالت غير مؤكدة</h3><p>لن نسجل الطلب كمدفوع حتى نحصل على تأكيد من Bede.</p><div class="actions"><button class="secondary" id="pendingOpen">العودة لبوابة الدفع</button><button class="primary" id="pendingCheck">التحقق مرة أخرى</button></div></div>`;$("#pendingOpen").onclick=()=>window.location.replace(pending.paymentUrl);$("#pendingCheck").onclick=()=>{showPaymentWaiting(pending);watchPayment(pending)}}
-function resumePendingPayment(){const raw=sessionStorage.getItem("pendingBedeOrder");if(!raw)return;try{const pending=JSON.parse(raw);if(!pending.orderId||!pending.statusToken||!pending.paymentUrl)throw new Error("invalid");restorePending(pending);$("#checkoutModal").classList.remove("hidden");$("#steps").classList.add("hidden");showPaymentWaiting(pending);watchPayment(pending)}catch{sessionStorage.removeItem("pendingBedeOrder")}}
-function paymentError(message){$("#steps").classList.remove("hidden");state.step=3;setSteps();$("#checkoutTitle").textContent="تعذر بدء الدفع";$("#checkoutBody").innerHTML=`<div class="payment-error"><div class="error-mark">!</div><h3>لم يتم إنشاء رابط الدفع</h3><p>${String(message||"حدث خطأ غير متوقع").replace(/[<>&]/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;"}[c]))}</p><div class="actions"><button class="secondary" id="paymentBack">رجوع</button><button class="primary" id="paymentRetry">إعادة المحاولة</button></div></div>`;$("#paymentBack").onclick=()=>{state.step=3;renderCheckout()};$("#paymentRetry").onclick=finish}
-function success(){buildInvoice();$("#checkoutTitle").textContent="تم استلام الطلب";$("#checkoutBody").innerHTML=`<div class="success"><div class="check">✓</div><h3>تم استلام الطلب</h3><p>رقم الطلب</p><strong class="order-no">${state.order}</strong><div class="actions" style="width:min(380px,100%)"><button class="secondary" id="newOrder">العودة للمتجر</button><button class="primary" id="pdf">تحميل الفاتورة PDF</button></div></div>`;$("#newOrder").onclick=()=>{state.cart={};renderCartBar();$("#checkoutModal").classList.add("hidden")};$("#pdf").onclick=downloadPdf}
-function buildInvoice(){const pickup=branches.find(b=>b.id===state.branch);$("#invoice").innerHTML=`<img src="logo.png"><h2>صحي ولذيذ للتجهيزات الغذائية</h2><p>الكويت، حولي، شارع تونس، مجمع علي فهد الخالد، دور الميزانين<br>66906605 | 22085888</p><hr><p>رقم الفاتورة: <b>#${state.order}</b> — ${new Date().toLocaleDateString("ar-KW")}</p><p><b>العميل: ${state.name||"عميل المتجر"}</b><br>${state.mode==="delivery"?`📍 ${state.area.name} - ${state.address}`:`🛍️ استلام من ${pickup?.name||""}`}<br>${state.payment==="cash"?"الدفع: كاش":"الدفع: أونلاين"}</p><table><thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th></tr></thead><tbody>${items().map(({p,q})=>`<tr><td>${p.name}</td><td>${q}</td><td>${money(p.price*q)}</td></tr>`).join("")}</tbody></table><div class="invoice-totals"><span>مجموع الأصناف <b>${money(subtotal())}</b></span>${delivery()?`<span>رسوم التوصيل <b>${money(delivery())}</b></span>`:""}<strong>الإجمالي <b>${money(total())}</b></strong></div><footer>شكراً لزيارتكم!<br><small>صحتك أغلى ما تملك، فتناول شيئاً صحياً.</small></footer>`}
-async function downloadPdf(){toast("جاري تجهيز الفاتورة…");const canvas=await html2canvas($("#invoice"),{scale:2,backgroundColor:"#fff"});const{jsPDF}=window.jspdf,pdf=new jsPDF("p","mm","a4"),w=180,h=canvas.height*w/canvas.width;pdf.addImage(canvas.toDataURL("image/png"),"PNG",15,12,w,h);pdf.save(`invoice-${state.order}.pdf`)}
-$("#searchInput").oninput=e=>{state.search=e.target.value;renderProducts()};$("#checkoutBtn").onclick=openCheckout;$("#cartSummary").onclick=openCheckout;$("#headerCart").onclick=openCheckout;$("#closeCheckout").onclick=()=>$("#checkoutModal").classList.add("hidden");
-Promise.all([fetch("products.json").then(r=>r.json()),fetch("delivery-areas.json").then(r=>r.json())]).then(([p,a])=>{state.products=p;state.areas=a;renderCategories();renderProducts();renderCartBar();resumePendingPayment()}).catch(()=>$("#productGrid").innerHTML='<div class="loading">تعذر تحميل البيانات. يجب رفع جميع الملفات مع index.html.</div>');
+const $ = (selector, root = document) => root.querySelector(selector);
+const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+const orderingConfig = window.ORDERING_CONFIG || {};
+
+const translations = {
+  ar: {
+    brand: "التين والزيتون", tagline: "طبيعي، صحي، مصنوع بحب", yourCart: "سلتك",
+    deliveryEverywhere: "توصيل لجميع مناطق الكويت", heroTitle: "أكل صحي بطعم<br>يستحق التكرار",
+    heroText: "اختر من منتجاتنا الطبيعية والمخبوزات الطازجة، ونحن نتكفل بالباقي.",
+    naturalIngredients: "مكونات طبيعية", dailyPreparation: "تحضير يومي", securePayment: "دفع آمن",
+    ourMenu: "قائمتنا", whatToday: "ماذا تشتهي اليوم؟", searchPlaceholder: "ابحث عن منتج…",
+    all: "الكل", products: "منتج", add: "إضافة +", added: "تمت إضافة المنتج", inCart: "في السلة",
+    total: "الإجمالي", checkout: "إتمام الدفع ←", back: "رجوع", noResults: "لا توجد منتجات مطابقة",
+    order: "طلبك", completeOrder: "إتمام الطلب", review: "المراجعة", deliveryDetails: "تفاصيل التسليم",
+    confirmPay: "تأكيد ودفع", confirmContinue: "تأكيد ومتابعة", productsTotal: "قيمة المنتجات",
+    deliveryFee: "قيمة التوصيل", delivery: "توصيل", pickup: "استلام", chooseBranch: "يرجى اختيار الفرع",
+    completeDelivery: "يرجى اختيار عنوان للتوصيل", preparing: "لحظة واحدة…",
+    redirecting: "جاري التحويل إلى بوابة الدفع", creatingSecureLink: "ننشئ رابط دفع آمن لطلبك…",
+    paymentUnavailable: "خدمة الدفع الإلكتروني ومتابعة حالتها لم يتم ربطهما بالخادم بعد.",
+    invalidSecureLink: "رابط الدفع المستلم غير آمن", createFailed: "تعذر إنشاء رابط الدفع",
+    createTimeout: "استغرق إنشاء الرابط وقتاً أطول من المتوقع. يمكنك إعادة المحاولة بأمان.",
+    checkingPayment: "جارٍ التحقق من الدفع", checkingResult: "نتحقق من نتيجة عملية الدفع",
+    autoAccept: "سيتم نقلك إلى صفحة قبول الطلب فور تأكيد العملية.", returnGateway: "العودة إلى بوابة الدفع",
+    stillPending: "الدفع ما زال قيد الانتظار… نتحقق تلقائياً.",
+    tempCheckError: "تعذر التحقق مؤقتاً، سنواصل المحاولة تلقائياً…",
+    declinedTitle: "لم يتم قبول الدفع", declinedText: "لم يتم اعتماد الطلب ولم يُسجل كطلب مدفوع. يمكنك المحاولة مرة أخرى.",
+    retry: "المحاولة من جديد", backToPayment: "العودة للدفع", unconfirmed: "تعذر تأكيد حالة الدفع",
+    unconfirmedText: "لن نسجل الطلب كمدفوع حتى نحصل على تأكيد من Bede.", checkAgain: "التحقق مرة أخرى",
+    startFailed: "تعذر بدء الدفع", linkNotCreated: "لم يتم إنشاء رابط الدفع", received: "تم استلام الطلب",
+    orderNumber: "رقم الطلب", backStore: "العودة للمتجر", downloadInvoice: "تحميل / طباعة الفاتورة",
+    preparingInvoiceDownload: "جاري تجهيز الفاتورة…", customer: "العميل", payOnline: "الدفع: أونلاين",
+    quantity: "الكمية", price: "السعر", item: "الصنف", thankYou: "شكراً لزيارتكم!",
+    healthPhrase: "صحتك أغلى ما تملك، فتناول شيئاً صحياً.", loadingError: "تعذر تحميل البيانات. يجب رفع جميع الملفات مع index.html.",
+    details: "تفاصيل المنتج", addToCart: "إضافة إلى السلة", image: "صورة المنتج",
+    login: "تسجيل الدخول", myAccount: "حسابي", loginFirst: "يرجى تسجيل الدخول أولاً",
+    phone: "رقم الهاتف", phoneHint: "اكتب رقم الهاتف من 8 أرقام", confirmPhone: "تأكيد الرقم",
+    invalidPhone: "رقم الهاتف يجب أن يتكون من 8 أرقام", codeSent: "أرسلنا رمز الدخول إلى واتساب",
+    enterCode: "اكتب رمز الدخول المكون من 4 أرقام", resendCode: "إعادة إرسال رمز الدخول",
+    resendAfter: "إعادة إرسال رمز الدخول بعد", invalidCode: "رمز الدخول غير صحيح", verifying: "جارٍ التحقق…",
+    welcome: "أهلاً بك.. في مخبز التين والزيتون", username: "اسم المستخدم", confirm: "تأكيد",
+    nameRequired: "يرجى كتابة اسم المستخدم", myInfo: "معلوماتي", myAddresses: "عناويني", myOrders: "طلباتي",
+    logout: "تسجيل خروج", save: "حفظ", edit: "تعديل", delete: "حذف", changePhone: "تغيير رقم الهاتف",
+    infoSaved: "تم حفظ معلوماتك", addressesEmpty: "لا يوجد عناوين مسجلة", addAddress: "إضافة عنوان",
+    areaSearch: "ابحث عن منطقة", addressDetails: "تفاصيل العنوان", addressPlaceholder: "القطعة، الشارع، المنزل والدور…",
+    chooseArea: "اختر المنطقة", addressSaved: "تم حفظ العنوان", selectAddress: "اختر عنوان التوصيل",
+    noAddedAddresses: "لا يوجد عناوين مضافة", ordersEmpty: "لا توجد طلبات سابقة",
+    viewInvoice: "عرض / طباعة الفاتورة", paid: "مدفوع", customerName: "اسم الزبون",
+    deliveryAddress: "عنوان التوصيل", pickupBranch: "فرع الاستلام", payNow: "ادفع الآن",
+    showProducts: "عرض تفاصيل المنتجات", hideProducts: "إخفاء تفاصيل المنتجات",
+    loginServiceUnavailable: "خدمة تسجيل الدخول غير مربوطة حالياً", sendFailed: "تعذر إرسال رمز الدخول",
+    verifyFailed: "تعذر التحقق من الرمز", loggedOut: "تم تسجيل الخروج", invoiceFailed: "تعذر إنشاء الفاتورة. حاول مرة أخرى.",
+    noZoom: ""
+  },
+  en: {
+    brand: "Figs & Olives", tagline: "Natural, healthy, made with love", yourCart: "Cart",
+    deliveryEverywhere: "Delivery across Kuwait", heroTitle: "Healthy food with a taste<br>worth repeating",
+    heroText: "Choose from our natural products and fresh bakes, and we will handle the rest.",
+    naturalIngredients: "Natural ingredients", dailyPreparation: "Prepared daily", securePayment: "Secure payment",
+    ourMenu: "Our menu", whatToday: "What are you craving today?", searchPlaceholder: "Search products…",
+    all: "All", products: "products", add: "Add +", added: "Product added", inCart: "In cart",
+    total: "Total", checkout: "Checkout →", back: "Back", noResults: "No matching products",
+    order: "Your order", completeOrder: "Complete order", review: "Review", deliveryDetails: "Delivery details",
+    confirmPay: "Confirm & pay", confirmContinue: "Confirm and continue", productsTotal: "Products value",
+    deliveryFee: "Delivery fee", delivery: "Delivery", pickup: "Pickup", chooseBranch: "Please choose a branch",
+    completeDelivery: "Please select a delivery address", preparing: "One moment…",
+    redirecting: "Redirecting to the payment gateway", creatingSecureLink: "Creating a secure payment link…",
+    paymentUnavailable: "Online payment and status tracking are not connected yet.",
+    invalidSecureLink: "The received payment link is not secure", createFailed: "Could not create payment link",
+    createTimeout: "Creating the link took longer than expected. You can retry safely.",
+    checkingPayment: "Checking payment", checkingResult: "Checking your payment result",
+    autoAccept: "You will be taken to the accepted order page once payment is confirmed.", returnGateway: "Return to payment",
+    stillPending: "Payment is still pending… checking automatically.",
+    tempCheckError: "Verification is temporarily unavailable. We will keep trying…",
+    declinedTitle: "Payment was not accepted", declinedText: "The payment was not approved and the order was not recorded as paid.",
+    retry: "Try again", backToPayment: "Back to payment", unconfirmed: "Payment not confirmed",
+    unconfirmedText: "The order will not be marked paid until Bede confirms it.", checkAgain: "Check again",
+    startFailed: "Could not start payment", linkNotCreated: "Payment link was not created", received: "Order received",
+    orderNumber: "Order number", backStore: "Back to store", downloadInvoice: "Download / print invoice",
+    preparingInvoiceDownload: "Preparing your invoice…", customer: "Customer", payOnline: "Payment: Online",
+    quantity: "Qty", price: "Price", item: "Item", thankYou: "Thank you for visiting!",
+    healthPhrase: "Your health is precious—choose something healthy.", loadingError: "Could not load data. Upload every file next to index.html.",
+    details: "Product details", addToCart: "Add to cart", image: "Product image",
+    login: "Login", myAccount: "My account", loginFirst: "Please login first", phone: "Phone number",
+    phoneHint: "Enter your 8-digit phone number", confirmPhone: "Confirm number", invalidPhone: "Phone number must be exactly 8 digits",
+    codeSent: "We sent your login code on WhatsApp", enterCode: "Enter the 4-digit login code",
+    resendCode: "Resend login code", resendAfter: "Resend login code in", invalidCode: "Incorrect login code",
+    verifying: "Verifying…", welcome: "Welcome to Figs & Olives Bakery", username: "Username", confirm: "Confirm",
+    nameRequired: "Please enter your username", myInfo: "My information", myAddresses: "My addresses",
+    myOrders: "My orders", logout: "Logout", save: "Save", edit: "Edit", delete: "Delete",
+    changePhone: "Change phone number", infoSaved: "Your information was saved", addressesEmpty: "No saved addresses",
+    addAddress: "Add address", areaSearch: "Search for an area", addressDetails: "Address details",
+    addressPlaceholder: "Block, street, house and floor…", chooseArea: "Choose an area", addressSaved: "Address saved",
+    selectAddress: "Select delivery address", noAddedAddresses: "No addresses added", ordersEmpty: "No previous orders",
+    viewInvoice: "View / print invoice", paid: "Paid", customerName: "Customer name", deliveryAddress: "Delivery address",
+    pickupBranch: "Pickup branch", payNow: "Pay now", showProducts: "Show product details",
+    hideProducts: "Hide product details", loginServiceUnavailable: "Login service is not connected",
+    sendFailed: "Could not send login code", verifyFailed: "Could not verify the code", loggedOut: "Logged out",
+    invoiceFailed: "Could not create the invoice. Please try again.", noZoom: ""
+  }
+};
+
+const branches = [
+  { id: "hawalli", nameAr: "فرع حولي", nameEn: "Hawalli Branch", brandAr: "صحي ولذيذ للتجهيزات الغذائية", brandEn: "Healthy & Delicious Food", addressAr: "حولي، شارع تونس، مجمع علي فهد الخالد، دور الميزانين", addressEn: "Hawalli, Tunis Street, Ali Fahad Al-Khaled Complex, Mezzanine", phone: "66906605 | 22085888" },
+  { id: "yarmouk", nameAr: "فرع اليرموك", nameEn: "Yarmouk Branch", brandAr: "مخبز التين والزيتون", brandEn: "Figs & Olives Bakery", addressAr: "اليرموك، قطعة 2، شارع 2", addressEn: "Yarmouk, Block 2, Street 2", phone: "22085889 | 65162277" },
+  { id: "abu", nameAr: "فرع أبو الحصانية", nameEn: "Abu Al Hasaniya Branch", brandAr: "مطعم التين الطبيعي", brandEn: "Natural Figs Restaurant", addressAr: "أبو الحصانية، مول 30", addressEn: "Abu Al Hasaniya, The 30 Mall", phone: "22085886 | 99176512" }
+];
+
+const PROFILE_KEY = "figsOlivesProfilesV1";
+const SESSION_KEY = "figsOlivesSessionV1";
+const CART_KEY = "figsOlivesCartV1";
+
+function readJson(key, fallback) {
+  try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch { return fallback; }
+}
+
+function loadCurrentUser() {
+  const session = readJson(SESSION_KEY, null);
+  const profiles = readJson(PROFILE_KEY, {});
+  if (!session?.phone || !profiles[session.phone]) return null;
+  return { ...profiles[session.phone], sessionToken: session.sessionToken || "" };
+}
+
+const state = {
+  products: [], categories: [], areas: [], cart: readJson(CART_KEY, {}), search: "", activeCategory: "all",
+  lang: localStorage.getItem("storeLanguage") === "en" ? "en" : "ar",
+  step: 1, mode: "delivery", area: null, branch: "", addressId: "", address: "",
+  name: "", phone: "", order: "W00001", paymentRequestId: "", detailProductId: "",
+  user: loadCurrentUser(), lastInvoice: null
+};
+
+let imageObserver;
+let scrollFrame;
+let toastTimer;
+let paymentWatchVersion = 0;
+let resendTimer;
+let pendingCartProductId = "";
+let authMode = "login";
+let authPhone = "";
+let accountReturnToCheckout = false;
+
+function tr(key) {
+  return translations[state.lang][key] || translations.ar[key] || key;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, character => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[character]));
+}
+
+function normalizeDigits(value) {
+  return String(value ?? "")
+    .replace(/[٠-٩]/g, digit => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
+    .replace(/[۰-۹]/g, digit => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)));
+}
+
+function normalizePhone(value) {
+  return normalizeDigits(value).replace(/\D/g, "");
+}
+
+function normalizeAddressText(value) {
+  return normalizeDigits(value);
+}
+
+function trLocaleDate(date) {
+  return new Date(date).toLocaleString(state.lang === "ar" ? "ar-KW" : "en-GB", { dateStyle: "medium", timeStyle: "short" });
+}
+
+function categoryName(category) {
+  return state.lang === "ar" ? category.nameAr : (category.nameEn || category.nameAr);
+}
+
+function productName(product) {
+  return state.lang === "ar" ? product.name : (product.nameEn || product.name);
+}
+
+function productDescription(product) {
+  return state.lang === "ar" ? (product.description || product.descriptionEn || "") : (product.descriptionEn || product.description || "");
+}
+
+function productImages(product) {
+  return (Array.isArray(product.images) ? product.images : [product.image]).filter(Boolean);
+}
+
+function branchField(branch, field) {
+  return branch[`${field}${state.lang === "ar" ? "Ar" : "En"}`] || branch[`${field}Ar`];
+}
+
+function money(value) {
+  return state.lang === "ar" ? `${Number(value).toFixed(3)} د.ك` : `${Number(value).toFixed(3)} KWD`;
+}
+
+function product(id) {
+  return state.products.find(item => String(item.id) === String(id));
+}
+
+function cartItems() {
+  return Object.entries(state.cart).map(([id, quantity]) => ({ product: product(id), quantity: Number(quantity) })).filter(item => item.product && item.quantity > 0);
+}
+
+function cartCount() {
+  return cartItems().reduce((sum, item) => sum + item.quantity, 0);
+}
+
+function subtotal() {
+  return cartItems().reduce((sum, item) => sum + Number(item.product.price) * item.quantity, 0);
+}
+
+function deliveryFee() {
+  return state.mode === "delivery" && state.area ? Number(state.area.price) : 0;
+}
+
+function total() {
+  return subtotal() + deliveryFee();
+}
+
+function toast(message) {
+  const element = $("#toast");
+  element.textContent = message;
+  element.classList.remove("hidden");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => element.classList.add("hidden"), 2200);
+}
+
+function persistCart() {
+  localStorage.setItem(CART_KEY, JSON.stringify(state.cart));
+}
+
+function persistUser() {
+  if (!state.user?.phone) return;
+  const profiles = readJson(PROFILE_KEY, {});
+  const { sessionToken, ...profile } = state.user;
+  profiles[state.user.phone] = profile;
+  localStorage.setItem(PROFILE_KEY, JSON.stringify(profiles));
+  localStorage.setItem(SESSION_KEY, JSON.stringify({ phone: state.user.phone, sessionToken: sessionToken || "" }));
+  state.name = state.user.name;
+  state.phone = state.user.phone;
+  updateAccountButton();
+}
+
+function updateAccountButton() {
+  const button = $("#accountButton");
+  const label = $("#accountButtonLabel");
+  if (state.user?.name) {
+    button.classList.add("logged-in");
+    label.textContent = state.user.name;
+    button.setAttribute("aria-label", tr("myAccount"));
+  } else {
+    button.classList.remove("logged-in");
+    label.textContent = tr("login");
+    button.setAttribute("aria-label", tr("login"));
+  }
+}
+
+function applyLanguage() {
+  document.documentElement.lang = state.lang;
+  document.documentElement.dir = state.lang === "ar" ? "rtl" : "ltr";
+  document.title = state.lang === "ar" ? "منصة طلبات التين والزيتون" : "Figs & Olives Ordering";
+  $$("[data-i18n]").forEach(element => element.textContent = tr(element.dataset.i18n));
+  $$("[data-i18n-html]").forEach(element => element.innerHTML = tr(element.dataset.i18nHtml));
+  $$("[data-i18n-placeholder]").forEach(element => element.placeholder = tr(element.dataset.i18nPlaceholder));
+  $("#languageLabel").textContent = state.lang === "ar" ? "English" : "العربية";
+  $(".steps [data-step='1'] span").textContent = tr("review");
+  $(".steps [data-step='2'] span").textContent = tr("deliveryDetails");
+  $(".steps [data-step='3'] span").textContent = tr("confirmPay");
+  updateAccountButton();
+}
+
+function setLanguage(language) {
+  state.lang = language;
+  localStorage.setItem("storeLanguage", language);
+  applyLanguage();
+  renderCategories();
+  renderProductSections();
+  renderCartBar();
+  if (!$("#checkoutModal").classList.contains("hidden")) renderCheckout();
+  if (!$("#accountDrawer").classList.contains("hidden")) renderAccountHome();
+  if (state.detailProductId) renderProductDetail(state.detailProductId);
+}
+
+function sortedCategories() {
+  return state.categories.slice().sort((a, b) => Number(a.order) - Number(b.order));
+}
+
+function categoryProducts(categoryId) {
+  return state.products.filter(item => item.category === categoryId).sort((a, b) => Number(a.order) - Number(b.order));
+}
+
+function renderCategories() {
+  const buttons = [`<button class="${state.activeCategory === "all" ? "active" : ""}" data-category-link="all">${tr("all")} <small>${state.products.length}</small></button>`];
+  for (const category of sortedCategories()) {
+    const count = categoryProducts(category.id).length;
+    if (count) buttons.push(`<button class="${state.activeCategory === category.id ? "active" : ""}" data-category-link="${escapeHtml(category.id)}">${escapeHtml(categoryName(category))} <small>${count}</small></button>`);
+  }
+  $("#categories").innerHTML = buttons.join("");
+}
+
+function productCard(item, category) {
+  const source = productImages(item)[0] || "logo.png";
+  const quantity = state.cart[item.id] || 0;
+  return `
+    <article class="product-card" data-product="${escapeHtml(item.id)}" tabindex="0">
+      <div class="product-image">
+        <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" data-src="${escapeHtml(source)}" width="640" height="580" alt="${escapeHtml(productName(item))}" decoding="async" fetchpriority="low">
+        ${quantity ? `<b class="in-cart">${tr("inCart")} × ${quantity}</b>` : ""}
+      </div>
+      <div class="product-info">
+        <small>${escapeHtml(categoryName(category))}</small>
+        <h3>${escapeHtml(productName(item))}</h3>
+        <p>${escapeHtml(productDescription(item) || item.nameEn || item.name)}</p>
+        <div class="product-foot"><strong>${money(item.price)}</strong><button data-add="${escapeHtml(item.id)}">${tr("add")}</button></div>
+      </div>
+    </article>`;
+}
+
+function renderProductSections() {
+  const query = state.search.trim().toLocaleLowerCase();
+  const sections = [];
+  for (const category of sortedCategories()) {
+    const matches = categoryProducts(category.id).filter(item => {
+      if (!query) return true;
+      return [item.name, item.nameEn, item.description, item.descriptionEn].filter(Boolean).join(" ").toLocaleLowerCase().includes(query);
+    });
+    if (!matches.length) continue;
+    sections.push(`
+      <section class="category-section" id="category-${encodeURIComponent(category.id)}" data-category-section="${escapeHtml(category.id)}">
+        <div class="section-heading"><div><span class="kicker">${escapeHtml(categoryName(category))}</span><h2>${escapeHtml(categoryName(category))}</h2></div><span>${matches.length} ${tr("products")}</span></div>
+        <div class="product-grid">${matches.map(item => productCard(item, category)).join("")}</div>
+      </section>`);
+  }
+  $("#productSections").innerHTML = sections.length ? sections.join("") : `<div class="loading">${tr("noResults")}</div>`;
+  observeImages();
+}
+
+function observeImages() {
+  imageObserver?.disconnect();
+  imageObserver = new IntersectionObserver(entries => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      const image = entry.target;
+      const source = image.dataset.src;
+      if (!source) continue;
+      image.onload = () => image.closest(".product-image")?.classList.add("loaded");
+      image.onerror = () => { image.src = "logo.png"; image.closest(".product-image")?.classList.add("loaded"); };
+      image.src = source;
+      image.removeAttribute("data-src");
+      imageObserver.unobserve(image);
+    }
+  }, { rootMargin: "650px 0px" });
+  $$("img[data-src]").forEach(image => imageObserver.observe(image));
+}
+
+function scrollToCategory(categoryId) {
+  if (categoryId === "all") return window.scrollTo({ top: 0, behavior: "smooth" });
+  const section = document.querySelector(`[data-category-section="${CSS.escape(categoryId)}"]`);
+  if (section) section.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function updateCategoryFromScroll() {
+  scrollFrame = null;
+  const sections = $$("[data-category-section]");
+  if (!sections.length) return;
+  let active = "all";
+  const threshold = Math.min(190, window.innerHeight * .32);
+  for (const section of sections) if (section.getBoundingClientRect().top <= threshold) active = section.dataset.categorySection;
+  if (window.scrollY < 300) active = "all";
+  if (active === state.activeCategory) return;
+  state.activeCategory = active;
+  $$("[data-category-link]").forEach(button => button.classList.toggle("active", button.dataset.categoryLink === active));
+  document.querySelector(`[data-category-link="${CSS.escape(active)}"]`)?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+}
+
+function changeQuantity(id, difference) {
+  state.cart[id] = Math.max(0, Number(state.cart[id] || 0) + difference);
+  if (!state.cart[id]) delete state.cart[id];
+  state.paymentRequestId = "";
+  persistCart();
+  renderCartBar();
+  renderProductSections();
+  if (state.detailProductId) renderProductDetail(state.detailProductId);
+  if (!$("#checkoutModal").classList.contains("hidden")) renderCheckout();
+}
+
+function requestAddToCart(id) {
+  if (!state.user?.name) {
+    pendingCartProductId = id;
+    openAuth("login");
+    return;
+  }
+  changeQuantity(id, 1);
+  toast(tr("added"));
+}
+
+function renderCartBar() {
+  const count = cartCount();
+  $("#floatingCart").classList.toggle("hidden", !count);
+  $("#cartBadge").textContent = count;
+  $("#headerCount").textContent = count;
+  $("#cartTotal").textContent = money(subtotal());
+}
+
+function renderProductDetail(id) {
+  const item = product(id);
+  if (!item) return closeProductPage(false);
+  const category = state.categories.find(entry => entry.id === item.category);
+  const images = productImages(item);
+  const main = images[0] || "logo.png";
+  const quantity = state.cart[item.id] || 0;
+  $("#productDetail").innerHTML = `
+    <div class="product-detail-grid">
+      <div class="product-gallery">
+        <div class="product-gallery-main"><img id="detailMainImage" src="${escapeHtml(main)}" alt="${escapeHtml(productName(item))}"></div>
+        ${images.length > 1 ? `<div class="product-thumbs">${images.map((image, index) => `<button class="${index === 0 ? "active" : ""}" data-detail-image="${escapeHtml(image)}"><img src="${escapeHtml(image)}" alt=""></button>`).join("")}</div>` : ""}
+      </div>
+      <div class="product-detail-copy">
+        <span class="kicker">${escapeHtml(category ? categoryName(category) : "")}</span><h1>${escapeHtml(productName(item))}</h1>
+        <p>${escapeHtml(productDescription(item) || item.nameEn || item.name)}</p><strong class="detail-price">${money(item.price)}</strong>
+        ${quantity ? `<div class="detail-in-cart">${tr("inCart")} × ${quantity}</div>` : ""}
+        <button class="primary detail-add" data-detail-add="${escapeHtml(item.id)}">${tr("addToCart")}</button>
+      </div>
+    </div>`;
+}
+
+function openProductPage(id, push = true) {
+  state.detailProductId = String(id);
+  renderProductDetail(id);
+  $("#productPage").classList.remove("hidden");
+  $("#productPage").setAttribute("aria-hidden", "false");
+  document.body.classList.add("detail-open");
+  window.scrollTo({ top: 0 });
+  if (push && location.hash !== `#product=${encodeURIComponent(id)}`) history.pushState({ product: id }, "", `#product=${encodeURIComponent(id)}`);
+}
+
+function closeProductPage(useHistory = true) {
+  state.detailProductId = "";
+  $("#productPage").classList.add("hidden");
+  $("#productPage").setAttribute("aria-hidden", "true");
+  document.body.classList.remove("detail-open");
+  if (useHistory && location.hash.startsWith("#product=")) history.back();
+}
+
+function syncProductRoute() {
+  const match = location.hash.match(/^#product=(.+)$/);
+  if (match) openProductPage(decodeURIComponent(match[1]), false);
+  else if (state.detailProductId) closeProductPage(false);
+}
+
+function setAuthMessage(message, success = false) {
+  const element = $("#authMessage");
+  if (!element) return;
+  element.textContent = message || "";
+  element.classList.toggle("success", success);
+}
+
+function openAuth(mode = "login") {
+  authMode = mode;
+  authPhone = mode === "changePhone" ? state.user?.phone || "" : "";
+  clearInterval(resendTimer);
+  $("#authModal").classList.remove("hidden");
+  $("#authModal").setAttribute("aria-hidden", "false");
+  $("#authModal .auth-panel").classList.remove("no-close");
+  renderPhoneAuth();
+}
+
+function closeAuth() {
+  if ($("#authModal .auth-panel").classList.contains("no-close")) return;
+  clearInterval(resendTimer);
+  if (authMode === "login") pendingCartProductId = "";
+  $("#authModal").classList.add("hidden");
+  $("#authModal").setAttribute("aria-hidden", "true");
+}
+
+function authBrand(title, text) {
+  return `<div class="auth-brand"><img src="logo.png" alt=""><h2 id="authTitle">${escapeHtml(title)}</h2><p>${escapeHtml(text || "")}</p></div>`;
+}
+
+function renderPhoneAuth() {
+  $("#authBody").innerHTML = `${authBrand(authMode === "changePhone" ? tr("changePhone") : tr("loginFirst"), tr("phoneHint"))}
+    <form class="auth-form" id="phoneAuthForm">
+      <label>${tr("phone")}<input class="phone-field" id="loginPhone" inputmode="numeric" pattern="[0-9]*" autocomplete="tel" maxlength="16" placeholder="99999999" value="${escapeHtml(authPhone)}"></label>
+      <p class="auth-message" id="authMessage"></p>
+      <button class="primary" id="sendCodeButton" type="submit">${tr("confirmPhone")}</button>
+    </form>`;
+  const input = $("#loginPhone");
+  input.oninput = event => {
+    event.target.value = normalizePhone(event.target.value);
+    authPhone = event.target.value;
+    setAuthMessage("");
+  };
+  $("#phoneAuthForm").onsubmit = event => {
+    event.preventDefault();
+    sendLoginCode();
+  };
+  setTimeout(() => input.focus(), 60);
+}
+
+async function sendLoginCode(isResend = false) {
+  authPhone = normalizePhone(authPhone || $("#loginPhone")?.value);
+  if (authPhone.length !== 8) return setAuthMessage(tr("invalidPhone"));
+  if (!orderingConfig.sendLoginCodeWebhookUrl) return setAuthMessage(tr("loginServiceUnavailable"));
+  const button = $("#sendCodeButton");
+  if (button) {
+    button.disabled = true;
+    button.innerHTML = `<span class="auth-loader"></span>`;
+  }
+  try {
+    const response = await fetch(orderingConfig.sendLoginCodeWebhookUrl, {
+      method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify({ phone: authPhone }), cache: "no-store"
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok) {
+      if (data.retryAfter && $("#otpInput")) startResendCountdown(Number(data.retryAfter));
+      throw new Error(data.message || tr("sendFailed"));
+    }
+    if (!isResend || !$("#otpInput")) renderOtpAuth();
+    else {
+      setAuthMessage(tr("codeSent"), true);
+      $("#otpInput").value = "";
+      $("#otpInput").focus();
+    }
+    startResendCountdown(Number(data.retryAfter || 30));
+  } catch (error) {
+    setAuthMessage(error.message || tr("sendFailed"));
+    if (button) {
+      button.disabled = false;
+      button.textContent = tr("confirmPhone");
+    }
+  }
+}
+
+function renderOtpAuth() {
+  $("#authBody").innerHTML = `${authBrand(tr("codeSent"), `${tr("enterCode")} — ${authPhone}`)}
+    <div class="auth-form">
+      <label>${tr("enterCode")}<input class="otp-field" id="otpInput" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" maxlength="4" placeholder="- - - -"></label>
+      <p class="auth-message success" id="authMessage">${tr("codeSent")}</p>
+      <div class="resend-row"><button class="resend-link" id="resendCode" type="button" disabled></button></div>
+    </div>`;
+  const input = $("#otpInput");
+  input.oninput = event => {
+    event.target.value = normalizePhone(event.target.value).slice(0, 4);
+    setAuthMessage("");
+    if (event.target.value.length === 4) verifyLoginCode(event.target.value);
+  };
+  setTimeout(() => input.focus(), 60);
+}
+
+function startResendCountdown(seconds = 30) {
+  clearInterval(resendTimer);
+  let remaining = Math.max(0, Math.ceil(seconds));
+  const button = $("#resendCode");
+  const update = () => {
+    const current = $("#resendCode");
+    if (!current) return clearInterval(resendTimer);
+    current.disabled = remaining > 0;
+    current.textContent = remaining > 0 ? `${tr("resendAfter")} ${remaining} ${state.lang === "ar" ? "ثانية" : "sec"}` : tr("resendCode");
+    if (remaining <= 0) {
+      clearInterval(resendTimer);
+      current.onclick = () => sendLoginCode(true);
+    }
+    remaining--;
+  };
+  if (button) update();
+  resendTimer = setInterval(update, 1000);
+}
+
+async function verifyLoginCode(code) {
+  const input = $("#otpInput");
+  if (!input || input.disabled) return;
+  if (!orderingConfig.verifyLoginCodeWebhookUrl) return setAuthMessage(tr("loginServiceUnavailable"));
+  input.disabled = true;
+  setAuthMessage(tr("verifying"), true);
+  try {
+    const response = await fetch(orderingConfig.verifyLoginCodeWebhookUrl, {
+      method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify({ phone: authPhone, code }), cache: "no-store"
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok) throw new Error(data.message || tr("invalidCode"));
+    clearInterval(resendTimer);
+    if (authMode === "changePhone" && state.user) {
+      const profiles = readJson(PROFILE_KEY, {});
+      const previousPhone = state.user.phone;
+      state.user.phone = authPhone;
+      state.user.sessionToken = data.sessionToken || state.user.sessionToken;
+      if (profiles[previousPhone]) delete profiles[previousPhone];
+      localStorage.setItem(PROFILE_KEY, JSON.stringify(profiles));
+      persistUser();
+      closeAuth();
+      openAccountDrawer("info");
+      return toast(tr("infoSaved"));
+    }
+    const profiles = readJson(PROFILE_KEY, {});
+    const profile = profiles[authPhone] || { phone: authPhone, name: "", addresses: [], orders: [] };
+    state.user = { ...profile, phone: authPhone, addresses: profile.addresses || [], orders: profile.orders || [], sessionToken: data.sessionToken || "" };
+    state.name = state.user.name;
+    state.phone = state.user.phone;
+    if (!state.user.name) return renderUsernameAuth();
+    persistUser();
+    completeLogin();
+  } catch (error) {
+    input.disabled = false;
+    input.value = "";
+    input.focus();
+    setAuthMessage(error.message || tr("verifyFailed"));
+  }
+}
+
+function renderUsernameAuth() {
+  $("#authModal .auth-panel").classList.add("no-close");
+  $("#authBody").innerHTML = `${authBrand(tr("welcome"), "")}
+    <form class="auth-form" id="usernameForm">
+      <label>${tr("username")}<input id="usernameInput" autocomplete="name" maxlength="80"></label>
+      <p class="auth-message" id="authMessage"></p>
+      <button class="primary" type="submit">${tr("confirm")}</button>
+    </form>`;
+  $("#usernameForm").onsubmit = event => {
+    event.preventDefault();
+    const name = $("#usernameInput").value.trim();
+    if (!name) return setAuthMessage(tr("nameRequired"));
+    state.user.name = name;
+    persistUser();
+    completeLogin();
+  };
+  setTimeout(() => $("#usernameInput").focus(), 60);
+}
+
+function completeLogin() {
+  $("#authModal .auth-panel").classList.remove("no-close");
+  $("#authModal").classList.add("hidden");
+  $("#authModal").setAttribute("aria-hidden", "true");
+  updateAccountButton();
+  if (pendingCartProductId) {
+    const id = pendingCartProductId;
+    pendingCartProductId = "";
+    changeQuantity(id, 1);
+    toast(tr("added"));
+  }
+}
+
+function logout() {
+  localStorage.removeItem(SESSION_KEY);
+  state.user = null;
+  state.name = "";
+  state.phone = "";
+  closeAccountDrawer();
+  updateAccountButton();
+  toast(tr("loggedOut"));
+}
+
+function openAccountDrawer(page = "home", options = {}) {
+  if (!state.user?.name) return openAuth("login");
+  accountReturnToCheckout = Boolean(options.returnToCheckout);
+  $("#accountDrawer").classList.remove("hidden");
+  $("#accountDrawer").setAttribute("aria-hidden", "false");
+  if (page === "info") renderAccountInfo();
+  else if (page === "addresses") renderAddresses();
+  else if (page === "orders") renderOrders();
+  else if (page === "addressForm") renderAddressForm(options.addressId || "");
+  else renderAccountHome();
+}
+
+function closeAccountDrawer() {
+  $("#accountDrawer").classList.add("hidden");
+  $("#accountDrawer").setAttribute("aria-hidden", "true");
+}
+
+const accountIcons = {
+  info: `<svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7 8a7 7 0 0 0-14 0"/></svg>`,
+  address: `<svg viewBox="0 0 24 24"><path d="M12 21s6-5.3 6-11a6 6 0 1 0-12 0c0 5.7 6 11 6 11Zm0-8.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"/></svg>`,
+  order: `<svg viewBox="0 0 24 24"><path d="M5 3h14v18l-3-2-4 2-4-2-3 2V3Zm4 5h6M9 12h6"/></svg>`,
+  logout: `<svg viewBox="0 0 24 24"><path d="M10 4H4v16h6M14 8l4 4-4 4M8 12h10"/></svg>`
+};
+
+function renderAccountHome() {
+  if (!state.user) return;
+  $("#accountContent").innerHTML = `
+    <section class="account-welcome"><small>${tr("welcome")}</small><h2>${escapeHtml(state.user.name)}</h2><p>${escapeHtml(state.user.phone)}</p></section>
+    <nav class="account-menu">
+      <button id="openInfo">${accountIcons.info}<span>${tr("myInfo")}</span></button>
+      <button id="openAddresses">${accountIcons.address}<span>${tr("myAddresses")}</span></button>
+      <button id="openOrders">${accountIcons.order}<span>${tr("myOrders")}</span></button>
+      <button class="logout" id="logoutButton">${accountIcons.logout}<span>${tr("logout")}</span></button>
+    </nav>`;
+  $("#openInfo").onclick = renderAccountInfo;
+  $("#openAddresses").onclick = renderAddresses;
+  $("#openOrders").onclick = renderOrders;
+  $("#logoutButton").onclick = logout;
+}
+
+function drawerPageHeader(title, extra = "") {
+  return `<div class="drawer-page-head"><button class="drawer-page-back" data-drawer-back>‹</button><h2>${escapeHtml(title)}</h2>${extra}</div>`;
+}
+
+function bindDrawerBack(target = "home") {
+  $("[data-drawer-back]")?.addEventListener("click", () => target === "addresses" ? renderAddresses() : renderAccountHome());
+}
+
+function renderAccountInfo() {
+  $("#accountContent").innerHTML = `${drawerPageHeader(tr("myInfo"))}
+    <form class="profile-form" id="profileForm">
+      <label>${tr("username")}<input id="profileName" value="${escapeHtml(state.user.name)}" maxlength="80"></label>
+      <label>${tr("phone")}<div class="profile-phone"><input value="${escapeHtml(state.user.phone)}" readonly><button class="secondary" id="changePhoneButton" type="button">${tr("changePhone")}</button></div></label>
+      <button class="primary" type="submit">${tr("save")}</button>
+    </form>`;
+  bindDrawerBack();
+  $("#changePhoneButton").onclick = () => openAuth("changePhone");
+  $("#profileForm").onsubmit = event => {
+    event.preventDefault();
+    const name = $("#profileName").value.trim();
+    if (!name) return toast(tr("nameRequired"));
+    state.user.name = name;
+    persistUser();
+    toast(tr("infoSaved"));
+    renderAccountInfo();
+  };
+}
+
+function renderAddresses() {
+  const addresses = state.user.addresses || [];
+  $("#accountContent").innerHTML = `${drawerPageHeader(tr("myAddresses"), `<button class="primary" id="addAddressTop">＋ ${tr("addAddress")}</button>`)}
+    ${addresses.length ? `<div class="address-list">${addresses.map(address => `
+      <article class="address-card">
+        <h3>${escapeHtml(address.areaName)}</h3><p>${escapeHtml(address.details)}</p><strong>${money(address.price)}</strong>
+        <div class="card-actions"><button data-edit-address="${escapeHtml(address.id)}">${tr("edit")}</button><button class="delete" data-delete-address="${escapeHtml(address.id)}">${tr("delete")}</button></div>
+      </article>`).join("")}</div>` : `<div class="empty-state">${accountIcons.address}<h3>${tr("addressesEmpty")}</h3></div>`}`;
+  bindDrawerBack();
+  $("#addAddressTop").onclick = () => renderAddressForm("");
+  $$("[data-edit-address]").forEach(button => button.onclick = () => renderAddressForm(button.dataset.editAddress));
+  $$("[data-delete-address]").forEach(button => button.onclick = () => {
+    if (!confirm(tr("delete"))) return;
+    state.user.addresses = state.user.addresses.filter(address => address.id !== button.dataset.deleteAddress);
+    if (state.addressId === button.dataset.deleteAddress) {
+      state.addressId = "";
+      state.area = null;
+      state.address = "";
+    }
+    persistUser();
+    renderAddresses();
+  });
+}
+
+function renderAddressForm(addressId = "") {
+  const existing = (state.user.addresses || []).find(address => address.id === addressId);
+  let selectedArea = existing ? { name: existing.areaName, price: existing.price } : null;
+  const resultsHtml = query => {
+    const normalizedQuery = String(query || "").trim();
+    return state.areas.filter(area => !normalizedQuery || area.name.includes(normalizedQuery)).slice(0, 60).map(area =>
+      `<button type="button" class="${selectedArea?.name === area.name ? "selected" : ""}" data-pick-area="${escapeHtml(area.name)}"><span>${escapeHtml(area.name)}</span><b>${money(area.price)}</b></button>`
+    ).join("");
+  };
+  $("#accountContent").innerHTML = `${drawerPageHeader(existing ? tr("edit") : tr("addAddress"))}
+    <form class="address-form" id="addressForm">
+      <label>${tr("areaSearch")}
+        <div class="area-picker"><input id="addressAreaSearch" value="${escapeHtml(selectedArea?.name || "")}" placeholder="${tr("areaSearch")}" autocomplete="off">
+        <div class="area-results" id="addressAreaResults">${resultsHtml("")}</div></div>
+      </label>
+      <label>${tr("addressDetails")}<textarea id="addressDetails" placeholder="${tr("addressPlaceholder")}">${escapeHtml(existing?.details || "")}</textarea></label>
+      <p class="auth-message" id="addressMessage"></p>
+      <button class="primary" type="submit">${tr("save")}</button>
+    </form>`;
+  $("[data-drawer-back]").onclick = () => {
+    if (accountReturnToCheckout) {
+      accountReturnToCheckout = false;
+      closeAccountDrawer();
+      renderDelivery();
+    } else renderAddresses();
+  };
+  const bindAreas = () => $$("[data-pick-area]").forEach(button => button.onclick = () => {
+    selectedArea = state.areas.find(area => area.name === button.dataset.pickArea) || null;
+    $("#addressAreaSearch").value = selectedArea?.name || "";
+    $("#addressAreaResults").innerHTML = resultsHtml(selectedArea?.name || "");
+    bindAreas();
+  });
+  bindAreas();
+  $("#addressAreaSearch").oninput = event => {
+    if (event.target.value !== selectedArea?.name) selectedArea = null;
+    $("#addressAreaResults").innerHTML = resultsHtml(event.target.value);
+    bindAreas();
+  };
+  $("#addressDetails").oninput = event => { event.target.value = normalizeAddressText(event.target.value); };
+  $("#addressForm").onsubmit = event => {
+    event.preventDefault();
+    const details = normalizeAddressText($("#addressDetails").value).trim();
+    if (!selectedArea) return $("#addressMessage").textContent = tr("chooseArea");
+    if (!details) return $("#addressMessage").textContent = tr("addressDetails");
+    const saved = { id: existing?.id || `address-${Date.now().toString(36)}`, areaName: selectedArea.name, price: Number(selectedArea.price), details };
+    const addresses = state.user.addresses || [];
+    const index = addresses.findIndex(address => address.id === saved.id);
+    if (index >= 0) addresses[index] = saved; else addresses.push(saved);
+    state.user.addresses = addresses;
+    persistUser();
+    toast(tr("addressSaved"));
+    if (accountReturnToCheckout) {
+      state.addressId = saved.id;
+      state.area = state.areas.find(area => area.name === saved.areaName) || { name: saved.areaName, price: saved.price };
+      state.address = saved.details;
+      accountReturnToCheckout = false;
+      closeAccountDrawer();
+      renderDelivery();
+    } else renderAddresses();
+  };
+}
+
+function renderOrders() {
+  const orders = (state.user.orders || []).slice().sort((a, b) => Number(b.createdAt) - Number(a.createdAt));
+  $("#accountContent").innerHTML = `${drawerPageHeader(tr("myOrders"))}
+    ${orders.length ? `<div class="order-list">${orders.map(order => `
+      <article class="order-card">
+        <div class="order-card-head"><div><strong class="order-number">${escapeHtml(order.orderId)}</strong><p>${escapeHtml(trLocaleDate(order.createdAt))}</p></div><span class="paid-badge">${tr("paid")}</span></div>
+        <div class="order-total"><span>${tr("total")}</span><b>${money(order.total)}</b></div>
+        <button class="primary" data-order-invoice="${escapeHtml(order.orderId)}">${tr("viewInvoice")}</button>
+      </article>`).join("")}</div>` : `<div class="empty-state">${accountIcons.order}<h3>${tr("ordersEmpty")}</h3></div>`}`;
+  bindDrawerBack();
+  $$("[data-order-invoice]").forEach(button => button.onclick = () => {
+    const order = orders.find(item => item.orderId === button.dataset.orderInvoice);
+    if (order) downloadPdf(order);
+  });
+}
+
+function openCheckout() {
+  if (!cartCount()) return;
+  if (!state.user?.name) return openAuth("login");
+  state.name = state.user.name;
+  state.phone = state.user.phone;
+  state.step = 1;
+  $("#steps").classList.remove("hidden");
+  $("#checkoutModal").classList.remove("hidden");
+  renderCheckout();
+}
+
+function setSteps() {
+  $$(".steps [data-step]").forEach(element => {
+    const step = Number(element.dataset.step);
+    element.classList.toggle("active", step === state.step);
+    element.classList.toggle("done", step < state.step);
+  });
+}
+
+function renderCheckout() {
+  setSteps();
+  $("#checkoutTitle").textContent = state.step === 3 ? tr("confirmPay") : tr("completeOrder");
+  if (state.step === 1) renderReview();
+  else if (state.step === 2) renderDelivery();
+  else renderConfirmation();
+}
+
+function totalsHtml() {
+  return `<div class="totals"><span>${tr("productsTotal")} <b>${money(subtotal())}</b></span>${deliveryFee() ? `<span>${tr("deliveryFee")} <b>${money(deliveryFee())}</b></span>` : ""}<strong>${tr("total")} <b>${money(total())}</b></strong></div>`;
+}
+
+function renderReview() {
+  $("#checkoutBody").innerHTML = `
+    <div class="cart-list">${cartItems().map(({ product: item, quantity }) => `
+      <div class="cart-row"><img src="${escapeHtml(productImages(item)[0] || "logo.png")}" alt="">
+        <div><h4>${escapeHtml(productName(item))}</h4><strong>${money(item.price * quantity)}</strong></div>
+        <div class="qty"><button data-plus="${escapeHtml(item.id)}">+</button><span>${quantity}</span><button data-minus="${escapeHtml(item.id)}">${quantity === 1 ? "×" : "−"}</button></div>
+      </div>`).join("")}</div>${totalsHtml()}<button class="primary" id="next1">${tr("confirmContinue")}</button>`;
+  $("#next1").onclick = () => { state.step = 2; renderCheckout(); };
+}
+
+function selectSavedAddress(addressId) {
+  const saved = (state.user.addresses || []).find(address => address.id === addressId);
+  if (!saved) return;
+  state.addressId = saved.id;
+  state.area = state.areas.find(area => area.name === saved.areaName) || { name: saved.areaName, price: saved.price };
+  state.address = saved.details;
+  state.paymentRequestId = "";
+  renderDelivery();
+}
+
+function renderDelivery() {
+  const addresses = state.user.addresses || [];
+  const deliveryForm = addresses.length ? `
+    <h3>${tr("selectAddress")}</h3><div class="checkout-addresses">${addresses.map(address => `
+      <button class="checkout-address ${state.addressId === address.id ? "selected" : ""}" data-checkout-address="${escapeHtml(address.id)}">
+        <span class="radio"></span><div><strong>${escapeHtml(address.areaName)} — ${money(address.price)}</strong><small>${escapeHtml(address.details)}</small></div>
+      </button>`).join("")}</div><button class="add-address-button" id="checkoutAddAddress">＋ ${tr("addAddress")}</button>` :
+    `<div class="empty-state">${accountIcons.address}<h3>${tr("noAddedAddresses")}</h3><button class="primary" id="checkoutAddAddress">＋ ${tr("addAddress")}</button></div>`;
+  const pickupForm = `<div class="branches">${branches.map(branch => `
+    <button class="option ${state.branch === branch.id ? "selected" : ""}" data-branch="${branch.id}">
+      <span class="radio"></span><div><strong>${escapeHtml(branchField(branch, "name"))}</strong><b>${escapeHtml(branchField(branch, "brand"))}</b><small>${escapeHtml(branchField(branch, "address"))}<br>${branch.phone}</small></div>
+    </button>`).join("")}</div>`;
+  $("#checkoutBody").innerHTML = `
+    <div class="tabs"><button class="${state.mode === "delivery" ? "active" : ""}" id="deliveryTab">🚚 ${tr("delivery")}</button><button class="${state.mode === "pickup" ? "active" : ""}" id="pickupTab">⌂ ${tr("pickup")}</button></div>
+    ${state.mode === "delivery" ? deliveryForm : pickupForm}
+    <div class="actions"><button class="secondary" id="back1">${tr("back")}</button><button class="primary" id="next2">${tr("confirmContinue")}</button></div>`;
+  $("#deliveryTab").onclick = () => { state.mode = "delivery"; renderDelivery(); };
+  $("#pickupTab").onclick = () => { state.mode = "pickup"; renderDelivery(); };
+  $("#back1").onclick = () => { state.step = 1; renderCheckout(); };
+  $("#checkoutAddAddress")?.addEventListener("click", () => openAccountDrawer("addressForm", { returnToCheckout: true }));
+  $$("[data-checkout-address]").forEach(button => button.onclick = () => selectSavedAddress(button.dataset.checkoutAddress));
+  $$("[data-branch]").forEach(button => button.onclick = () => { state.branch = button.dataset.branch; state.paymentRequestId = ""; renderDelivery(); });
+  $("#next2").onclick = () => {
+    if (state.mode === "delivery" && !state.addressId) return toast(tr("completeDelivery"));
+    if (state.mode === "pickup" && !state.branch) return toast(tr("chooseBranch"));
+    state.step = 3;
+    renderCheckout();
+  };
+}
+
+function deliverySummary() {
+  if (state.mode === "pickup") {
+    const branch = branches.find(item => item.id === state.branch);
+    return branch ? `${branchField(branch, "name")} — ${branchField(branch, "address")}` : "";
+  }
+  return `${state.area?.name || ""} — ${state.address}`;
+}
+
+function renderConfirmation() {
+  $("#checkoutTitle").textContent = tr("confirmPay");
+  $("#checkoutBody").innerHTML = `
+    <section class="confirmation-card">
+      <div class="customer-summary">
+        <div class="summary-box"><small>${tr("customerName")}</small><strong>${escapeHtml(state.user.name)}</strong></div>
+        <div class="summary-box"><small>${tr("phone")}</small><strong class="phone">${escapeHtml(state.user.phone)}</strong></div>
+        <div class="summary-box full"><small>${state.mode === "delivery" ? tr("deliveryAddress") : tr("pickupBranch")}</small><strong>${escapeHtml(deliverySummary())}</strong></div>
+      </div>
+      <div class="price-summary">
+        <button class="price-row products-toggle" id="productsToggle"><span><b class="arrow">‹</b> ${tr("productsTotal")}</span><strong>${money(subtotal())}</strong></button>
+        <div class="confirmation-products hidden" id="confirmationProducts">${cartItems().map(({ product: item, quantity }) => `
+          <div class="confirmation-product"><img src="${escapeHtml(productImages(item)[0] || "logo.png")}" alt=""><span>${escapeHtml(productName(item))} × ${quantity}</span><b>${money(Number(item.price) * quantity)}</b></div>`).join("")}</div>
+        <div class="price-row"><span>${tr("deliveryFee")}</span><strong>${money(deliveryFee())}</strong></div>
+        <div class="price-row total-row"><span>${tr("total")}</span><strong>${money(total())}</strong></div>
+      </div>
+      <div class="actions"><button class="secondary" id="back2">${tr("back")}</button><button class="primary pay-now" id="finish">${tr("payNow")}</button></div>
+    </section>`;
+  $("#productsToggle").onclick = () => {
+    const details = $("#confirmationProducts");
+    const open = details.classList.toggle("hidden") === false;
+    $("#productsToggle").classList.toggle("open", open);
+    $("#productsToggle").setAttribute("aria-label", open ? tr("hideProducts") : tr("showProducts"));
+  };
+  $("#back2").onclick = () => { state.step = 2; renderCheckout(); };
+  $("#finish").onclick = finishOrder;
+}
+
+function requestId() {
+  if (window.crypto?.randomUUID) return crypto.randomUUID().replace(/-/g, "");
+  return `${Date.now()}_${Math.random().toString(36).slice(2)}_${Math.random().toString(36).slice(2)}`;
+}
+
+function paymentPayload() {
+  return {
+    idempotencyKey: state.paymentRequestId,
+    customer: { name: state.user.name.trim(), phone: normalizePhone(state.user.phone) },
+    items: cartItems().map(({ product: item, quantity }) => ({ id: String(item.id), quantity })),
+    delivery: { mode: state.mode, areaName: state.area?.name || "", branchId: state.branch || "", address: state.address || "" }
+  };
+}
+
+function pendingSnapshot(payment) {
+  return {
+    ...payment,
+    checkout: {
+      cart: state.cart, mode: state.mode, areaName: state.area?.name || "", branch: state.branch,
+      addressId: state.addressId, address: state.address, name: state.user.name, phone: state.user.phone, lang: state.lang
+    }
+  };
+}
+
+function restorePending(pending) {
+  const saved = pending.checkout || {};
+  state.cart = saved.cart || state.cart;
+  state.mode = saved.mode || state.mode;
+  state.area = state.areas.find(area => area.name === saved.areaName) || state.area;
+  state.branch = saved.branch || state.branch;
+  state.addressId = saved.addressId || state.addressId;
+  state.address = saved.address || state.address;
+  state.name = saved.name || state.name;
+  state.phone = saved.phone || state.phone;
+  state.order = pending.orderId || state.order;
+  if (saved.lang && saved.lang !== state.lang) setLanguage(saved.lang);
+  persistCart();
+  renderCartBar();
+}
+
+async function finishOrder() {
+  if (!state.user?.name || normalizePhone(state.user.phone).length !== 8) return openAuth("login");
+  if (!orderingConfig.paymentWebhookUrl || !orderingConfig.paymentStatusWebhookUrl) return paymentError(tr("paymentUnavailable"));
+  state.paymentRequestId = state.paymentRequestId || requestId();
+  $("#steps").classList.add("hidden");
+  $("#checkoutTitle").textContent = tr("redirecting");
+  $("#checkoutBody").innerHTML = `<div class="loading-state"><div class="spinner"></div><h3>${tr("redirecting")}</h3><p>${tr("creatingSecureLink")}</p></div>`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 75000);
+  try {
+    const response = await fetch(orderingConfig.paymentWebhookUrl, {
+      method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify(paymentPayload()), signal: controller.signal, cache: "no-store"
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok) throw new Error(data.error || tr("createFailed"));
+    const target = new URL(data.paymentUrl);
+    if (target.protocol !== "https:") throw new Error(tr("invalidSecureLink"));
+    state.order = data.orderId || state.order;
+    const pending = pendingSnapshot({ orderId: state.order, statusToken: data.statusToken || "", paymentUrl: target.href, createdAt: Date.now() });
+    sessionStorage.setItem("pendingBedeOrder", JSON.stringify(pending));
+    window.location.replace(target.href);
+  } catch (error) {
+    paymentError(error.name === "AbortError" ? tr("createTimeout") : error.message);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function showPaymentWaiting(pending) {
+  $("#checkoutTitle").textContent = tr("checkingPayment");
+  $("#checkoutBody").innerHTML = `<div class="loading-state"><div class="spinner"></div><h3>${tr("checkingResult")}</h3><p id="paymentStatusText">${tr("autoAccept")}</p><button class="secondary" id="reopenPayment" style="width:min(360px,100%);margin-top:18px">${tr("returnGateway")}</button></div>`;
+  $("#reopenPayment").onclick = () => window.location.replace(pending.paymentUrl);
+}
+
+const delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
+
+async function watchPayment(pending) {
+  const version = ++paymentWatchVersion;
+  const started = Date.now();
+  let errors = 0;
+  let firstCheck = true;
+  while (version === paymentWatchVersion && Date.now() - started < 30 * 60 * 1000) {
+    if (!firstCheck) await delay(5000);
+    firstCheck = false;
+    try {
+      const response = await fetch(orderingConfig.paymentStatusWebhookUrl, {
+        method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        body: JSON.stringify({ orderId: pending.orderId, statusToken: pending.statusToken }), cache: "no-store"
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.ok) throw new Error(data.error || "Verification failed");
+      errors = 0;
+      if (data.status === "paid") {
+        paymentWatchVersion++;
+        sessionStorage.removeItem("pendingBedeOrder");
+        history.replaceState({}, "", location.pathname);
+        return showSuccess();
+      }
+      if (data.status === "failed") {
+        paymentWatchVersion++;
+        sessionStorage.removeItem("pendingBedeOrder");
+        history.replaceState({}, "", location.pathname);
+        return paymentDeclined();
+      }
+      if ($("#paymentStatusText")) $("#paymentStatusText").textContent = tr("stillPending");
+    } catch {
+      errors++;
+      if (errors >= 3 && $("#paymentStatusText")) $("#paymentStatusText").textContent = tr("tempCheckError");
+    }
+  }
+  if (version === paymentWatchVersion) paymentPendingTimeout(pending);
+}
+
+function paymentDeclined() {
+  state.paymentRequestId = "";
+  $("#checkoutTitle").textContent = tr("declinedTitle");
+  $("#checkoutBody").innerHTML = `<div class="payment-error"><div class="error-mark">×</div><h3>${tr("declinedTitle")}</h3><p>${tr("declinedText")}</p><div class="actions"><button class="secondary" id="declinedBack">${tr("backToPayment")}</button><button class="primary" id="declinedRetry">${tr("retry")}</button></div></div>`;
+  $("#declinedBack").onclick = $("#declinedRetry").onclick = () => { state.step = 3; $("#steps").classList.remove("hidden"); renderCheckout(); };
+}
+
+function paymentPendingTimeout(pending) {
+  $("#checkoutTitle").textContent = tr("unconfirmed");
+  $("#checkoutBody").innerHTML = `<div class="payment-error"><div class="error-mark">!</div><h3>${tr("unconfirmed")}</h3><p>${tr("unconfirmedText")}</p><div class="actions"><button class="secondary" id="pendingOpen">${tr("returnGateway")}</button><button class="primary" id="pendingCheck">${tr("checkAgain")}</button></div></div>`;
+  $("#pendingOpen").onclick = () => window.location.replace(pending.paymentUrl);
+  $("#pendingCheck").onclick = () => { showPaymentWaiting(pending); watchPayment(pending); };
+}
+
+function paymentError(message) {
+  $("#steps").classList.remove("hidden");
+  state.step = 3;
+  setSteps();
+  $("#checkoutTitle").textContent = tr("startFailed");
+  $("#checkoutBody").innerHTML = `<div class="payment-error"><div class="error-mark">!</div><h3>${tr("linkNotCreated")}</h3><p>${escapeHtml(message || tr("createFailed"))}</p><div class="actions"><button class="secondary" id="paymentBack">${tr("back")}</button><button class="primary" id="paymentRetry">${tr("retry")}</button></div></div>`;
+  $("#paymentBack").onclick = () => { state.step = 3; renderCheckout(); };
+  $("#paymentRetry").onclick = finishOrder;
+}
+
+function resumePendingPayment() {
+  const raw = sessionStorage.getItem("pendingBedeOrder");
+  if (!raw) return;
+  try {
+    const pending = JSON.parse(raw);
+    if (!pending.orderId || !pending.statusToken || !pending.paymentUrl) throw new Error("Invalid payment state");
+    restorePending(pending);
+    $("#checkoutModal").classList.remove("hidden");
+    $("#steps").classList.add("hidden");
+    showPaymentWaiting(pending);
+    watchPayment(pending);
+  } catch {
+    sessionStorage.removeItem("pendingBedeOrder");
+  }
+}
+
+function currentInvoiceModel() {
+  return {
+    orderId: state.order, createdAt: Date.now(), customerName: state.user?.name || state.name,
+    phone: state.user?.phone || state.phone, mode: state.mode, areaName: state.area?.name || "",
+    address: state.address, branchId: state.branch,
+    items: cartItems().map(({ product: item, quantity }) => ({ id: String(item.id), nameAr: item.name, nameEn: item.nameEn || item.name, quantity, unitPrice: Number(item.price), total: Number(item.price) * quantity })),
+    subtotal: subtotal(), deliveryFee: deliveryFee(), total: total(), status: "paid"
+  };
+}
+
+function saveCompletedOrder(order) {
+  if (!state.user) return;
+  state.user.orders = state.user.orders || [];
+  if (!state.user.orders.some(item => item.orderId === order.orderId)) state.user.orders.unshift(order);
+  persistUser();
+}
+
+function showSuccess() {
+  const order = currentInvoiceModel();
+  state.lastInvoice = order;
+  saveCompletedOrder(order);
+  buildInvoice(order);
+  $("#checkoutTitle").textContent = tr("received");
+  $("#checkoutBody").innerHTML = `<div class="success"><div class="check">✓</div><h3>${tr("received")}</h3><p>${tr("orderNumber")}</p><strong class="order-no">${escapeHtml(state.order)}</strong><div class="actions" style="width:min(420px,100%)"><button class="secondary" id="newOrder">${tr("backStore")}</button><button class="primary" id="pdf">${tr("downloadInvoice")}</button></div></div>`;
+  $("#newOrder").onclick = () => {
+    state.cart = {};
+    persistCart();
+    renderCartBar();
+    renderProductSections();
+    $("#checkoutModal").classList.add("hidden");
+  };
+  $("#pdf").onclick = () => downloadPdf(order);
+}
+
+function orderItemName(item) {
+  return state.lang === "ar" ? (item.nameAr || item.nameEn) : (item.nameEn || item.nameAr);
+}
+
+function buildInvoice(order) {
+  const pickup = branches.find(branch => branch.id === order.branchId);
+  const destination = order.mode === "delivery" ? `${order.areaName || ""} - ${order.address || ""}` : `${tr("pickup")}: ${pickup ? branchField(pickup, "name") : ""}`;
+  $("#invoice").innerHTML = `
+    <img src="logo.png" alt=""><h2>${tr("brand")}</h2>
+    <p>${state.lang === "ar" ? "الكويت، حولي، شارع تونس، مجمع علي فهد الخالد، دور الميزانين" : "Kuwait, Hawalli, Tunis Street, Ali Fahad Al-Khaled Complex"}<br>66906605 | 22085888</p>
+    <hr><p>${tr("orderNumber")}: <b>#${escapeHtml(order.orderId)}</b> — ${new Date(order.createdAt).toLocaleDateString(state.lang === "ar" ? "ar-KW" : "en-GB")}</p>
+    <p><b>${tr("customer")}: ${escapeHtml(order.customerName || tr("customer"))}</b><br>${escapeHtml(order.phone || "")}<br>📍 ${escapeHtml(destination)}<br>${tr("payOnline")}</p>
+    <table><thead><tr><th>${tr("item")}</th><th>${tr("quantity")}</th><th>${tr("price")}</th></tr></thead>
+    <tbody>${order.items.map(item => `<tr><td>${escapeHtml(orderItemName(item))}</td><td>${item.quantity}</td><td>${money(item.total)}</td></tr>`).join("")}</tbody></table>
+    <div class="invoice-totals"><span>${tr("productsTotal")} <b>${money(order.subtotal)}</b></span><span>${tr("deliveryFee")} <b>${money(order.deliveryFee)}</b></span><strong>${tr("total")} <b>${money(order.total)}</b></strong></div>
+    <footer>${tr("thankYou")}<br><small>${tr("healthPhrase")}</small></footer>`;
+}
+
+async function downloadPdf(order = state.lastInvoice || currentInvoiceModel()) {
+  try {
+    toast(tr("preparingInvoiceDownload"));
+    buildInvoice(order);
+    if (!window.html2canvas || !window.jspdf?.jsPDF) throw new Error("PDF libraries unavailable");
+    await document.fonts?.ready;
+    const logo = $("#invoice img");
+    if (logo?.decode) await logo.decode().catch(() => undefined);
+    const canvas = await html2canvas($("#invoice"), { scale: 2, backgroundColor: "#fff", useCORS: true, logging: false });
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF("p", "mm", "a4");
+    const pageWidth = 190;
+    const pageHeight = 277;
+    const imageHeight = canvas.height * pageWidth / canvas.width;
+    const image = canvas.toDataURL("image/jpeg", .94);
+    let remaining = imageHeight;
+    let y = 10;
+    pdf.addImage(image, "JPEG", 10, y, pageWidth, imageHeight, undefined, "FAST");
+    remaining -= pageHeight;
+    while (remaining > 0) {
+      pdf.addPage();
+      y = 10 - (imageHeight - remaining);
+      pdf.addImage(image, "JPEG", 10, y, pageWidth, imageHeight, undefined, "FAST");
+      remaining -= pageHeight;
+    }
+    pdf.save(`invoice-${order.orderId}.pdf`);
+  } catch (error) {
+    console.error(error);
+    toast(tr("invoiceFailed"));
+  }
+}
+
+$("#languageToggle").onclick = () => setLanguage(state.lang === "ar" ? "en" : "ar");
+$("#accountButton").onclick = () => state.user?.name ? openAccountDrawer() : openAuth("login");
+$("#authClose").onclick = closeAuth;
+$("#authModal").onclick = event => { if (event.target === $("#authModal")) closeAuth(); };
+$("#drawerClose").onclick = closeAccountDrawer;
+$("#drawerBackdrop").onclick = closeAccountDrawer;
+$("#searchInput").oninput = event => { state.search = event.target.value; renderProductSections(); };
+$("#categories").onclick = event => {
+  const button = event.target.closest("[data-category-link]");
+  if (button) scrollToCategory(button.dataset.categoryLink);
+};
+$("#productSections").onclick = event => {
+  const addButton = event.target.closest("[data-add]");
+  if (addButton) {
+    event.stopPropagation();
+    requestAddToCart(addButton.dataset.add);
+    return;
+  }
+  const card = event.target.closest("[data-product]");
+  if (card) openProductPage(card.dataset.product);
+};
+$("#productSections").onkeydown = event => {
+  if (!["Enter", " "].includes(event.key)) return;
+  const card = event.target.closest("[data-product]");
+  if (card) { event.preventDefault(); openProductPage(card.dataset.product); }
+};
+$("#productDetail").onclick = event => {
+  const imageButton = event.target.closest("[data-detail-image]");
+  if (imageButton) {
+    $("#detailMainImage").src = imageButton.dataset.detailImage;
+    $$(".product-thumbs button").forEach(button => button.classList.toggle("active", button === imageButton));
+  }
+  const addButton = event.target.closest("[data-detail-add]");
+  if (addButton) requestAddToCart(addButton.dataset.detailAdd);
+};
+$("#productBack").onclick = () => closeProductPage();
+$("#checkoutBtn").onclick = openCheckout;
+$("#cartSummary").onclick = openCheckout;
+$("#headerCart").onclick = openCheckout;
+$("#closeCheckout").onclick = () => $("#checkoutModal").classList.add("hidden");
+$("#checkoutBody").onclick = event => {
+  const plus = event.target.closest("[data-plus]");
+  const minus = event.target.closest("[data-minus]");
+  if (plus) changeQuantity(plus.dataset.plus, 1);
+  if (minus) changeQuantity(minus.dataset.minus, -1);
+};
+window.addEventListener("scroll", () => {
+  if (scrollFrame) return;
+  scrollFrame = requestAnimationFrame(updateCategoryFromScroll);
+}, { passive: true });
+window.addEventListener("hashchange", syncProductRoute);
+window.addEventListener("popstate", syncProductRoute);
+document.addEventListener("gesturestart", event => event.preventDefault(), { passive: false });
+document.addEventListener("gesturechange", event => event.preventDefault(), { passive: false });
+document.addEventListener("gestureend", event => event.preventDefault(), { passive: false });
+document.addEventListener("touchmove", event => { if (event.touches.length > 1) event.preventDefault(); }, { passive: false });
+
+applyLanguage();
+if (state.user) {
+  state.name = state.user.name;
+  state.phone = state.user.phone;
+}
+Promise.all([
+  fetch("products.json", { cache: "no-store" }).then(response => response.json()),
+  fetch("categories.json", { cache: "no-store" }).then(response => response.json()),
+  fetch("delivery-areas.json", { cache: "no-store" }).then(response => response.json())
+]).then(([products, categories, areas]) => {
+  state.products = products;
+  state.categories = categories;
+  state.areas = areas;
+  renderCategories();
+  renderProductSections();
+  renderCartBar();
+  syncProductRoute();
+  resumePendingPayment();
+}).catch(error => {
+  console.error(error);
+  $("#productSections").innerHTML = `<div class="loading">${tr("loadingError")}</div>`;
+});

@@ -1,0 +1,70 @@
+html,body{touch-action:pan-x pan-y;-webkit-text-size-adjust:100%}
+input,textarea,select{font-size:16px!important}
+.header-actions{display:flex;align-items:center;gap:8px}
+.account-trigger,.header-cart{min-height:48px}
+.account-trigger{border:1px solid var(--line);border-radius:999px;padding:9px 13px;background:#fff;color:var(--dark);display:flex;align-items:center;gap:7px;font-weight:900}
+.account-trigger svg,.header-cart svg,.bag svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.account-trigger.logged-in{background:#edf4ef;border-color:#d6e4db}
+.header-cart{gap:7px}.header-cart>svg{width:20px}
+.bag svg{width:25px;height:25px}
+.steps i svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.steps .done i{position:relative}.steps .done i svg{opacity:0}
+.steps .done i:after{content:"✓";position:absolute;font-size:19px}
+
+.auth-modal{z-index:180}
+.auth-panel{position:relative;width:min(470px,100%);background:var(--paper);border-radius:28px;padding:34px;box-shadow:0 35px 90px #071c1452}
+.auth-close{position:absolute;inset-inline-start:18px;top:18px;width:40px;height:40px;border:0;border-radius:50%;background:#eef1ec;color:var(--ink);font-size:25px;display:grid;place-items:center}
+.auth-panel.no-close .auth-close{display:none}
+.auth-brand{text-align:center}.auth-brand img{width:78px;height:78px;object-fit:contain}.auth-brand h2{font-size:25px;margin:13px 0 7px}.auth-brand p{margin:0 0 24px;color:var(--muted);font-size:12px;line-height:1.9}
+.auth-form{display:grid;gap:12px}.auth-form label{display:grid;gap:8px;font-size:12px;font-weight:900}
+.auth-form input{width:100%;min-height:56px;border:1px solid #dce2dd;border-radius:16px;padding:13px 15px;background:#fff;outline:none}
+.auth-form input:focus{border-color:var(--green);box-shadow:0 0 0 4px #2d6a4f17}
+.phone-field{direction:ltr;text-align:center;font-size:22px!important;letter-spacing:.12em;font-weight:800}
+.otp-field{direction:ltr;text-align:center;font-size:30px!important;letter-spacing:.65em;font-weight:900;padding-inline-start:1.05em!important}
+.auth-message{min-height:22px;margin:0;text-align:center;color:#b12b25;font-size:11px;line-height:1.8}.auth-message.success{color:var(--green)}
+.resend-row{text-align:center;color:var(--muted);font-size:11px}.resend-link{border:0;background:transparent;color:var(--green);font-weight:900;text-decoration:underline;text-underline-offset:4px}.resend-link:disabled{color:#919b95;text-decoration:none;cursor:not-allowed}
+.auth-loader{display:inline-block;width:18px;height:18px;border:2px solid #ffffff66;border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle}
+
+.drawer-layer{position:fixed;inset:0;z-index:170;display:flex;justify-content:flex-start}
+.drawer-backdrop{position:absolute;inset:0;border:0;background:#0d21198f;backdrop-filter:blur(6px)}
+.account-drawer{position:relative;width:min(430px,92vw);height:100%;background:var(--paper);box-shadow:-18px 0 65px #071c1447;overflow:auto;animation:drawerIn .25s ease both}
+[dir=ltr] .account-drawer{box-shadow:18px 0 65px #071c1447}
+@keyframes drawerIn{from{transform:translateX(35px);opacity:.4}to{transform:translateX(0);opacity:1}}
+.account-drawer>header{position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:10px;padding:15px 18px;background:#fffefbe8;border-bottom:1px solid var(--line);backdrop-filter:blur(14px)}
+.account-drawer>header button,.drawer-page-back{border:0;background:#eef1ec;width:42px;height:42px;border-radius:50%;font-size:23px}
+.account-drawer>header img{width:38px;height:38px;object-fit:contain;margin-inline-start:auto}.account-drawer>header span{font-weight:900}
+#accountContent{padding:24px 18px 34px}
+.account-welcome{padding:20px;border-radius:23px;background:linear-gradient(135deg,#eaf1e7,#f6f0e3);margin-bottom:18px}
+.account-welcome small{color:var(--muted)}.account-welcome h2{font-size:25px;margin:5px 0}.account-welcome p{direction:ltr;text-align:right;margin:0;color:var(--green);font-weight:800}
+[dir=ltr] .account-welcome p{text-align:left}
+.account-menu{display:grid;gap:9px}.account-menu>button{min-height:62px;border:1px solid var(--line);background:#fff;border-radius:17px;padding:12px 15px;display:flex;align-items:center;gap:12px;text-align:start;color:var(--ink);font-weight:900}
+.account-menu>button svg,.page-title svg{width:24px;height:24px;fill:none;stroke:var(--green);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.account-menu>button:after{content:"‹";margin-inline-start:auto;font-size:24px;color:#9ba59f}
+[dir=ltr] .account-menu>button:after{content:"›"}
+.account-menu .logout{margin-top:18px;color:#b52b26;background:#fff6f5;border-color:#f0d4d2}.account-menu .logout svg{stroke:#b52b26}.account-menu .logout:after{display:none}
+.drawer-page-head{display:flex;align-items:center;gap:12px;margin-bottom:20px}.drawer-page-head h2{font-size:24px;margin:0}.drawer-page-head .primary{width:auto;margin-inline-start:auto;min-height:44px}
+.profile-form,.address-form{display:grid;gap:14px}.profile-form label,.address-form label{display:grid;gap:7px;font-size:12px;font-weight:900}
+.profile-form input,.address-form input,.address-form textarea{width:100%;border:1px solid var(--line);border-radius:15px;padding:13px;outline:0;background:#fff}.address-form textarea{min-height:115px;resize:vertical}
+.profile-phone{display:flex;align-items:center;gap:8px}.profile-phone input{direction:ltr}.profile-phone button{flex:0 0 auto;min-height:50px}
+.empty-state{text-align:center;border:1px dashed #cbd4ce;background:#fafbf9;border-radius:22px;padding:42px 20px;color:var(--muted)}.empty-state svg{width:52px;height:52px;fill:none;stroke:#9aae9f;stroke-width:1.5}.empty-state h3{color:var(--ink);margin:12px 0 4px}
+.address-list,.order-list{display:grid;gap:11px}.address-card,.order-card{border:1px solid var(--line);background:#fff;border-radius:18px;padding:15px}
+.address-card.selected{border-color:var(--green);background:#f1f7f3}.address-card h3,.order-card h3{margin:0 0 5px;font-size:14px}.address-card p,.order-card p{margin:0;color:var(--muted);font-size:11px;line-height:1.9}.address-card strong{display:inline-block;margin-top:7px;color:var(--green);font-size:12px}
+.card-actions{display:flex;gap:7px;margin-top:12px}.card-actions button{border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 12px;font-size:11px;font-weight:900}.card-actions .delete{color:#b52b26}
+.area-picker{position:relative}.area-results{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:15px;background:#fff;margin-top:6px}.area-results button{width:100%;border:0;border-bottom:1px solid #eef0ec;background:#fff;padding:12px;display:flex;justify-content:space-between;gap:10px;text-align:start}.area-results button:hover,.area-results button.selected{background:#edf5f0}.area-results b{color:var(--green);white-space:nowrap}
+.order-card-head{display:flex;align-items:start;justify-content:space-between;gap:10px}.order-number{direction:ltr;color:var(--green);font-size:16px}.paid-badge{background:#e7f4ec;color:#24704c;padding:5px 9px;border-radius:999px;font-size:9px;font-weight:900}.order-total{display:flex;justify-content:space-between;border-top:1px dashed var(--line);margin-top:10px;padding-top:10px;font-size:12px}.order-card .primary{margin-top:12px;min-height:44px}
+
+.checkout-addresses{display:grid;gap:10px}.checkout-address{width:100%;text-align:start;display:flex;gap:11px;border:1px solid var(--line);background:#fff;border-radius:17px;padding:14px;color:var(--ink)}.checkout-address.selected{border-color:var(--green);background:#f1f7f3}.checkout-address .radio{margin-top:2px}.checkout-address div{display:grid;gap:3px}.checkout-address strong{font-size:13px}.checkout-address small{font-size:10px;color:var(--muted);line-height:1.8}
+.add-address-button{width:100%;min-height:52px;border:1px dashed var(--green);background:#f5faf7;color:var(--green);border-radius:16px;font-weight:900;margin-top:10px}
+.confirmation-card{display:grid;gap:14px}.customer-summary{display:grid;grid-template-columns:1fr 1fr;gap:10px}.summary-box{border:1px solid var(--line);border-radius:16px;padding:13px;background:#fff}.summary-box.full{grid-column:1/-1}.summary-box small{display:block;color:var(--muted);font-size:10px;margin-bottom:5px}.summary-box strong{display:block;font-size:13px}.summary-box .phone{direction:ltr;text-align:right}
+[dir=ltr] .summary-box .phone{text-align:left}
+.price-summary{border:1px solid var(--line);border-radius:18px;overflow:hidden}.price-row{display:flex;justify-content:space-between;gap:12px;padding:13px 15px;border-bottom:1px solid #eef0ec;font-size:12px}.price-row.total-row{background:#f0f6f2;font-size:15px;font-weight:900;border:0}.products-toggle{width:100%;border:0;background:#fff;color:var(--ink);align-items:center}.products-toggle .arrow{transition:.2s;font-size:18px}.products-toggle.open .arrow{transform:rotate(90deg)}[dir=rtl] .products-toggle.open .arrow{transform:rotate(-90deg)}
+.confirmation-products{display:grid;background:#fbfcfa}.confirmation-product{display:grid;grid-template-columns:45px 1fr auto;align-items:center;gap:9px;padding:9px 14px;border-bottom:1px solid #eef0ec}.confirmation-product img{width:45px;height:45px;border-radius:10px;object-fit:cover}.confirmation-product span{font-size:10px}.confirmation-product b{font-size:10px;color:var(--green)}
+.pay-now{min-height:58px;font-size:16px;background:linear-gradient(135deg,var(--green),var(--dark))}
+
+@media(max-width:900px){.account-trigger span,.header-cart>span{display:none}.account-trigger,.header-cart{width:46px;height:46px;padding:0;justify-content:center}.header-cart b{position:absolute;top:1px;right:0;width:20px;height:20px;font-size:8px}.header-cart{position:relative}.brand strong{font-size:15px}}
+@media(max-width:760px){
+  .auth-panel{border-radius:27px 27px 0 0;padding:31px 20px 25px}.auth-modal{place-items:end center;padding:0}
+  .auth-brand h2{font-size:21px}.account-drawer{width:100%}
+  .customer-summary{grid-template-columns:1fr}.summary-box.full{grid-column:auto}
+  .drawer-page-head{align-items:flex-start}.drawer-page-head h2{font-size:20px}
+}
