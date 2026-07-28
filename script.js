@@ -1,6 +1,28 @@
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const orderingConfig = window.ORDERING_CONFIG || {};
+const firebaseServices = window.ORDERING_FIREBASE;
+let firebaseAuthUser = null;
+
+const firebaseIdentityReady = new Promise(resolve => {
+  if (!firebaseServices) return resolve(null);
+  let unsubscribe = null;
+  unsubscribe = firebaseServices.auth.onAuthStateChanged(async user => {
+    if (!user) {
+      try {
+        await firebaseServices.auth.signInAnonymously();
+      } catch (error) {
+        console.error("Firebase anonymous sign-in failed", error);
+        unsubscribe?.();
+        resolve(null);
+      }
+      return;
+    }
+    firebaseAuthUser = user;
+    unsubscribe?.();
+    resolve(user);
+  });
+});
 
 const translations = {
   ar: {
@@ -236,6 +258,49 @@ function persistUser() {
   state.name = state.user.name;
   state.phone = state.user.phone;
   updateAccountButton();
+  syncUserToFirebase().catch(error => console.error("Firebase profile sync failed", error));
+}
+
+async function syncUserToFirebase() {
+  const identity = firebaseAuthUser || await firebaseIdentityReady;
+  if (!identity || !state.user?.phone || !state.user?.name) return;
+  const { sessionToken, ...profile } = state.user;
+  await firebaseServices.database.ref(`orderingPlatform/customers/${identity.uid}`).set({
+    phone: normalizePhone(profile.phone),
+    name: String(profile.name || "").slice(0, 80),
+    addresses: Array.isArray(profile.addresses) ? profile.addresses : [],
+    orders: Array.isArray(profile.orders) ? profile.orders : [],
+    updatedAt: firebase.database.ServerValue.TIMESTAMP
+  });
+}
+
+async function hydrateUserFromFirebase() {
+  const identity = firebaseAuthUser || await firebaseIdentityReady;
+  if (!identity || !state.user?.phone) return;
+  try {
+    const snapshot = await firebaseServices.database.ref(`orderingPlatform/customers/${identity.uid}`).once("value");
+    const remote = snapshot.val();
+    if (!remote || normalizePhone(remote.phone) !== normalizePhone(state.user.phone)) {
+      await syncUserToFirebase();
+      return;
+    }
+    state.user = {
+      ...state.user,
+      ...remote,
+      phone: normalizePhone(remote.phone),
+      addresses: Array.isArray(remote.addresses) ? remote.addresses : [],
+      orders: Array.isArray(remote.orders) ? remote.orders : []
+    };
+    const profiles = readJson(PROFILE_KEY, {});
+    const { sessionToken, ...localProfile } = state.user;
+    profiles[state.user.phone] = localProfile;
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(profiles));
+    state.name = state.user.name;
+    state.phone = state.user.phone;
+    updateAccountButton();
+  } catch (error) {
+    console.error("Firebase profile load failed", error);
+  }
 }
 
 function updateAccountButton() {
@@ -593,6 +658,7 @@ async function verifyLoginCode(code) {
     const profiles = readJson(PROFILE_KEY, {});
     const profile = profiles[authPhone] || { phone: authPhone, name: "", addresses: [], orders: [] };
     state.user = { ...profile, phone: authPhone, addresses: profile.addresses || [], orders: profile.orders || [], sessionToken: data.sessionToken || "" };
+    await hydrateUserFromFirebase();
     state.name = state.user.name;
     state.phone = state.user.phone;
     if (!state.user.name) return renderUsernameAuth();
@@ -1235,20 +1301,59 @@ if (state.user) {
   state.name = state.user.name;
   state.phone = state.user.phone;
 }
-Promise.all([
-  fetch("products.json", { cache: "no-store" }).then(response => response.json()),
-  fetch("categories.json", { cache: "no-store" }).then(response => response.json()),
-  fetch("delivery-areas.json", { cache: "no-store" }).then(response => response.json())
-]).then(([products, categories, areas]) => {
-  state.products = products;
-  state.categories = categories;
-  state.areas = areas;
+
+function applyCatalog(catalog) {
+  state.products = Array.isArray(catalog?.products) ? catalog.products : [];
+  state.categories = Array.isArray(catalog?.categories) ? catalog.categories : [];
+  state.areas = Array.isArray(catalog?.deliveryAreas) ? catalog.deliveryAreas : [];
   renderCategories();
   renderProductSections();
   renderCartBar();
   syncProductRoute();
+}
+
+async function loadLocalCatalog() {
+  const [products, categories, deliveryAreas] = await Promise.all([
+    fetch("products.json", { cache: "no-store" }).then(response => {
+      if (!response.ok) throw new Error("products.json");
+      return response.json();
+    }),
+    fetch("categories.json", { cache: "no-store" }).then(response => {
+      if (!response.ok) throw new Error("categories.json");
+      return response.json();
+    }),
+    fetch("delivery-areas.json", { cache: "no-store" }).then(response => {
+      if (!response.ok) throw new Error("delivery-areas.json");
+      return response.json();
+    })
+  ]);
+  return { products, categories, deliveryAreas };
+}
+
+async function initializeStoreData() {
+  let loadedFromFirebase = false;
+  if (firebaseServices) {
+    try {
+      const catalogRef = firebaseServices.database.ref("orderingPlatform/catalog");
+      const snapshot = await catalogRef.once("value");
+      if (snapshot.exists()) {
+        applyCatalog(snapshot.val());
+        loadedFromFirebase = true;
+      }
+      catalogRef.on("value", liveSnapshot => {
+        if (!liveSnapshot.exists()) return;
+        applyCatalog(liveSnapshot.val());
+      }, error => console.error("Firebase catalog listener failed", error));
+    } catch (error) {
+      console.error("Firebase catalog load failed", error);
+    }
+  }
+  if (!loadedFromFirebase) applyCatalog(await loadLocalCatalog());
   resumePendingPayment();
-}).catch(error => {
+  hydrateUserFromFirebase();
+}
+
+initializeStoreData().catch(error => {
   console.error(error);
   $("#productSections").innerHTML = `<div class="loading">${tr("loadingError")}</div>`;
 });
