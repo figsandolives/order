@@ -721,14 +721,21 @@ function openProductPage(id, push = true) {
   }
 }
 
+function clearProductRoute() {
+  if (!location.hash.startsWith("#product=")) return;
+  history.replaceState(
+    { catalogScrollPosition },
+    "",
+    `${location.pathname}${location.search}`
+  );
+}
+
 function closeProductPage(useHistory = true) {
   state.detailProductId = "";
   $("#productPage").classList.add("hidden");
   $("#productPage").setAttribute("aria-hidden", "true");
   document.body.classList.remove("detail-open");
-  if (useHistory && location.hash.startsWith("#product=")) {
-    history.back();
-  }
+  if (useHistory) clearProductRoute();
   restoreCatalogScrollPosition();
 }
 
@@ -1207,6 +1214,8 @@ function renderOrderDetails(orderId, fromSuccess = false) {
 function openCheckout() {
   if (!cartCount()) return;
   if (!state.user?.name) return openAuth("login");
+  clearProductRoute();
+  if (state.detailProductId) closeProductPage(false);
   state.name = state.user.name;
   state.phone = state.user.phone;
   state.step = 1;
@@ -1409,6 +1418,15 @@ function beginPayment() {
   return finishOrder();
 }
 
+function isAllowedPaymentGatewayUrl(target) {
+  if (!(target instanceof URL) || target.protocol !== "https:") return false;
+  const host = target.hostname.toLowerCase();
+  return host === "kpaytest.com.kw"
+    || host.endsWith(".kpaytest.com.kw")
+    || host === "bookeey.com"
+    || host.endsWith(".bookeey.com");
+}
+
 function paymentPayload(paymentMethod = state.paymentMethod) {
   return {
     idempotencyKey: state.paymentRequestId,
@@ -1461,6 +1479,8 @@ function restorePending(pending) {
 async function finishOrder() {
   if (!state.user?.name || normalizePhone(state.user.phone).length !== 8) return openAuth("login");
   if (!orderingConfig.paymentWebhookUrl || !orderingConfig.paymentStatusWebhookUrl) return paymentError(tr("paymentUnavailable"));
+  clearProductRoute();
+  if (state.detailProductId) closeProductPage(false);
   state.paymentMethod = "knet";
   state.paymentRequestId = state.paymentRequestId || requestId();
   $("#steps").classList.add("hidden");
@@ -1476,14 +1496,14 @@ async function finishOrder() {
     const data = await response.json().catch(() => ({}));
     if (!response.ok || !data.ok) throw new Error(data.error || tr("createFailed"));
     const target = new URL(data.paymentUrl);
-    if (target.protocol !== "https:") throw new Error(tr("invalidSecureLink"));
+    if (!isAllowedPaymentGatewayUrl(target)) throw new Error(tr("invalidSecureLink"));
     state.order = data.orderId || state.order;
     const pending = pendingSnapshot({
       orderId: state.order, statusToken: data.statusToken || "", paymentUrl: target.href,
       paymentMethod: state.paymentMethod, paymentGateway: data.paymentGateway || "", createdAt: Date.now()
     });
     sessionStorage.setItem("pendingBedeOrder", JSON.stringify(pending));
-    window.location.replace(target.href);
+    window.location.assign(target.href);
   } catch (error) {
     paymentError(error.name === "AbortError" ? tr("createTimeout") : error.message);
   } finally {
