@@ -26,7 +26,7 @@ const firebaseIdentityReady = new Promise(resolve => {
 
 const translations = {
   ar: {
-    brand: "التين والزيتون", tagline: "طبيعي، صحي، مصنوع بحب", yourCart: "سلتك",
+    brand: "مخبز التين والزيتون", tagline: "طبيعي، صحي، مصنوع بحب", yourCart: "سلتك",
     deliveryEverywhere: "توصيل لجميع مناطق الكويت", heroTitle: "أكل صحي بطعم<br>يستحق التكرار",
     heroText: "اختر من منتجاتنا الطبيعية والمخبوزات الطازجة، ونحن نتكفل بالباقي.",
     naturalIngredients: "مكونات طبيعية", dailyPreparation: "تحضير يومي", securePayment: "دفع آمن",
@@ -76,14 +76,14 @@ const translations = {
     paid: "مدفوع", customerName: "اسم الزبون",
     deliveryAddress: "عنوان التوصيل", pickupBranch: "فرع الاستلام", payNow: "ادفع الآن",
     showProducts: "عرض تفاصيل المنتجات", hideProducts: "إخفاء تفاصيل المنتجات",
-    choosePaymentMethod: "اختر طريقة الدفع", applePay: "Apple Pay", knet: "كي نت",
-    applePayHint: "دفع سريع وآمن من جهاز Apple", knetHint: "الانتقال إلى صفحة الدفع الآمنة من KNET",
+    knet: "كي نت", knetHint: "الانتقال إلى صفحة الدفع الآمنة من KNET",
     loginServiceUnavailable: "خدمة تسجيل الدخول غير مربوطة حالياً", sendFailed: "تعذر إرسال رمز الدخول",
-    verifyFailed: "تعذر التحقق من الرمز", loggedOut: "تم تسجيل الخروج", invoiceFailed: "تعذر إنشاء الفاتورة. حاول مرة أخرى.",
+    verifyFailed: "تعذر التحقق من الرمز", accountSyncFailed: "تعذر فتح بيانات حسابك المحفوظة. حاول تسجيل الدخول مرة أخرى.",
+    loggedOut: "تم تسجيل الخروج", invoiceFailed: "تعذر إنشاء الفاتورة. حاول مرة أخرى.",
     noZoom: ""
   },
   en: {
-    brand: "Figs & Olives", tagline: "Natural, healthy, made with love", yourCart: "Cart",
+    brand: "Figs & Olives Bakery", tagline: "Natural, healthy, made with love", yourCart: "Cart",
     deliveryEverywhere: "Delivery across Kuwait", heroTitle: "Healthy food with a taste<br>worth repeating",
     heroText: "Choose from our natural products and fresh bakes, and we will handle the rest.",
     naturalIngredients: "Natural ingredients", dailyPreparation: "Prepared daily", securePayment: "Secure payment",
@@ -132,9 +132,9 @@ const translations = {
     paid: "Paid", customerName: "Customer name", deliveryAddress: "Delivery address",
     pickupBranch: "Pickup branch", payNow: "Pay now", showProducts: "Show product details",
     hideProducts: "Hide product details", loginServiceUnavailable: "Login service is not connected",
-    choosePaymentMethod: "Choose payment method", applePay: "Apple Pay", knet: "KNET",
-    applePayHint: "Fast and secure payment from your Apple device", knetHint: "Continue to the secure KNET payment page",
-    sendFailed: "Could not send login code", verifyFailed: "Could not verify the code", loggedOut: "Logged out",
+    knet: "KNET", knetHint: "Continue to the secure KNET payment page",
+    sendFailed: "Could not send login code", verifyFailed: "Could not verify the code",
+    accountSyncFailed: "Could not open your saved account data. Please log in again.", loggedOut: "Logged out",
     invoiceFailed: "Could not create the invoice. Please try again.", noZoom: ""
   }
 };
@@ -159,7 +159,7 @@ function loadCurrentUser() {
   const session = readJson(SESSION_KEY, null);
   const profiles = readJson(PROFILE_KEY, {});
   if (!session?.phone || !profiles[session.phone]) return null;
-  return { ...profiles[session.phone], sessionToken: session.sessionToken || "" };
+  return { ...profiles[session.phone] };
 }
 
 function cartStorageKey(phone) {
@@ -180,13 +180,20 @@ function loadUserCart(user) {
 }
 
 const initialUser = loadCurrentUser();
+const DEFAULT_APPEARANCE = Object.freeze({
+  heroImage: "",
+  heroTextColor: "#18352a",
+  badgeBackgroundColor: "#ffffff",
+  badgeTextColor: "#18352a"
+});
 const state = {
   products: [], categories: [], areas: [], cart: loadUserCart(initialUser), search: "", activeCategory: "all",
   lang: localStorage.getItem("storeLanguage") === "en" ? "en" : "ar",
   step: 1, mode: "delivery", area: null, branch: "", addressId: "", address: "",
   name: "", phone: "", order: "W00001", paymentRequestId: "", detailProductId: "",
   paymentMethod: "knet", deliveryTiming: "asap", scheduledDate: "", scheduledHour: "1",
-  scheduledMinute: "00", scheduledPeriod: "pm", user: initialUser, lastInvoice: null
+  scheduledMinute: "00", scheduledPeriod: "pm", user: initialUser, lastInvoice: null,
+  appearance: { ...DEFAULT_APPEARANCE }
 };
 
 let imageObserver;
@@ -213,6 +220,39 @@ function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, character => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
   }[character]));
+}
+
+function validHexColor(value, fallback) {
+  return /^#[0-9a-f]{6}$/i.test(String(value || "")) ? String(value) : fallback;
+}
+
+function normalizeAppearance(value = {}) {
+  let heroImage = "";
+  try {
+    const candidate = new URL(String(value.heroImage || ""));
+    if (candidate.protocol === "https:") heroImage = candidate.href;
+  } catch {
+    heroImage = "";
+  }
+  return {
+    heroImage,
+    heroTextColor: validHexColor(value.heroTextColor, DEFAULT_APPEARANCE.heroTextColor),
+    badgeBackgroundColor: validHexColor(value.badgeBackgroundColor, DEFAULT_APPEARANCE.badgeBackgroundColor),
+    badgeTextColor: validHexColor(value.badgeTextColor, DEFAULT_APPEARANCE.badgeTextColor)
+  };
+}
+
+function applyStoreAppearance(value) {
+  state.appearance = normalizeAppearance(value);
+  const hero = $("#storeHero");
+  if (!hero) return;
+  hero.style.setProperty("--hero-title-color", state.appearance.heroTextColor);
+  hero.style.setProperty("--hero-badge-background", state.appearance.badgeBackgroundColor);
+  hero.style.setProperty("--hero-badge-text", state.appearance.badgeTextColor);
+  hero.classList.toggle("has-hero-image", Boolean(state.appearance.heroImage));
+  hero.style.backgroundImage = state.appearance.heroImage
+    ? `linear-gradient(rgba(8, 28, 20, .38), rgba(8, 28, 20, .38)), url(${JSON.stringify(state.appearance.heroImage)})`
+    : "";
 }
 
 function normalizeDigits(value) {
@@ -305,20 +345,35 @@ function queueUserSync() {
 function persistUser() {
   if (!state.user?.phone) return;
   const profiles = readJson(PROFILE_KEY, {});
-  const { sessionToken, ...profile } = state.user;
-  profiles[state.user.phone] = profile;
+  profiles[state.user.phone] = { ...state.user };
   localStorage.setItem(PROFILE_KEY, JSON.stringify(profiles));
-  localStorage.setItem(SESSION_KEY, JSON.stringify({ phone: state.user.phone, sessionToken: sessionToken || "" }));
+  localStorage.setItem(SESSION_KEY, JSON.stringify({ phone: state.user.phone }));
   state.name = state.user.name;
   state.phone = state.user.phone;
   updateAccountButton();
   queueUserSync();
 }
 
+async function authenticateFirebaseCustomer(authResult, phone) {
+  if (!firebaseServices) return null;
+  const customToken = String(authResult?.customToken || "");
+  if (!customToken || normalizePhone(phone).length !== 8) {
+    throw new Error(tr("accountSyncFailed"));
+  }
+
+  try {
+    const signedIn = await firebaseServices.auth.signInWithCustomToken(customToken);
+    firebaseAuthUser = signedIn.user;
+    return signedIn.user;
+  } catch {
+    throw new Error(tr("accountSyncFailed"));
+  }
+}
+
 async function syncUserToFirebase() {
   const identity = firebaseAuthUser || await firebaseIdentityReady;
   if (!identity || !state.user?.phone || !state.user?.name) return;
-  const { sessionToken, ...profile } = state.user;
+  const profile = state.user;
   await firebaseServices.database.ref(`orderingPlatform/customers/${identity.uid}`).set({
     phone: normalizePhone(profile.phone),
     name: String(profile.name || "").slice(0, 80),
@@ -353,8 +408,7 @@ async function hydrateUserFromFirebase() {
       syncAllProductQuantityControls();
     }
     const profiles = readJson(PROFILE_KEY, {});
-    const { sessionToken, ...localProfile } = state.user;
-    profiles[state.user.phone] = localProfile;
+    profiles[state.user.phone] = { ...state.user };
     localStorage.setItem(PROFILE_KEY, JSON.stringify(profiles));
     state.name = state.user.name;
     state.phone = state.user.phone;
@@ -493,7 +547,23 @@ function observeImages() {
 function scrollToCategory(categoryId) {
   if (categoryId === "all") return window.scrollTo({ top: 0, behavior: "smooth" });
   const section = document.querySelector(`[data-category-section="${CSS.escape(categoryId)}"]`);
-  if (section) section.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (!section) return;
+  const headerHeight = $(".site-header")?.offsetHeight || 0;
+  const categoriesHeight = $("#categories")?.offsetHeight || 0;
+  const top = window.scrollY + section.getBoundingClientRect().top - headerHeight - categoriesHeight - 10;
+  window.scrollTo({ top: Math.max(0, top), left: 0, behavior: "smooth" });
+}
+
+function centerCategoryButton(categoryId) {
+  const container = $("#categories");
+  const button = document.querySelector(`[data-category-link="${CSS.escape(categoryId)}"]`);
+  if (!container || !button) return;
+  const containerRect = container.getBoundingClientRect();
+  const buttonRect = button.getBoundingClientRect();
+  const horizontalDifference = buttonRect.left + buttonRect.width / 2
+    - (containerRect.left + containerRect.width / 2);
+  if (Math.abs(horizontalDifference) < 4) return;
+  container.scrollBy({ left: horizontalDifference, top: 0, behavior: "smooth" });
 }
 
 function updateCategoryFromScroll() {
@@ -507,7 +577,7 @@ function updateCategoryFromScroll() {
   if (active === state.activeCategory) return;
   state.activeCategory = active;
   $$("[data-category-link]").forEach(button => button.classList.toggle("active", button.dataset.categoryLink === active));
-  document.querySelector(`[data-category-link="${CSS.escape(active)}"]`)?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+  centerCategoryButton(active);
 }
 
 function changeQuantity(id, difference) {
@@ -765,7 +835,7 @@ async function verifyLoginCode(code) {
       const previousPhone = state.user.phone;
       const previousCart = { ...state.cart };
       state.user.phone = authPhone;
-      state.user.sessionToken = data.sessionToken || state.user.sessionToken;
+      await authenticateFirebaseCustomer(data, authPhone);
       if (profiles[previousPhone]) delete profiles[previousPhone];
       localStorage.setItem(PROFILE_KEY, JSON.stringify(profiles));
       localStorage.setItem(cartStorageKey(authPhone), JSON.stringify(previousCart));
@@ -776,8 +846,9 @@ async function verifyLoginCode(code) {
     }
     const profiles = readJson(PROFILE_KEY, {});
     const profile = profiles[authPhone] || { phone: authPhone, name: "", addresses: [], orders: [] };
-    state.user = { ...profile, phone: authPhone, addresses: profile.addresses || [], orders: profile.orders || [], sessionToken: data.sessionToken || "" };
+    state.user = { ...profile, phone: authPhone, addresses: profile.addresses || [], orders: profile.orders || [] };
     state.cart = loadUserCart(state.user);
+    await authenticateFirebaseCustomer(data, authPhone);
     await hydrateUserFromFirebase();
     state.name = state.user.name;
     state.phone = state.user.phone;
@@ -826,9 +897,25 @@ function completeLogin() {
   }
 }
 
-function logout() {
+async function logout() {
   persistCart();
+  clearTimeout(userSyncTimer);
+  try {
+    await syncUserToFirebase();
+  } catch (error) {
+    console.error("Firebase profile sync before logout failed", error);
+  }
   localStorage.removeItem(SESSION_KEY);
+  firebaseAuthUser = null;
+  if (firebaseServices) {
+    try {
+      await firebaseServices.auth.signOut();
+      const credential = await firebaseServices.auth.signInAnonymously();
+      firebaseAuthUser = credential.user;
+    } catch (error) {
+      console.error("Firebase logout failed", error);
+    }
+  }
   state.user = null;
   state.cart = {};
   state.name = "";
@@ -1184,9 +1271,9 @@ function renderDeliveryTime() {
       </button>
       ${specific ? `<div class="time-fields">
         <label class="time-date">${tr("deliveryDate")}<input id="scheduledDate" type="date" min="${dateInputValue()}" value="${escapeHtml(state.scheduledDate)}"></label>
-        <label>${tr("hour")}<select id="scheduledHour">${hours.map(hour => `<option value="${hour}" ${String(hour) === String(state.scheduledHour) ? "selected" : ""}>${hour}</option>`).join("")}</select></label>
-        <label>${tr("minute")}<select id="scheduledMinute"><option value="00" ${state.scheduledMinute === "00" ? "selected" : ""}>00</option><option value="30" ${state.scheduledMinute === "30" ? "selected" : ""}>30</option></select></label>
-        <label>${tr("period")}<select id="scheduledPeriod"><option value="am" ${state.scheduledPeriod === "am" ? "selected" : ""}>${tr("morning")}</option><option value="pm" ${state.scheduledPeriod === "pm" ? "selected" : ""}>${tr("evening")}</option></select></label>
+        <label class="time-period">${tr("period")}<select id="scheduledPeriod"><option value="am" ${state.scheduledPeriod === "am" ? "selected" : ""}>${tr("morning")}</option><option value="pm" ${state.scheduledPeriod === "pm" ? "selected" : ""}>${tr("evening")}</option></select></label>
+        <label class="time-minute">${tr("minute")}<select id="scheduledMinute"><option value="00" ${state.scheduledMinute === "00" ? "selected" : ""}>00</option><option value="30" ${state.scheduledMinute === "30" ? "selected" : ""}>30</option></select></label>
+        <label class="time-hour">${tr("hour")}<select id="scheduledHour">${hours.map(hour => `<option value="${hour}" ${String(hour) === String(state.scheduledHour) ? "selected" : ""}>${hour}</option>`).join("")}</select></label>
       </div>` : ""}
       <div class="actions"><button class="secondary" id="backTime">${tr("back")}</button><button class="primary" id="confirmTime">${tr("confirmContinue")}</button></div>
     </section>`;
@@ -1266,25 +1353,7 @@ function isAppleMobileDevice() {
 }
 
 function beginPayment() {
-  if (!isAppleMobileDevice()) return finishOrder("knet");
-  $("#checkoutTitle").textContent = tr("choosePaymentMethod");
-  $("#checkoutBody").innerHTML = `
-    <section class="payment-method-picker">
-      <button class="payment-method-option apple-pay-option" id="payApple" type="button">
-        <span class="payment-method-mark apple-pay-mark"> Pay</span>
-        <span><strong>${tr("applePay")}</strong><small>${tr("applePayHint")}</small></span>
-        <b class="payment-method-arrow">‹</b>
-      </button>
-      <button class="payment-method-option knet-option" id="payKnet" type="button">
-        <span class="payment-method-mark knet-mark">KNET</span>
-        <span><strong>${tr("knet")}</strong><small>${tr("knetHint")}</small></span>
-        <b class="payment-method-arrow">‹</b>
-      </button>
-      <button class="secondary payment-method-back" id="paymentMethodBack" type="button">${tr("back")}</button>
-    </section>`;
-  $("#payApple").onclick = () => finishOrder("applepay");
-  $("#payKnet").onclick = () => finishOrder("knet");
-  $("#paymentMethodBack").onclick = renderConfirmation;
+  return finishOrder();
 }
 
 function paymentPayload(paymentMethod = state.paymentMethod) {
@@ -1324,7 +1393,7 @@ function restorePending(pending) {
   state.address = saved.address || state.address;
   state.name = saved.name || state.name;
   state.phone = saved.phone || state.phone;
-  state.paymentMethod = saved.paymentMethod === "applepay" ? "applepay" : "knet";
+  state.paymentMethod = "knet";
   state.deliveryTiming = saved.deliveryTiming === "scheduled" ? "scheduled" : "asap";
   state.scheduledDate = saved.scheduledDate || state.scheduledDate;
   state.scheduledHour = saved.scheduledHour || state.scheduledHour;
@@ -1336,10 +1405,10 @@ function restorePending(pending) {
   renderCartBar();
 }
 
-async function finishOrder(paymentMethod = "knet") {
+async function finishOrder() {
   if (!state.user?.name || normalizePhone(state.user.phone).length !== 8) return openAuth("login");
   if (!orderingConfig.paymentWebhookUrl || !orderingConfig.paymentStatusWebhookUrl) return paymentError(tr("paymentUnavailable"));
-  state.paymentMethod = paymentMethod === "applepay" ? "applepay" : "knet";
+  state.paymentMethod = "knet";
   state.paymentRequestId = state.paymentRequestId || requestId();
   $("#steps").classList.add("hidden");
   $("#checkoutTitle").textContent = tr("redirecting");
@@ -1435,7 +1504,7 @@ function paymentError(message) {
   $("#checkoutTitle").textContent = tr("startFailed");
   $("#checkoutBody").innerHTML = `<div class="payment-error"><div class="error-mark">!</div><h3>${tr("linkNotCreated")}</h3><p>${escapeHtml(message || tr("createFailed"))}</p><div class="actions"><button class="secondary" id="paymentBack">${tr("back")}</button><button class="primary" id="paymentRetry">${tr("retry")}</button></div></div>`;
   $("#paymentBack").onclick = () => { state.step = 4; renderCheckout(); };
-  $("#paymentRetry").onclick = () => finishOrder(state.paymentMethod);
+  $("#paymentRetry").onclick = finishOrder;
 }
 
 function resumePendingPayment() {
@@ -1672,14 +1741,31 @@ if (state.user) {
 function applyCatalog(catalog, cache = true) {
   if (!Array.isArray(catalog?.products) || !Array.isArray(catalog?.categories) || !Array.isArray(catalog?.deliveryAreas)) return false;
   const signature = JSON.stringify([
-    catalog.version || "", catalog.updatedAt || "", catalog.products.length, catalog.categories.length,
-    catalog.products[0]?.id || "", catalog.products[catalog.products.length - 1]?.id || ""
+    catalog.version || "", catalog.updatedAt || "",
+    catalog.appearance || {},
+    catalog.categories.map(category => [category.id, category.active !== false, category.order, category.nameAr, category.nameEn]),
+    catalog.products.map(item => [item.id, item.active !== false, item.category, item.order, item.price, item.name, item.nameEn, item.image])
   ]);
   if (signature === catalogSignature) return true;
   catalogSignature = signature;
-  state.products = Array.isArray(catalog?.products) ? catalog.products : [];
-  state.categories = Array.isArray(catalog?.categories) ? catalog.categories : [];
+  const visibleCategories = catalog.categories.filter(category => category.active !== false);
+  const visibleCategoryIds = new Set(visibleCategories.map(category => String(category.id)));
+  const visibleProducts = catalog.products.filter(item =>
+    item.active !== false && visibleCategoryIds.has(String(item.category || ""))
+  );
+  state.categories = visibleCategories;
+  state.products = visibleProducts;
   state.areas = Array.isArray(catalog?.deliveryAreas) ? catalog.deliveryAreas : [];
+  applyStoreAppearance(catalog.appearance);
+  const visibleProductIds = new Set(visibleProducts.map(item => String(item.id)));
+  let removedCartItem = false;
+  Object.keys(state.cart).forEach(id => {
+    if (visibleProductIds.has(String(id))) return;
+    delete state.cart[id];
+    removedCartItem = true;
+  });
+  if (removedCartItem) persistCart();
+  if (state.activeCategory !== "all" && !visibleCategoryIds.has(String(state.activeCategory))) state.activeCategory = "all";
   if (cache) {
     try { localStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(catalog)); } catch { /* يتوفر products.json كنسخة احتياطية */ }
   }
