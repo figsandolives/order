@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://firebasestorage.googleapis.com" crossorigin>
   <link rel="preconnect" href="https://menassafigs-default-rtdb.firebaseio.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260729-4">
+  <link rel="stylesheet" href="style.css?v=20260729-5">
   <link rel="stylesheet" href="payment.css?v=20260729-3">
   <link rel="stylesheet" href="account.css?v=20260729-2">
 </head>
@@ -26,6 +26,18 @@
       <div class="brand"><img src="logo.png" alt="مخبز التين والزيتون"><div><strong data-i18n="brand">مخبز التين والزيتون</strong><span data-i18n="tagline">طبيعي، صحي، مصنوع بحب</span></div></div>
       <div class="header-actions">
         <button class="language-toggle" id="languageToggle" aria-label="Change language"><span id="languageLabel">English</span></button>
+        <div class="header-search" id="headerSearch">
+          <button class="search-toggle" id="searchToggle" type="button" aria-label="البحث عن منتج" aria-expanded="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+          </button>
+          <div class="search-popover hidden" id="searchPopover">
+            <label class="search-input-wrap">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+              <input id="searchInput" type="search" autocomplete="off" data-i18n-placeholder="searchPlaceholder" placeholder="ابحث عن منتج…">
+            </label>
+            <div class="search-results" id="searchResults"></div>
+          </div>
+        </div>
         <button class="account-trigger" id="accountButton" aria-label="تسجيل الدخول">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4.25 4.25 0 1 0 0-8.5 4.25 4.25 0 0 0 0 8.5Zm7.25 8.5a7.25 7.25 0 0 0-14.5 0"/></svg>
           <span id="accountButtonLabel">تسجيل الدخول</span>
@@ -50,7 +62,6 @@
     <section class="catalog">
       <div class="catalog-heading">
         <div><span class="kicker" data-i18n="ourMenu">قائمتنا</span><h2 data-i18n="whatToday">ماذا تشتهي اليوم؟</h2></div>
-        <label class="search-box">⌕ <input id="searchInput" data-i18n-placeholder="searchPlaceholder" placeholder="ابحث عن منتج…"></label>
       </div>
       <div class="categories" id="categories"></div>
       <div class="product-sections" id="productSections">
@@ -112,6 +123,6 @@
   <script src="https://www.gstatic.com/firebasejs/11.10.0/firebase-storage-compat.js"></script>
   <script src="firebase-config.js"></script>
   <script src="config.js?v=20260729-3"></script>
-  <script src="script.js?v=20260729-8"></script>
+  <script src="script.js?v=20260729-9"></script>
 </body>
 </html>
