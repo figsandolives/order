@@ -1221,7 +1221,7 @@ function renderOrderDetails(orderId, fromSuccess = false) {
         <div><span class="detail-item-icon">${accountIcons.info}</span><span><small>${tr("customerName")}</small><strong>${escapeHtml(order.customerName || state.user?.name || "")}</strong></span></div>
         <div><span class="detail-item-icon">${accountIcons.phone}</span><span><small>${tr("phone")}</small><strong class="phone">${escapeHtml(order.phone || state.user?.phone || "")}</strong></span></div>
         <div><span class="detail-item-icon">${accountIcons.address}</span><span><small>${order.mode === "delivery" ? tr("deliveryAddress") : tr("pickupBranch")}</small><strong>${escapeHtml(orderDestination(order))}</strong></span></div>
-        <div><span class="detail-item-icon">${accountIcons.clock}</span><span><small>${order.mode === "pickup" ? tr("pickupStatus") : tr("expectedDeliveryTime")}</small><strong>${escapeHtml(deliveryTimeSummary(order))}</strong></span></div>
+        <div><span class="detail-item-icon">${accountIcons.clock}</span><span><small>${order.mode === "pickup" ? tr("pickupStatus") : tr("expectedDeliveryTime")}</small><strong class="delivery-time-lines">${deliveryTimeSummaryMarkup(order)}</strong></span></div>
       </div>
       <div class="detail-section-title"><span class="detail-title-icon">${accountIcons.box}</span><div><small>${(order.items || []).length} ${tr("products")}</small><b>${tr("showProducts")}</b></div></div>
       <div class="order-detail-body">
@@ -1554,6 +1554,24 @@ function deliveryTimeSummary(source = state) {
   return tr("withinTwoHours");
 }
 
+function deliveryTimeSummaryLines(source = state) {
+  let scheduled = null;
+  if (source.deliveryTiming === "scheduled" && source.scheduledAt) scheduled = new Date(source.scheduledAt);
+  else if (source.deliveryTiming === "scheduled") scheduled = scheduledDateTime();
+  if (!scheduled || Number.isNaN(scheduled.getTime())) return [deliveryTimeSummary(source)];
+  const start = new Date(scheduled.getTime() - 60 * 60 * 1000);
+  const label = source.mode === "pickup" ? tr("scheduledPickupTime") : tr("scheduledDeliveryTime");
+  return [
+    `${label}:`,
+    `${formatScheduleDate(scheduled)}،`,
+    `${tr("betweenTime")} ${formatDeliveryTime(start)} ${tr("andTime")} ${formatDeliveryTime(scheduled)}`
+  ];
+}
+
+function deliveryTimeSummaryMarkup(source = state) {
+  return deliveryTimeSummaryLines(source).map(line => `<span>${escapeHtml(line)}</span>`).join("");
+}
+
 function renderConfirmation() {
   $("#checkoutTitle").textContent = tr("confirmPay");
   $("#checkoutBody").innerHTML = `
@@ -1563,7 +1581,7 @@ function renderConfirmation() {
         <div class="summary-box"><span class="summary-icon">${accountIcons.info}</span><span><small>${tr("customerName")}</small><strong>${escapeHtml(state.user.name)}</strong></span></div>
         <div class="summary-box"><span class="summary-icon">${accountIcons.phone}</span><span><small>${tr("phone")}</small><strong class="phone">${escapeHtml(state.user.phone)}</strong></span></div>
         <div class="summary-box"><span class="summary-icon">${accountIcons.address}</span><span><small>${state.mode === "delivery" ? tr("deliveryAddress") : tr("pickupBranch")}</small><strong>${escapeHtml(deliverySummary())}</strong></span></div>
-        <div class="summary-box"><span class="summary-icon">${accountIcons.clock}</span><span><small>${state.mode === "pickup" ? tr("pickupTime") : tr("deliveryTime")}</small><strong>${escapeHtml(deliveryTimeSummary())}</strong></span></div>
+        <div class="summary-box"><span class="summary-icon">${accountIcons.clock}</span><span><small>${state.mode === "pickup" ? tr("pickupTime") : tr("deliveryTime")}</small><strong class="delivery-time-lines">${deliveryTimeSummaryMarkup()}</strong></span></div>
       </div>
       <div class="price-summary">
         <div class="price-summary-head"><span class="detail-title-icon">${accountIcons.box}</span><div><small>${tr("order")}</small><b>${tr("orderNumber")} ${escapeHtml(state.order)}</b></div></div>
@@ -1573,7 +1591,7 @@ function renderConfirmation() {
         <div class="price-row"><span>${tr("deliveryFee")}</span><strong>${money(deliveryFee())}</strong></div>
         <div class="price-row total-row"><span>${tr("total")}</span><strong>${money(total())}</strong></div>
       </div>
-      <div class="actions"><button class="secondary" id="back2">${tr("back")}</button><button class="primary pay-now" id="finish" aria-label="${tr("payNow")} — KNET"><span>${tr("payNow")}</span><span class="knet-mark"><img src="knet-logo.png" alt="KNET"></span></button></div>
+      <div class="actions"><button class="secondary" id="back2">${tr("back")}</button><button class="primary pay-now" id="finish" aria-label="${tr("payNow")} — KNET"><span class="knet-mark"><img src="knet-logo.png" alt="KNET"></span><span>${tr("payNow")}</span></button></div>
     </section>`;
   $("#productsToggle").onclick = () => {
     const details = $("#confirmationProducts");
