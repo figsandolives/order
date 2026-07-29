@@ -88,6 +88,8 @@ body{padding-top:var(--site-header-height)}
   box-shadow:0 10px 22px rgba(20,53,41,.06);
 }
 body.detail-open .categories{display:none}
+.modal{z-index:220}
+.toast{z-index:260}
 .product-page{
   inset:var(--site-header-height) 0 0;
   z-index:120;
