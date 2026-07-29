@@ -34,6 +34,12 @@ const translations = {
     all: "الكل", products: "منتج", add: "إضافة +", added: "تمت إضافة المنتج", inCart: "في السلة",
     total: "الإجمالي", checkout: "إتمام الدفع ←", back: "رجوع", noResults: "لا توجد منتجات مطابقة",
     order: "طلبك", completeOrder: "إتمام الطلب", review: "المراجعة", deliveryDetails: "تفاصيل التسليم",
+    deliveryTime: "وقت التوصيل", withinTwoHours: "خلال ساعتين", withinTwoHoursHint: "يصلك الطلب في أقرب وقت متاح",
+    chooseSpecificTime: "اختيار وقت محدد", chooseSpecificTimeHint: "حدد اليوم والساعة المناسبة لك",
+    deliveryDate: "التاريخ", hour: "الساعة", minute: "الدقائق", period: "الفترة",
+    morning: "صباحاً", evening: "مساءً", chooseValidTime: "يرجى اختيار تاريخ ووقت قادم",
+    expectedDeliveryTime: "الوقت المتوقع للتوصيل", betweenTime: "بين", andTime: "إلى",
+    scheduledDeliveryTime: "موعد التوصيل المحدد",
     confirmPay: "تأكيد ودفع", confirmContinue: "تأكيد ومتابعة", productsTotal: "قيمة المنتجات",
     deliveryFee: "قيمة التوصيل", delivery: "توصيل", pickup: "استلام", chooseBranch: "يرجى اختيار الفرع",
     completeDelivery: "يرجى اختيار عنوان للتوصيل", preparing: "لحظة واحدة…",
@@ -49,7 +55,7 @@ const translations = {
     retry: "المحاولة من جديد", backToPayment: "العودة للدفع", unconfirmed: "تعذر تأكيد حالة الدفع",
     unconfirmedText: "لن نسجل الطلب كمدفوع حتى نحصل على تأكيد من Bede.", checkAgain: "التحقق مرة أخرى",
     startFailed: "تعذر بدء الدفع", linkNotCreated: "لم يتم إنشاء رابط الدفع", received: "تم استلام الطلب",
-    orderNumber: "رقم الطلب", backStore: "العودة للمتجر", downloadInvoice: "تحميل / طباعة الفاتورة",
+    orderNumber: "رقم الطلب", backStore: "العودة للمتجر", downloadInvoice: "تحميل الفاتورة",
     preparingInvoiceDownload: "جاري تجهيز الفاتورة…", customer: "العميل", payOnline: "الدفع: أونلاين",
     quantity: "الكمية", price: "السعر", item: "الصنف", thankYou: "شكراً لزيارتكم!",
     healthPhrase: "صحتك أغلى ما تملك، فتناول شيئاً صحياً.", loadingError: "تعذر تحميل البيانات. يجب رفع جميع الملفات مع index.html.",
@@ -66,7 +72,8 @@ const translations = {
     areaSearch: "ابحث عن منطقة", addressDetails: "تفاصيل العنوان", addressPlaceholder: "القطعة، الشارع، المنزل والدور…",
     chooseArea: "اختر المنطقة", addressSaved: "تم حفظ العنوان", selectAddress: "اختر عنوان التوصيل",
     noAddedAddresses: "لا يوجد عناوين مضافة", ordersEmpty: "لا توجد طلبات سابقة",
-    viewInvoice: "عرض / طباعة الفاتورة", paid: "مدفوع", customerName: "اسم الزبون",
+    viewInvoice: "عرض / طباعة الفاتورة", viewOrderDetails: "عرض تفاصيل الطلب", orderDetails: "تفاصيل الطلب",
+    paid: "مدفوع", customerName: "اسم الزبون",
     deliveryAddress: "عنوان التوصيل", pickupBranch: "فرع الاستلام", payNow: "ادفع الآن",
     showProducts: "عرض تفاصيل المنتجات", hideProducts: "إخفاء تفاصيل المنتجات",
     choosePaymentMethod: "اختر طريقة الدفع", applePay: "Apple Pay", knet: "كي نت",
@@ -84,6 +91,12 @@ const translations = {
     all: "All", products: "products", add: "Add +", added: "Product added", inCart: "In cart",
     total: "Total", checkout: "Checkout →", back: "Back", noResults: "No matching products",
     order: "Your order", completeOrder: "Complete order", review: "Review", deliveryDetails: "Delivery details",
+    deliveryTime: "Delivery time", withinTwoHours: "Within two hours", withinTwoHoursHint: "Your order will arrive as soon as possible",
+    chooseSpecificTime: "Choose a specific time", chooseSpecificTimeHint: "Select the day and time that suits you",
+    deliveryDate: "Date", hour: "Hour", minute: "Minutes", period: "Period",
+    morning: "AM", evening: "PM", chooseValidTime: "Please choose a future date and time",
+    expectedDeliveryTime: "Expected delivery time", betweenTime: "Between", andTime: "and",
+    scheduledDeliveryTime: "Scheduled delivery time",
     confirmPay: "Confirm & pay", confirmContinue: "Confirm and continue", productsTotal: "Products value",
     deliveryFee: "Delivery fee", delivery: "Delivery", pickup: "Pickup", chooseBranch: "Please choose a branch",
     completeDelivery: "Please select a delivery address", preparing: "One moment…",
@@ -99,7 +112,7 @@ const translations = {
     retry: "Try again", backToPayment: "Back to payment", unconfirmed: "Payment not confirmed",
     unconfirmedText: "The order will not be marked paid until Bede confirms it.", checkAgain: "Check again",
     startFailed: "Could not start payment", linkNotCreated: "Payment link was not created", received: "Order received",
-    orderNumber: "Order number", backStore: "Back to store", downloadInvoice: "Download / print invoice",
+    orderNumber: "Order number", backStore: "Back to store", downloadInvoice: "Download invoice",
     preparingInvoiceDownload: "Preparing your invoice…", customer: "Customer", payOnline: "Payment: Online",
     quantity: "Qty", price: "Price", item: "Item", thankYou: "Thank you for visiting!",
     healthPhrase: "Your health is precious—choose something healthy.", loadingError: "Could not load data. Upload every file next to index.html.",
@@ -115,7 +128,8 @@ const translations = {
     addAddress: "Add address", areaSearch: "Search for an area", addressDetails: "Address details",
     addressPlaceholder: "Block, street, house and floor…", chooseArea: "Choose an area", addressSaved: "Address saved",
     selectAddress: "Select delivery address", noAddedAddresses: "No addresses added", ordersEmpty: "No previous orders",
-    viewInvoice: "View / print invoice", paid: "Paid", customerName: "Customer name", deliveryAddress: "Delivery address",
+    viewInvoice: "View / print invoice", viewOrderDetails: "View order details", orderDetails: "Order details",
+    paid: "Paid", customerName: "Customer name", deliveryAddress: "Delivery address",
     pickupBranch: "Pickup branch", payNow: "Pay now", showProducts: "Show product details",
     hideProducts: "Hide product details", loginServiceUnavailable: "Login service is not connected",
     choosePaymentMethod: "Choose payment method", applePay: "Apple Pay", knet: "KNET",
@@ -133,7 +147,9 @@ const branches = [
 
 const PROFILE_KEY = "figsOlivesProfilesV1";
 const SESSION_KEY = "figsOlivesSessionV1";
-const CART_KEY = "figsOlivesCartV1";
+const LEGACY_CART_KEY = "figsOlivesCartV1";
+const CART_KEY = "figsOlivesCartV2";
+const CATALOG_CACHE_KEY = "figsOlivesCatalogV2";
 
 function readJson(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch { return fallback; }
@@ -146,12 +162,31 @@ function loadCurrentUser() {
   return { ...profiles[session.phone], sessionToken: session.sessionToken || "" };
 }
 
+function cartStorageKey(phone) {
+  return phone ? `${CART_KEY}:${normalizePhone(phone)}` : "";
+}
+
+function loadUserCart(user) {
+  if (!user?.phone) return {};
+  const stored = readJson(cartStorageKey(user.phone), null);
+  if (stored && typeof stored === "object") return stored;
+  const legacy = readJson(LEGACY_CART_KEY, {});
+  if (Object.keys(legacy).length) {
+    localStorage.setItem(cartStorageKey(user.phone), JSON.stringify(legacy));
+    localStorage.removeItem(LEGACY_CART_KEY);
+    return legacy;
+  }
+  return {};
+}
+
+const initialUser = loadCurrentUser();
 const state = {
-  products: [], categories: [], areas: [], cart: readJson(CART_KEY, {}), search: "", activeCategory: "all",
+  products: [], categories: [], areas: [], cart: loadUserCart(initialUser), search: "", activeCategory: "all",
   lang: localStorage.getItem("storeLanguage") === "en" ? "en" : "ar",
   step: 1, mode: "delivery", area: null, branch: "", addressId: "", address: "",
   name: "", phone: "", order: "W00001", paymentRequestId: "", detailProductId: "",
-  paymentMethod: "knet", user: loadCurrentUser(), lastInvoice: null
+  paymentMethod: "knet", deliveryTiming: "asap", scheduledDate: "", scheduledHour: "1",
+  scheduledMinute: "00", scheduledPeriod: "pm", user: initialUser, lastInvoice: null
 };
 
 let imageObserver;
@@ -163,6 +198,12 @@ let pendingCartProductId = "";
 let authMode = "login";
 let authPhone = "";
 let accountReturnToCheckout = false;
+let catalogScrollPosition = 0;
+let userSyncTimer;
+let pendingPaymentResumed = false;
+let catalogSignature = "";
+const invoiceFileCache = new Map();
+if ("scrollRestoration" in history) history.scrollRestoration = "manual";
 
 function tr(key) {
   return translations[state.lang][key] || translations.ar[key] || key;
@@ -249,7 +290,16 @@ function toast(message) {
 }
 
 function persistCart() {
-  localStorage.setItem(CART_KEY, JSON.stringify(state.cart));
+  if (!state.user?.phone) return;
+  localStorage.setItem(cartStorageKey(state.user.phone), JSON.stringify(state.cart));
+  queueUserSync();
+}
+
+function queueUserSync() {
+  clearTimeout(userSyncTimer);
+  userSyncTimer = setTimeout(() => {
+    syncUserToFirebase().catch(error => console.error("Firebase profile sync failed", error));
+  }, 500);
 }
 
 function persistUser() {
@@ -262,7 +312,7 @@ function persistUser() {
   state.name = state.user.name;
   state.phone = state.user.phone;
   updateAccountButton();
-  syncUserToFirebase().catch(error => console.error("Firebase profile sync failed", error));
+  queueUserSync();
 }
 
 async function syncUserToFirebase() {
@@ -274,6 +324,7 @@ async function syncUserToFirebase() {
     name: String(profile.name || "").slice(0, 80),
     addresses: Array.isArray(profile.addresses) ? profile.addresses : [],
     orders: Array.isArray(profile.orders) ? profile.orders : [],
+    cart: state.cart && typeof state.cart === "object" ? state.cart : {},
     updatedAt: firebase.database.ServerValue.TIMESTAMP
   });
 }
@@ -295,6 +346,12 @@ async function hydrateUserFromFirebase() {
       addresses: Array.isArray(remote.addresses) ? remote.addresses : [],
       orders: Array.isArray(remote.orders) ? remote.orders : []
     };
+    if (remote.cart && typeof remote.cart === "object") {
+      state.cart = remote.cart;
+      localStorage.setItem(cartStorageKey(state.user.phone), JSON.stringify(state.cart));
+      renderCartBar();
+      syncAllProductQuantityControls();
+    }
     const profiles = readJson(PROFILE_KEY, {});
     const { sessionToken, ...localProfile } = state.user;
     profiles[state.user.phone] = localProfile;
@@ -331,7 +388,8 @@ function applyLanguage() {
   $("#languageLabel").textContent = state.lang === "ar" ? "English" : "العربية";
   $(".steps [data-step='1'] span").textContent = tr("review");
   $(".steps [data-step='2'] span").textContent = tr("deliveryDetails");
-  $(".steps [data-step='3'] span").textContent = tr("confirmPay");
+  $(".steps [data-step='3'] span").textContent = tr("deliveryTime");
+  $(".steps [data-step='4'] span").textContent = tr("confirmPay");
   updateAccountButton();
 }
 
@@ -364,6 +422,19 @@ function renderCategories() {
   $("#categories").innerHTML = buttons.join("");
 }
 
+function productQuantityControl(id, quantity, detail = false) {
+  const escapedId = escapeHtml(id);
+  if (!quantity) {
+    return `<button class="${detail ? "primary detail-add" : "product-add"}" data-product-add="${escapedId}">${detail ? tr("addToCart") : tr("add")}</button>`;
+  }
+  const item = product(id);
+  return `<div class="product-qty ${detail ? "detail-product-qty" : ""}" aria-label="${escapeHtml(item ? productName(item) : "")}">
+    <button type="button" data-product-plus="${escapedId}" aria-label="+">+</button>
+    <strong>${quantity}</strong>
+    <button type="button" data-product-minus="${escapedId}" aria-label="${quantity === 1 ? "×" : "−"}">${quantity === 1 ? "×" : "−"}</button>
+  </div>`;
+}
+
 function productCard(item, category) {
   const source = productImages(item)[0] || "logo.png";
   const quantity = state.cart[item.id] || 0;
@@ -371,13 +442,13 @@ function productCard(item, category) {
     <article class="product-card" data-product="${escapeHtml(item.id)}" tabindex="0">
       <div class="product-image">
         <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" data-src="${escapeHtml(source)}" width="640" height="580" alt="${escapeHtml(productName(item))}" decoding="async" fetchpriority="low">
-        ${quantity ? `<b class="in-cart">${tr("inCart")} × ${quantity}</b>` : ""}
+        <b class="in-cart ${quantity ? "" : "hidden"}" data-cart-badge="${escapeHtml(item.id)}">${quantity ? `${tr("inCart")} × ${quantity}` : ""}</b>
       </div>
       <div class="product-info">
         <small>${escapeHtml(categoryName(category))}</small>
         <h3>${escapeHtml(productName(item))}</h3>
         <p>${escapeHtml(productDescription(item) || item.nameEn || item.name)}</p>
-        <div class="product-foot"><strong>${money(item.price)}</strong><button data-add="${escapeHtml(item.id)}">${tr("add")}</button></div>
+        <div class="product-foot"><strong>${money(item.price)}</strong><div class="product-quantity-slot" data-product-quantity="${escapeHtml(item.id)}">${productQuantityControl(item.id, quantity)}</div></div>
       </div>
     </article>`;
 }
@@ -445,8 +516,7 @@ function changeQuantity(id, difference) {
   state.paymentRequestId = "";
   persistCart();
   renderCartBar();
-  renderProductSections();
-  if (state.detailProductId) renderProductDetail(state.detailProductId);
+  syncProductQuantityControls(id);
   if (!$("#checkoutModal").classList.contains("hidden")) renderCheckout();
 }
 
@@ -458,6 +528,29 @@ function requestAddToCart(id) {
   }
   changeQuantity(id, 1);
   toast(tr("added"));
+}
+
+function syncProductQuantityControls(id) {
+  const quantity = Number(state.cart[id] || 0);
+  $$(`[data-product-quantity="${CSS.escape(String(id))}"]`).forEach(slot => {
+    slot.innerHTML = productQuantityControl(id, quantity, slot.dataset.detailQuantity === "true");
+  });
+  $$(`[data-cart-badge="${CSS.escape(String(id))}"]`).forEach(badge => {
+    badge.classList.toggle("hidden", !quantity);
+    badge.textContent = quantity ? `${tr("inCart")} × ${quantity}` : "";
+  });
+}
+
+function syncAllProductQuantityControls() {
+  $$("[data-product-quantity]").forEach(slot => {
+    const id = slot.dataset.productQuantity;
+    slot.innerHTML = productQuantityControl(id, Number(state.cart[id] || 0), slot.dataset.detailQuantity === "true");
+  });
+  $$("[data-cart-badge]").forEach(badge => {
+    const quantity = Number(state.cart[badge.dataset.cartBadge] || 0);
+    badge.classList.toggle("hidden", !quantity);
+    badge.textContent = quantity ? `${tr("inCart")} × ${quantity}` : "";
+  });
 }
 
 function renderCartBar() {
@@ -483,21 +576,26 @@ function renderProductDetail(id) {
       </div>
       <div class="product-detail-copy">
         <span class="kicker">${escapeHtml(category ? categoryName(category) : "")}</span><h1>${escapeHtml(productName(item))}</h1>
-        <p>${escapeHtml(productDescription(item) || item.nameEn || item.name)}</p><strong class="detail-price">${money(item.price)}</strong>
-        ${quantity ? `<div class="detail-in-cart">${tr("inCart")} × ${quantity}</div>` : ""}
-        <button class="primary detail-add" data-detail-add="${escapeHtml(item.id)}">${tr("addToCart")}</button>
+        <p>${escapeHtml(productDescription(item) || item.nameEn || item.name)}</p>
       </div>
+    </div>
+    <div class="detail-purchase-bar">
+      <div><small>${escapeHtml(productName(item))}</small><strong class="detail-price">${money(item.price)}</strong></div>
+      <div class="product-quantity-slot" data-product-quantity="${escapeHtml(item.id)}" data-detail-quantity="true">${productQuantityControl(item.id, quantity, true)}</div>
     </div>`;
 }
 
 function openProductPage(id, push = true) {
+  if (!state.detailProductId && push) catalogScrollPosition = window.scrollY;
   state.detailProductId = String(id);
   renderProductDetail(id);
   $("#productPage").classList.remove("hidden");
   $("#productPage").setAttribute("aria-hidden", "false");
   document.body.classList.add("detail-open");
-  window.scrollTo({ top: 0 });
-  if (push && location.hash !== `#product=${encodeURIComponent(id)}`) history.pushState({ product: id }, "", `#product=${encodeURIComponent(id)}`);
+  $("#productPage").scrollTop = 0;
+  if (push && location.hash !== `#product=${encodeURIComponent(id)}`) {
+    history.pushState({ product: id, catalogScrollPosition }, "", `#product=${encodeURIComponent(id)}`);
+  }
 }
 
 function closeProductPage(useHistory = true) {
@@ -505,13 +603,28 @@ function closeProductPage(useHistory = true) {
   $("#productPage").classList.add("hidden");
   $("#productPage").setAttribute("aria-hidden", "true");
   document.body.classList.remove("detail-open");
-  if (useHistory && location.hash.startsWith("#product=")) history.back();
+  if (useHistory && location.hash.startsWith("#product=")) {
+    history.back();
+  }
+  restoreCatalogScrollPosition();
+}
+
+function restoreCatalogScrollPosition() {
+  const restore = () => window.scrollTo({ top: catalogScrollPosition, behavior: "auto" });
+  requestAnimationFrame(() => {
+    restore();
+    setTimeout(restore, 120);
+  });
 }
 
 function syncProductRoute() {
   const match = location.hash.match(/^#product=(.+)$/);
-  if (match) openProductPage(decodeURIComponent(match[1]), false);
-  else if (state.detailProductId) closeProductPage(false);
+  if (match) {
+    if (history.state?.catalogScrollPosition != null) catalogScrollPosition = Number(history.state.catalogScrollPosition);
+    openProductPage(decodeURIComponent(match[1]), false);
+  } else if (state.detailProductId) {
+    closeProductPage(false);
+  }
 }
 
 function setAuthMessage(message, success = false) {
@@ -650,10 +763,12 @@ async function verifyLoginCode(code) {
     if (authMode === "changePhone" && state.user) {
       const profiles = readJson(PROFILE_KEY, {});
       const previousPhone = state.user.phone;
+      const previousCart = { ...state.cart };
       state.user.phone = authPhone;
       state.user.sessionToken = data.sessionToken || state.user.sessionToken;
       if (profiles[previousPhone]) delete profiles[previousPhone];
       localStorage.setItem(PROFILE_KEY, JSON.stringify(profiles));
+      localStorage.setItem(cartStorageKey(authPhone), JSON.stringify(previousCart));
       persistUser();
       closeAuth();
       openAccountDrawer("info");
@@ -662,6 +777,7 @@ async function verifyLoginCode(code) {
     const profiles = readJson(PROFILE_KEY, {});
     const profile = profiles[authPhone] || { phone: authPhone, name: "", addresses: [], orders: [] };
     state.user = { ...profile, phone: authPhone, addresses: profile.addresses || [], orders: profile.orders || [], sessionToken: data.sessionToken || "" };
+    state.cart = loadUserCart(state.user);
     await hydrateUserFromFirebase();
     state.name = state.user.name;
     state.phone = state.user.phone;
@@ -700,6 +816,8 @@ function completeLogin() {
   $("#authModal").classList.add("hidden");
   $("#authModal").setAttribute("aria-hidden", "true");
   updateAccountButton();
+  renderCartBar();
+  syncAllProductQuantityControls();
   if (pendingCartProductId) {
     const id = pendingCartProductId;
     pendingCartProductId = "";
@@ -709,12 +827,16 @@ function completeLogin() {
 }
 
 function logout() {
+  persistCart();
   localStorage.removeItem(SESSION_KEY);
   state.user = null;
+  state.cart = {};
   state.name = "";
   state.phone = "";
   closeAccountDrawer();
   updateAccountButton();
+  renderCartBar();
+  syncAllProductQuantityControls();
   toast(tr("loggedOut"));
 }
 
@@ -726,6 +848,7 @@ function openAccountDrawer(page = "home", options = {}) {
   if (page === "info") renderAccountInfo();
   else if (page === "addresses") renderAddresses();
   else if (page === "orders") renderOrders();
+  else if (page === "orderDetails") renderOrderDetails(options.orderId || "", options.fromSuccess === true);
   else if (page === "addressForm") renderAddressForm(options.addressId || "");
   else renderAccountHome();
 }
@@ -733,6 +856,14 @@ function openAccountDrawer(page = "home", options = {}) {
 function closeAccountDrawer() {
   $("#accountDrawer").classList.add("hidden");
   $("#accountDrawer").setAttribute("aria-hidden", "true");
+}
+
+function resetAccountDrawerScroll() {
+  const drawer = $(".account-drawer");
+  if (drawer) {
+    drawer.scrollTop = 0;
+    drawer.scrollLeft = 0;
+  }
 }
 
 const accountIcons = {
@@ -744,6 +875,7 @@ const accountIcons = {
 
 function renderAccountHome() {
   if (!state.user) return;
+  resetAccountDrawerScroll();
   $("#accountContent").innerHTML = `
     <section class="account-welcome"><small>${tr("welcome")}</small><h2>${escapeHtml(state.user.name)}</h2><p>${escapeHtml(state.user.phone)}</p></section>
     <nav class="account-menu">
@@ -767,6 +899,7 @@ function bindDrawerBack(target = "home") {
 }
 
 function renderAccountInfo() {
+  resetAccountDrawerScroll();
   $("#accountContent").innerHTML = `${drawerPageHeader(tr("myInfo"))}
     <form class="profile-form" id="profileForm">
       <label>${tr("username")}<input id="profileName" value="${escapeHtml(state.user.name)}" maxlength="80"></label>
@@ -788,10 +921,11 @@ function renderAccountInfo() {
 
 function renderAddresses() {
   const addresses = state.user.addresses || [];
+  resetAccountDrawerScroll();
   $("#accountContent").innerHTML = `${drawerPageHeader(tr("myAddresses"), `<button class="primary" id="addAddressTop">＋ ${tr("addAddress")}</button>`)}
     ${addresses.length ? `<div class="address-list">${addresses.map(address => `
       <article class="address-card">
-        <h3>${escapeHtml(address.areaName)}</h3><p>${escapeHtml(address.details)}</p><strong>${money(address.price)}</strong>
+        <h3>${escapeHtml(address.areaName)}</h3><p>${escapeHtml(address.details)}</p>
         <div class="card-actions"><button data-edit-address="${escapeHtml(address.id)}">${tr("edit")}</button><button class="delete" data-delete-address="${escapeHtml(address.id)}">${tr("delete")}</button></div>
       </article>`).join("")}</div>` : `<div class="empty-state">${accountIcons.address}<h3>${tr("addressesEmpty")}</h3></div>`}`;
   bindDrawerBack();
@@ -812,6 +946,7 @@ function renderAddresses() {
 
 function renderAddressForm(addressId = "") {
   const existing = (state.user.addresses || []).find(address => address.id === addressId);
+  resetAccountDrawerScroll();
   let selectedArea = existing ? { name: existing.areaName, price: existing.price } : null;
   const resultsHtml = query => {
     const normalizedQuery = String(query || "").trim();
@@ -874,18 +1009,59 @@ function renderAddressForm(addressId = "") {
 
 function renderOrders() {
   const orders = (state.user.orders || []).slice().sort((a, b) => Number(b.createdAt) - Number(a.createdAt));
+  resetAccountDrawerScroll();
   $("#accountContent").innerHTML = `${drawerPageHeader(tr("myOrders"))}
     ${orders.length ? `<div class="order-list">${orders.map(order => `
       <article class="order-card">
         <div class="order-card-head"><div><strong class="order-number">${escapeHtml(order.orderId)}</strong><p>${escapeHtml(trLocaleDate(order.createdAt))}</p></div><span class="paid-badge">${tr("paid")}</span></div>
         <div class="order-total"><span>${tr("total")}</span><b>${money(order.total)}</b></div>
-        <button class="primary" data-order-invoice="${escapeHtml(order.orderId)}">${tr("viewInvoice")}</button>
+        <button class="primary" data-order-details="${escapeHtml(order.orderId)}">${tr("viewOrderDetails")}</button>
       </article>`).join("")}</div>` : `<div class="empty-state">${accountIcons.order}<h3>${tr("ordersEmpty")}</h3></div>`}`;
   bindDrawerBack();
-  $$("[data-order-invoice]").forEach(button => button.onclick = () => {
-    const order = orders.find(item => item.orderId === button.dataset.orderInvoice);
-    if (order) downloadPdf(order);
-  });
+  $$("[data-order-details]").forEach(button => button.onclick = () => renderOrderDetails(button.dataset.orderDetails));
+}
+
+function orderDestination(order) {
+  if (order.mode === "delivery") return `${order.areaName || ""} — ${order.address || ""}`;
+  const branch = branches.find(item => item.id === order.branchId);
+  return branch ? `${branchField(branch, "name")} — ${branchField(branch, "address")}` : "";
+}
+
+function renderOrderDetails(orderId, fromSuccess = false) {
+  const order = (state.user?.orders || []).find(item => item.orderId === orderId) ||
+    (state.lastInvoice?.orderId === orderId ? state.lastInvoice : null);
+  if (!order) return renderOrders();
+  resetAccountDrawerScroll();
+  $("#accountContent").innerHTML = `${drawerPageHeader(tr("orderDetails"))}
+    <section class="order-detail">
+      <div class="order-detail-hero"><div><small>${tr("orderNumber")}</small><strong>${escapeHtml(order.orderId)}</strong></div><span class="paid-badge">${tr("paid")}</span></div>
+      <div class="order-detail-grid">
+        <div><small>${tr("customerName")}</small><strong>${escapeHtml(order.customerName || state.user?.name || "")}</strong></div>
+        <div><small>${tr("phone")}</small><strong class="phone">${escapeHtml(order.phone || state.user?.phone || "")}</strong></div>
+        <div class="full"><small>${order.mode === "delivery" ? tr("deliveryAddress") : tr("pickupBranch")}</small><strong>${escapeHtml(orderDestination(order))}</strong></div>
+        <div class="full"><small>${tr("expectedDeliveryTime")}</small><strong>${escapeHtml(deliveryTimeSummary(order))}</strong></div>
+      </div>
+      <div class="order-detail-items">${(order.items || []).map(item => `
+        <article><span><b>${escapeHtml(orderItemName(item))}</b><small>${tr("quantity")}: ${item.quantity}</small></span><strong>${money(item.total)}</strong></article>`).join("")}</div>
+      <div class="order-detail-totals">
+        <span>${tr("productsTotal")} <b>${money(order.subtotal)}</b></span>
+        <span>${tr("deliveryFee")} <b>${money(order.deliveryFee)}</b></span>
+        <strong>${tr("total")} <b>${money(order.total)}</b></strong>
+      </div>
+      <button class="primary download-invoice-button" id="downloadOrderInvoice">${tr("downloadInvoice")}</button>
+    </section>`;
+  const back = $("[data-drawer-back]");
+  if (back) back.onclick = () => {
+    if (fromSuccess) {
+      closeAccountDrawer();
+      $("#checkoutModal").classList.remove("hidden");
+    } else {
+      renderOrders();
+    }
+  };
+  const downloadButton = $("#downloadOrderInvoice");
+  downloadButton.onclick = () => downloadPdf(order);
+  prepareInvoiceFile(order, downloadButton);
 }
 
 function openCheckout() {
@@ -909,9 +1085,10 @@ function setSteps() {
 
 function renderCheckout() {
   setSteps();
-  $("#checkoutTitle").textContent = state.step === 3 ? tr("confirmPay") : tr("completeOrder");
+  $("#checkoutTitle").textContent = state.step === 3 ? tr("deliveryTime") : state.step === 4 ? tr("confirmPay") : tr("completeOrder");
   if (state.step === 1) renderReview();
   else if (state.step === 2) renderDelivery();
+  else if (state.step === 3) renderDeliveryTime();
   else renderConfirmation();
 }
 
@@ -944,7 +1121,7 @@ function renderDelivery() {
   const deliveryForm = addresses.length ? `
     <h3>${tr("selectAddress")}</h3><div class="checkout-addresses">${addresses.map(address => `
       <button class="checkout-address ${state.addressId === address.id ? "selected" : ""}" data-checkout-address="${escapeHtml(address.id)}">
-        <span class="radio"></span><div><strong>${escapeHtml(address.areaName)} — ${money(address.price)}</strong><small>${escapeHtml(address.details)}</small></div>
+        <span class="radio">${state.addressId === address.id ? "✓" : ""}</span><div><strong>${escapeHtml(address.areaName)} — ${money(address.price)}</strong><small>${escapeHtml(address.details)}</small></div>
       </button>`).join("")}</div><button class="add-address-button" id="checkoutAddAddress">＋ ${tr("addAddress")}</button>` :
     `<div class="empty-state">${accountIcons.address}<h3>${tr("noAddedAddresses")}</h3><button class="primary" id="checkoutAddAddress">＋ ${tr("addAddress")}</button></div>`;
   const pickupForm = `<div class="branches">${branches.map(branch => `
@@ -977,6 +1154,77 @@ function deliverySummary() {
   return `${state.area?.name || ""} — ${state.address}`;
 }
 
+function dateInputValue(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function scheduledDateTime() {
+  if (!state.scheduledDate) return null;
+  let hour = Number(state.scheduledHour);
+  if (state.scheduledPeriod === "pm" && hour !== 12) hour += 12;
+  if (state.scheduledPeriod === "am" && hour === 12) hour = 0;
+  const result = new Date(`${state.scheduledDate}T${String(hour).padStart(2, "0")}:${state.scheduledMinute}:00`);
+  return Number.isNaN(result.getTime()) ? null : result;
+}
+
+function renderDeliveryTime() {
+  state.scheduledDate = state.scheduledDate || dateInputValue();
+  const specific = state.deliveryTiming === "scheduled";
+  const hours = Array.from({ length: 12 }, (_, index) => index + 1);
+  $("#checkoutBody").innerHTML = `
+    <section class="delivery-time-panel">
+      <button class="time-choice ${specific ? "" : "selected"}" id="asapTime" type="button">
+        <span class="radio">${specific ? "" : "✓"}</span><span><strong>${tr("withinTwoHours")}</strong><small>${tr("withinTwoHoursHint")}</small></span>
+      </button>
+      <button class="time-choice ${specific ? "selected" : ""}" id="scheduledTime" type="button">
+        <span class="radio">${specific ? "✓" : ""}</span><span><strong>${tr("chooseSpecificTime")}</strong><small>${tr("chooseSpecificTimeHint")}</small></span>
+      </button>
+      ${specific ? `<div class="time-fields">
+        <label class="time-date">${tr("deliveryDate")}<input id="scheduledDate" type="date" min="${dateInputValue()}" value="${escapeHtml(state.scheduledDate)}"></label>
+        <label>${tr("hour")}<select id="scheduledHour">${hours.map(hour => `<option value="${hour}" ${String(hour) === String(state.scheduledHour) ? "selected" : ""}>${hour}</option>`).join("")}</select></label>
+        <label>${tr("minute")}<select id="scheduledMinute"><option value="00" ${state.scheduledMinute === "00" ? "selected" : ""}>00</option><option value="30" ${state.scheduledMinute === "30" ? "selected" : ""}>30</option></select></label>
+        <label>${tr("period")}<select id="scheduledPeriod"><option value="am" ${state.scheduledPeriod === "am" ? "selected" : ""}>${tr("morning")}</option><option value="pm" ${state.scheduledPeriod === "pm" ? "selected" : ""}>${tr("evening")}</option></select></label>
+      </div>` : ""}
+      <div class="actions"><button class="secondary" id="backTime">${tr("back")}</button><button class="primary" id="confirmTime">${tr("confirmContinue")}</button></div>
+    </section>`;
+  $("#asapTime").onclick = () => { state.deliveryTiming = "asap"; state.paymentRequestId = ""; renderDeliveryTime(); };
+  $("#scheduledTime").onclick = () => { state.deliveryTiming = "scheduled"; state.paymentRequestId = ""; renderDeliveryTime(); };
+  $("#scheduledDate")?.addEventListener("change", event => { state.scheduledDate = event.target.value; state.paymentRequestId = ""; });
+  $("#scheduledHour")?.addEventListener("change", event => { state.scheduledHour = event.target.value; state.paymentRequestId = ""; });
+  $("#scheduledMinute")?.addEventListener("change", event => { state.scheduledMinute = event.target.value; state.paymentRequestId = ""; });
+  $("#scheduledPeriod")?.addEventListener("change", event => { state.scheduledPeriod = event.target.value; state.paymentRequestId = ""; });
+  $("#backTime").onclick = () => { state.step = 2; renderCheckout(); };
+  $("#confirmTime").onclick = () => {
+    if (state.deliveryTiming === "scheduled") {
+      const selected = scheduledDateTime();
+      if (!selected || selected.getTime() <= Date.now()) return toast(tr("chooseValidTime"));
+    }
+    state.step = 4;
+    renderCheckout();
+  };
+}
+
+function formatDeliveryTime(value) {
+  return new Date(value).toLocaleTimeString(state.lang === "ar" ? "ar-KW" : "en-GB", { hour: "numeric", minute: "2-digit" });
+}
+
+function deliveryTimeSummary(source = state) {
+  if (source.deliveryTiming === "scheduled" && source.scheduledAt) {
+    return `${tr("scheduledDeliveryTime")}: ${trLocaleDate(source.scheduledAt)}`;
+  }
+  if (source.deliveryTiming === "scheduled") {
+    const scheduled = scheduledDateTime();
+    return scheduled ? `${tr("scheduledDeliveryTime")}: ${trLocaleDate(scheduled.getTime())}` : tr("chooseSpecificTime");
+  }
+  if (source.expectedStart && source.expectedEnd) {
+    return `${tr("betweenTime")} ${formatDeliveryTime(source.expectedStart)} ${tr("andTime")} ${formatDeliveryTime(source.expectedEnd)}`;
+  }
+  return tr("withinTwoHours");
+}
+
 function renderConfirmation() {
   $("#checkoutTitle").textContent = tr("confirmPay");
   $("#checkoutBody").innerHTML = `
@@ -985,6 +1233,7 @@ function renderConfirmation() {
         <div class="summary-box"><small>${tr("customerName")}</small><strong>${escapeHtml(state.user.name)}</strong></div>
         <div class="summary-box"><small>${tr("phone")}</small><strong class="phone">${escapeHtml(state.user.phone)}</strong></div>
         <div class="summary-box full"><small>${state.mode === "delivery" ? tr("deliveryAddress") : tr("pickupBranch")}</small><strong>${escapeHtml(deliverySummary())}</strong></div>
+        <div class="summary-box full"><small>${tr("deliveryTime")}</small><strong>${escapeHtml(deliveryTimeSummary())}</strong></div>
       </div>
       <div class="price-summary">
         <button class="price-row products-toggle" id="productsToggle"><span><b class="arrow">‹</b> ${tr("productsTotal")}</span><strong>${money(subtotal())}</strong></button>
@@ -1001,7 +1250,7 @@ function renderConfirmation() {
     $("#productsToggle").classList.toggle("open", open);
     $("#productsToggle").setAttribute("aria-label", open ? tr("hideProducts") : tr("showProducts"));
   };
-  $("#back2").onclick = () => { state.step = 2; renderCheckout(); };
+  $("#back2").onclick = () => { state.step = 3; renderCheckout(); };
   $("#finish").onclick = beginPayment;
 }
 
@@ -1044,7 +1293,11 @@ function paymentPayload(paymentMethod = state.paymentMethod) {
     customer: { name: state.user.name.trim(), phone: normalizePhone(state.user.phone) },
     items: cartItems().map(({ product: item, quantity }) => ({ id: String(item.id), quantity })),
     delivery: { mode: state.mode, areaName: state.area?.name || "", branchId: state.branch || "", address: state.address || "" },
-    paymentMethod
+    paymentMethod,
+    deliveryTime: {
+      type: state.deliveryTiming,
+      scheduledAt: state.deliveryTiming === "scheduled" ? scheduledDateTime()?.toISOString() || "" : ""
+    }
   };
 }
 
@@ -1054,7 +1307,9 @@ function pendingSnapshot(payment) {
     checkout: {
       cart: state.cart, mode: state.mode, areaName: state.area?.name || "", branch: state.branch,
       addressId: state.addressId, address: state.address, name: state.user.name, phone: state.user.phone,
-      lang: state.lang, paymentMethod: state.paymentMethod
+      lang: state.lang, paymentMethod: state.paymentMethod, deliveryTiming: state.deliveryTiming,
+      scheduledDate: state.scheduledDate, scheduledHour: state.scheduledHour,
+      scheduledMinute: state.scheduledMinute, scheduledPeriod: state.scheduledPeriod
     }
   };
 }
@@ -1070,6 +1325,11 @@ function restorePending(pending) {
   state.name = saved.name || state.name;
   state.phone = saved.phone || state.phone;
   state.paymentMethod = saved.paymentMethod === "applepay" ? "applepay" : "knet";
+  state.deliveryTiming = saved.deliveryTiming === "scheduled" ? "scheduled" : "asap";
+  state.scheduledDate = saved.scheduledDate || state.scheduledDate;
+  state.scheduledHour = saved.scheduledHour || state.scheduledHour;
+  state.scheduledMinute = saved.scheduledMinute || state.scheduledMinute;
+  state.scheduledPeriod = saved.scheduledPeriod || state.scheduledPeriod;
   state.order = pending.orderId || state.order;
   if (saved.lang && saved.lang !== state.lang) setLanguage(saved.lang);
   persistCart();
@@ -1158,7 +1418,7 @@ function paymentDeclined() {
   state.paymentRequestId = "";
   $("#checkoutTitle").textContent = tr("declinedTitle");
   $("#checkoutBody").innerHTML = `<div class="payment-error"><div class="error-mark">×</div><h3>${tr("declinedTitle")}</h3><p>${tr("declinedText")}</p><div class="actions"><button class="secondary" id="declinedBack">${tr("backToPayment")}</button><button class="primary" id="declinedRetry">${tr("retry")}</button></div></div>`;
-  $("#declinedBack").onclick = $("#declinedRetry").onclick = () => { state.step = 3; $("#steps").classList.remove("hidden"); renderCheckout(); };
+  $("#declinedBack").onclick = $("#declinedRetry").onclick = () => { state.step = 4; $("#steps").classList.remove("hidden"); renderCheckout(); };
 }
 
 function paymentPendingTimeout(pending) {
@@ -1170,15 +1430,17 @@ function paymentPendingTimeout(pending) {
 
 function paymentError(message) {
   $("#steps").classList.remove("hidden");
-  state.step = 3;
+  state.step = 4;
   setSteps();
   $("#checkoutTitle").textContent = tr("startFailed");
   $("#checkoutBody").innerHTML = `<div class="payment-error"><div class="error-mark">!</div><h3>${tr("linkNotCreated")}</h3><p>${escapeHtml(message || tr("createFailed"))}</p><div class="actions"><button class="secondary" id="paymentBack">${tr("back")}</button><button class="primary" id="paymentRetry">${tr("retry")}</button></div></div>`;
-  $("#paymentBack").onclick = () => { state.step = 3; renderCheckout(); };
+  $("#paymentBack").onclick = () => { state.step = 4; renderCheckout(); };
   $("#paymentRetry").onclick = () => finishOrder(state.paymentMethod);
 }
 
 function resumePendingPayment() {
+  if (pendingPaymentResumed) return;
+  pendingPaymentResumed = true;
   const raw = sessionStorage.getItem("pendingBedeOrder");
   if (!raw) return;
   try {
@@ -1195,10 +1457,16 @@ function resumePendingPayment() {
 }
 
 function currentInvoiceModel() {
+  const approvedAt = Date.now();
+  const scheduled = state.deliveryTiming === "scheduled" ? scheduledDateTime() : null;
   return {
-    orderId: state.order, createdAt: Date.now(), customerName: state.user?.name || state.name,
+    orderId: state.order, createdAt: approvedAt, customerName: state.user?.name || state.name,
     phone: state.user?.phone || state.phone, mode: state.mode, areaName: state.area?.name || "",
     address: state.address, branchId: state.branch,
+    deliveryTiming: state.deliveryTiming,
+    scheduledAt: scheduled?.getTime() || null,
+    expectedStart: state.deliveryTiming === "asap" ? approvedAt + 60 * 60 * 1000 : null,
+    expectedEnd: state.deliveryTiming === "asap" ? approvedAt + 2 * 60 * 60 * 1000 : null,
     items: cartItems().map(({ product: item, quantity }) => ({ id: String(item.id), nameAr: item.name, nameEn: item.nameEn || item.name, quantity, unitPrice: Number(item.price), total: Number(item.price) * quantity })),
     subtotal: subtotal(), deliveryFee: deliveryFee(), total: total(), status: "paid"
   };
@@ -1217,15 +1485,18 @@ function showSuccess() {
   saveCompletedOrder(order);
   buildInvoice(order);
   $("#checkoutTitle").textContent = tr("received");
-  $("#checkoutBody").innerHTML = `<div class="success"><div class="check">✓</div><h3>${tr("received")}</h3><p>${tr("orderNumber")}</p><strong class="order-no">${escapeHtml(state.order)}</strong><div class="actions" style="width:min(420px,100%)"><button class="secondary" id="newOrder">${tr("backStore")}</button><button class="primary" id="pdf">${tr("downloadInvoice")}</button></div></div>`;
+  $("#checkoutBody").innerHTML = `<div class="success"><div class="check">✓</div><h3>${tr("received")}</h3><p>${tr("orderNumber")}</p><strong class="order-no">${escapeHtml(state.order)}</strong><div class="success-delivery-time"><small>${tr("expectedDeliveryTime")}</small><strong>${escapeHtml(deliveryTimeSummary(order))}</strong></div><div class="actions" style="width:min(420px,100%)"><button class="secondary" id="newOrder">${tr("backStore")}</button><button class="primary" id="orderDetailsButton">${tr("viewOrderDetails")}</button></div></div>`;
   $("#newOrder").onclick = () => {
     state.cart = {};
     persistCart();
     renderCartBar();
-    renderProductSections();
+    syncAllProductQuantityControls();
     $("#checkoutModal").classList.add("hidden");
   };
-  $("#pdf").onclick = () => downloadPdf(order);
+  $("#orderDetailsButton").onclick = () => {
+    $("#checkoutModal").classList.add("hidden");
+    openAccountDrawer("orderDetails", { orderId: order.orderId, fromSuccess: true });
+  };
 }
 
 function orderItemName(item) {
@@ -1239,16 +1510,17 @@ function buildInvoice(order) {
     <img src="logo.png" alt=""><h2>${tr("brand")}</h2>
     <p>${state.lang === "ar" ? "الكويت، حولي، شارع تونس، مجمع علي فهد الخالد، دور الميزانين" : "Kuwait, Hawalli, Tunis Street, Ali Fahad Al-Khaled Complex"}<br>66906605 | 22085888</p>
     <hr><p>${tr("orderNumber")}: <b>#${escapeHtml(order.orderId)}</b> — ${new Date(order.createdAt).toLocaleDateString(state.lang === "ar" ? "ar-KW" : "en-GB")}</p>
-    <p><b>${tr("customer")}: ${escapeHtml(order.customerName || tr("customer"))}</b><br>${escapeHtml(order.phone || "")}<br>📍 ${escapeHtml(destination)}<br>${tr("payOnline")}</p>
+    <p><b>${tr("customer")}: ${escapeHtml(order.customerName || tr("customer"))}</b><br>${escapeHtml(order.phone || "")}<br>📍 ${escapeHtml(destination)}<br>🕒 ${escapeHtml(deliveryTimeSummary(order))}<br>${tr("payOnline")}</p>
     <table><thead><tr><th>${tr("item")}</th><th>${tr("quantity")}</th><th>${tr("price")}</th></tr></thead>
     <tbody>${order.items.map(item => `<tr><td>${escapeHtml(orderItemName(item))}</td><td>${item.quantity}</td><td>${money(item.total)}</td></tr>`).join("")}</tbody></table>
     <div class="invoice-totals"><span>${tr("productsTotal")} <b>${money(order.subtotal)}</b></span><span>${tr("deliveryFee")} <b>${money(order.deliveryFee)}</b></span><strong>${tr("total")} <b>${money(order.total)}</b></strong></div>
     <footer>${tr("thankYou")}<br><small>${tr("healthPhrase")}</small></footer>`;
 }
 
-async function downloadPdf(order = state.lastInvoice || currentInvoiceModel()) {
-  try {
-    toast(tr("preparingInvoiceDownload"));
+async function createInvoiceFile(order) {
+  const cacheKey = `${order.orderId}:${state.lang}`;
+  if (invoiceFileCache.has(cacheKey)) return invoiceFileCache.get(cacheKey);
+  const promise = (async () => {
     buildInvoice(order);
     if (!window.html2canvas || !window.jspdf?.jsPDF) throw new Error("PDF libraries unavailable");
     await document.fonts?.ready;
@@ -1271,7 +1543,56 @@ async function downloadPdf(order = state.lastInvoice || currentInvoiceModel()) {
       pdf.addImage(image, "JPEG", 10, y, pageWidth, imageHeight, undefined, "FAST");
       remaining -= pageHeight;
     }
-    pdf.save(`invoice-${order.orderId}.pdf`);
+    const filename = `invoice-${order.orderId}.pdf`;
+    const blob = pdf.output("blob");
+    return new File([blob], filename, { type: "application/pdf" });
+  })();
+  invoiceFileCache.set(cacheKey, promise);
+  try {
+    return await promise;
+  } catch (error) {
+    invoiceFileCache.delete(cacheKey);
+    throw error;
+  }
+}
+
+function prepareInvoiceFile(order, button) {
+  if (!button) return;
+  button.disabled = true;
+  button.textContent = tr("preparingInvoiceDownload");
+  createInvoiceFile(order).then(() => {
+    if (!button.isConnected) return;
+    button.disabled = false;
+    button.textContent = tr("downloadInvoice");
+  }).catch(error => {
+    console.error(error);
+    if (!button.isConnected) return;
+    button.disabled = false;
+    button.textContent = tr("downloadInvoice");
+  });
+}
+
+async function downloadPdf(order = state.lastInvoice || currentInvoiceModel()) {
+  try {
+    toast(tr("preparingInvoiceDownload"));
+    const file = await createInvoiceFile(order);
+    if (isAppleMobileDevice() && navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: file.name });
+        return;
+      } catch (error) {
+        if (error?.name === "AbortError") return;
+      }
+    }
+    const url = URL.createObjectURL(file);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = file.name;
+    anchor.rel = "noopener";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 15000);
   } catch (error) {
     console.error(error);
     toast(tr("invoiceFailed"));
@@ -1289,13 +1610,21 @@ $("#categories").onclick = event => {
   const button = event.target.closest("[data-category-link]");
   if (button) scrollToCategory(button.dataset.categoryLink);
 };
+function handleProductQuantityEvent(event) {
+  const add = event.target.closest("[data-product-add]");
+  const plus = event.target.closest("[data-product-plus]");
+  const minus = event.target.closest("[data-product-minus]");
+  const control = add || plus || minus;
+  if (!control) return false;
+  event.preventDefault();
+  event.stopPropagation();
+  if (add) requestAddToCart(add.dataset.productAdd);
+  if (plus) changeQuantity(plus.dataset.productPlus, 1);
+  if (minus) changeQuantity(minus.dataset.productMinus, -1);
+  return true;
+}
 $("#productSections").onclick = event => {
-  const addButton = event.target.closest("[data-add]");
-  if (addButton) {
-    event.stopPropagation();
-    requestAddToCart(addButton.dataset.add);
-    return;
-  }
+  if (handleProductQuantityEvent(event)) return;
   const card = event.target.closest("[data-product]");
   if (card) openProductPage(card.dataset.product);
 };
@@ -1305,13 +1634,12 @@ $("#productSections").onkeydown = event => {
   if (card) { event.preventDefault(); openProductPage(card.dataset.product); }
 };
 $("#productDetail").onclick = event => {
+  if (handleProductQuantityEvent(event)) return;
   const imageButton = event.target.closest("[data-detail-image]");
   if (imageButton) {
     $("#detailMainImage").src = imageButton.dataset.detailImage;
     $$(".product-thumbs button").forEach(button => button.classList.toggle("active", button === imageButton));
   }
-  const addButton = event.target.closest("[data-detail-add]");
-  if (addButton) requestAddToCart(addButton.dataset.detailAdd);
 };
 $("#productBack").onclick = () => closeProductPage();
 $("#checkoutBtn").onclick = openCheckout;
@@ -1341,27 +1669,38 @@ if (state.user) {
   state.phone = state.user.phone;
 }
 
-function applyCatalog(catalog) {
+function applyCatalog(catalog, cache = true) {
+  if (!Array.isArray(catalog?.products) || !Array.isArray(catalog?.categories) || !Array.isArray(catalog?.deliveryAreas)) return false;
+  const signature = JSON.stringify([
+    catalog.version || "", catalog.updatedAt || "", catalog.products.length, catalog.categories.length,
+    catalog.products[0]?.id || "", catalog.products[catalog.products.length - 1]?.id || ""
+  ]);
+  if (signature === catalogSignature) return true;
+  catalogSignature = signature;
   state.products = Array.isArray(catalog?.products) ? catalog.products : [];
   state.categories = Array.isArray(catalog?.categories) ? catalog.categories : [];
   state.areas = Array.isArray(catalog?.deliveryAreas) ? catalog.deliveryAreas : [];
+  if (cache) {
+    try { localStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(catalog)); } catch { /* يتوفر products.json كنسخة احتياطية */ }
+  }
   renderCategories();
   renderProductSections();
   renderCartBar();
   syncProductRoute();
+  return true;
 }
 
 async function loadLocalCatalog() {
   const [products, categories, deliveryAreas] = await Promise.all([
-    fetch("products.json", { cache: "no-store" }).then(response => {
+    fetch("products.json", { cache: "force-cache" }).then(response => {
       if (!response.ok) throw new Error("products.json");
       return response.json();
     }),
-    fetch("categories.json", { cache: "no-store" }).then(response => {
+    fetch("categories.json", { cache: "force-cache" }).then(response => {
       if (!response.ok) throw new Error("categories.json");
       return response.json();
     }),
-    fetch("delivery-areas.json", { cache: "no-store" }).then(response => {
+    fetch("delivery-areas.json", { cache: "force-cache" }).then(response => {
       if (!response.ok) throw new Error("delivery-areas.json");
       return response.json();
     })
@@ -1370,26 +1709,21 @@ async function loadLocalCatalog() {
 }
 
 async function initializeStoreData() {
-  let loadedFromFirebase = false;
-  if (firebaseServices) {
-    try {
-      const catalogRef = firebaseServices.database.ref("orderingPlatform/catalog");
-      const snapshot = await catalogRef.once("value");
-      if (snapshot.exists()) {
-        applyCatalog(snapshot.val());
-        loadedFromFirebase = true;
-      }
-      catalogRef.on("value", liveSnapshot => {
-        if (!liveSnapshot.exists()) return;
-        applyCatalog(liveSnapshot.val());
-      }, error => console.error("Firebase catalog listener failed", error));
-    } catch (error) {
-      console.error("Firebase catalog load failed", error);
-    }
+  const cachedCatalog = readJson(CATALOG_CACHE_KEY, null);
+  let hasCatalog = applyCatalog(cachedCatalog, false);
+  if (!hasCatalog) {
+    const localCatalog = await loadLocalCatalog();
+    hasCatalog = applyCatalog(localCatalog);
   }
-  if (!loadedFromFirebase) applyCatalog(await loadLocalCatalog());
-  resumePendingPayment();
+  if (hasCatalog) resumePendingPayment();
   hydrateUserFromFirebase();
+  if (firebaseServices) {
+    const catalogRef = firebaseServices.database.ref("orderingPlatform/catalog");
+    catalogRef.on("value", liveSnapshot => {
+      if (!liveSnapshot.exists()) return;
+      applyCatalog(liveSnapshot.val());
+    }, error => console.error("Firebase catalog listener failed", error));
+  }
 }
 
 initializeStoreData().catch(error => {
