@@ -97,9 +97,10 @@ body.detail-open .categories{display:none}
 .hero.has-hero-image{
   aspect-ratio:20/9;
   min-height:unset;
-  background-size:100% 100%;
-  background-position:center;
+  background-size:cover;
+  background-position:var(--hero-position-x,50%) var(--hero-position-y,50%);
 }
+.hero.has-hero-image h1{line-height:1.4}
 .hero .hero-content h1{color:var(--hero-title-color)!important}
 .section-heading{display:block;margin-bottom:20px}
 .section-heading h2{margin:0}
@@ -201,7 +202,7 @@ body.detail-open .categories{display:none}
     max-width:72%;
     margin:0 0 12px;
     font-size:clamp(25px,7.5vw,31px);
-    line-height:1.16;
+    line-height:1.42;
   }
   .hero.has-hero-image .hero-badges{gap:5px}
   .hero.has-hero-image .hero-badges span{padding:6px 8px;font-size:8px}
