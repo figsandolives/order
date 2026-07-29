@@ -30,7 +30,7 @@ const translations = {
     deliveryEverywhere: "توصيل لجميع مناطق الكويت", heroTitle: "أكل صحي بطعم<br>يستحق التكرار",
     heroText: "اختر من منتجاتنا الطبيعية والمخبوزات الطازجة، ونحن نتكفل بالباقي.",
     naturalIngredients: "مكونات طبيعية", dailyPreparation: "تحضير يومي", securePayment: "دفع آمن",
-    ourMenu: "قائمتنا", whatToday: "ماذا تشتهي اليوم؟", searchPlaceholder: "ابحث عن منتج…",
+    ourMenu: "قائمتنا", whatToday: "ماذا تشتهي اليوم؟", searchPlaceholder: "ابحث عن منتج…", searchStart: "اكتب اسم المنتج لعرض النتائج",
     all: "الكل", products: "منتج", add: "إضافة +", added: "تمت إضافة المنتج", inCart: "في السلة",
     total: "الإجمالي", checkout: "إتمام الدفع ←", back: "رجوع", noResults: "لا توجد منتجات مطابقة",
     order: "طلبك", completeOrder: "إتمام الطلب", review: "المراجعة", deliveryDetails: "تفاصيل التسليم",
@@ -87,7 +87,7 @@ const translations = {
     deliveryEverywhere: "Delivery across Kuwait", heroTitle: "Healthy food with a taste<br>worth repeating",
     heroText: "Choose from our natural products and fresh bakes, and we will handle the rest.",
     naturalIngredients: "Natural ingredients", dailyPreparation: "Prepared daily", securePayment: "Secure payment",
-    ourMenu: "Our menu", whatToday: "What are you craving today?", searchPlaceholder: "Search products…",
+    ourMenu: "Our menu", whatToday: "What are you craving today?", searchPlaceholder: "Search products…", searchStart: "Type a product name to see results",
     all: "All", products: "products", add: "Add +", added: "Product added", inCart: "In cart",
     total: "Total", checkout: "Checkout →", back: "Back", noResults: "No matching products",
     order: "Your order", completeOrder: "Complete order", review: "Review", deliveryDetails: "Delivery details",
@@ -249,6 +249,12 @@ function applyStoreAppearance(value) {
   hero.style.setProperty("--hero-title-color", state.appearance.heroTextColor);
   hero.style.setProperty("--hero-badge-background", state.appearance.badgeBackgroundColor);
   hero.style.setProperty("--hero-badge-text", state.appearance.badgeTextColor);
+  const title = $("h1", hero);
+  if (title) title.style.color = state.appearance.heroTextColor;
+  $$(".hero-badges span", hero).forEach(badge => {
+    badge.style.backgroundColor = state.appearance.badgeBackgroundColor;
+    badge.style.color = state.appearance.badgeTextColor;
+  });
   hero.classList.toggle("has-hero-image", Boolean(state.appearance.heroImage));
   hero.style.backgroundImage = state.appearance.heroImage
     ? `linear-gradient(rgba(8, 28, 20, .38), rgba(8, 28, 20, .38)), url(${JSON.stringify(state.appearance.heroImage)})`
@@ -453,6 +459,7 @@ function setLanguage(language) {
   applyLanguage();
   renderCategories();
   renderProductSections();
+  renderSearchResults();
   renderCartBar();
   if (!$("#checkoutModal").classList.contains("hidden")) renderCheckout();
   if (!$("#accountDrawer").classList.contains("hidden")) renderAccountHome();
@@ -508,22 +515,68 @@ function productCard(item, category) {
 }
 
 function renderProductSections() {
-  const query = state.search.trim().toLocaleLowerCase();
   const sections = [];
   for (const category of sortedCategories()) {
-    const matches = categoryProducts(category.id).filter(item => {
-      if (!query) return true;
-      return [item.name, item.nameEn, item.description, item.descriptionEn].filter(Boolean).join(" ").toLocaleLowerCase().includes(query);
-    });
+    const matches = categoryProducts(category.id);
     if (!matches.length) continue;
     sections.push(`
       <section class="category-section" id="category-${encodeURIComponent(category.id)}" data-category-section="${escapeHtml(category.id)}">
-        <div class="section-heading"><div><span class="kicker">${escapeHtml(categoryName(category))}</span><h2>${escapeHtml(categoryName(category))}</h2></div><span>${matches.length} ${tr("products")}</span></div>
+        <div class="section-heading"><h2>${escapeHtml(categoryName(category))}</h2></div>
         <div class="product-grid">${matches.map(item => productCard(item, category)).join("")}</div>
       </section>`);
   }
   $("#productSections").innerHTML = sections.length ? sections.join("") : `<div class="loading">${tr("noResults")}</div>`;
   observeImages();
+}
+
+function matchingSearchProducts(query) {
+  const normalized = String(query || "").trim().toLocaleLowerCase();
+  if (!normalized) return [];
+  return state.products.filter(item =>
+    [item.name, item.nameEn, item.description, item.descriptionEn]
+      .filter(Boolean)
+      .join(" ")
+      .toLocaleLowerCase()
+      .includes(normalized)
+  ).slice(0, 12);
+}
+
+function renderSearchResults() {
+  const results = $("#searchResults");
+  if (!results) return;
+  const query = state.search.trim();
+  if (!query) {
+    results.innerHTML = `<div class="search-empty">${tr("searchStart")}</div>`;
+    return;
+  }
+  const matches = matchingSearchProducts(query);
+  results.innerHTML = matches.length ? matches.map(item => {
+    const source = productImages(item)[0] || "logo.png";
+    return `<article class="search-result" data-search-product="${escapeHtml(item.id)}">
+      <img src="${escapeHtml(source)}" alt="${escapeHtml(productName(item))}" loading="lazy">
+      <div><strong>${escapeHtml(productName(item))}</strong><small>${money(item.price)}</small></div>
+      <button type="button" data-search-add="${escapeHtml(item.id)}">${tr("add")}</button>
+    </article>`;
+  }).join("") : `<div class="search-empty">${tr("noResults")}</div>`;
+}
+
+function openHeaderSearch() {
+  $("#searchPopover").classList.remove("hidden");
+  $("#searchToggle").setAttribute("aria-expanded", "true");
+  renderSearchResults();
+  requestAnimationFrame(() => $("#searchInput").focus());
+}
+
+function closeHeaderSearch() {
+  $("#searchPopover").classList.add("hidden");
+  $("#searchToggle").setAttribute("aria-expanded", "false");
+  state.search = "";
+  $("#searchInput").value = "";
+}
+
+function toggleHeaderSearch() {
+  if ($("#searchPopover").classList.contains("hidden")) openHeaderSearch();
+  else closeHeaderSearch();
 }
 
 function observeImages() {
@@ -1669,12 +1722,40 @@ async function downloadPdf(order = state.lastInvoice || currentInvoiceModel()) {
 }
 
 $("#languageToggle").onclick = () => setLanguage(state.lang === "ar" ? "en" : "ar");
+$("#searchToggle").onclick = event => {
+  event.stopPropagation();
+  toggleHeaderSearch();
+};
+$("#searchPopover").onclick = event => event.stopPropagation();
+$("#searchInput").oninput = event => {
+  state.search = event.target.value;
+  renderSearchResults();
+};
+$("#searchResults").onclick = event => {
+  const addButton = event.target.closest("[data-search-add]");
+  if (addButton) {
+    event.preventDefault();
+    event.stopPropagation();
+    requestAddToCart(addButton.dataset.searchAdd);
+    return;
+  }
+  const result = event.target.closest("[data-search-product]");
+  if (!result) return;
+  const id = result.dataset.searchProduct;
+  closeHeaderSearch();
+  openProductPage(id);
+};
+document.addEventListener("click", event => {
+  if (!$("#headerSearch").contains(event.target)) closeHeaderSearch();
+});
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape" && !$("#searchPopover").classList.contains("hidden")) closeHeaderSearch();
+});
 $("#accountButton").onclick = () => state.user?.name ? openAccountDrawer() : openAuth("login");
 $("#authClose").onclick = closeAuth;
 $("#authModal").onclick = event => { if (event.target === $("#authModal")) closeAuth(); };
 $("#drawerClose").onclick = closeAccountDrawer;
 $("#drawerBackdrop").onclick = closeAccountDrawer;
-$("#searchInput").oninput = event => { state.search = event.target.value; renderProductSections(); };
 $("#categories").onclick = event => {
   const button = event.target.closest("[data-category-link]");
   if (button) scrollToCategory(button.dataset.categoryLink);
