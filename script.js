@@ -34,12 +34,18 @@ const translations = {
     all: "الكل", products: "منتج", add: "إضافة +", added: "تمت إضافة المنتج", inCart: "في السلة",
     total: "الإجمالي", checkout: "إتمام الدفع ←", back: "رجوع", noResults: "لا توجد منتجات مطابقة",
     order: "طلبك", completeOrder: "إتمام الطلب", review: "المراجعة", deliveryDetails: "تفاصيل التسليم",
-    deliveryTime: "وقت التوصيل", withinTwoHours: "خلال ساعتين", withinTwoHoursHint: "يصلك الطلب في أقرب وقت متاح",
+    deliveryTime: "وقت التوصيل", pickupTime: "وقت الاستلام", withinTwoHours: "خلال ساعتين", withinTwoHoursHint: "يصلك الطلب في أقرب وقت متاح",
     chooseSpecificTime: "اختيار وقت محدد", chooseSpecificTimeHint: "حدد اليوم والساعة المناسبة لك",
+    notifyWhenReady: "إبلاغي عند اكتمال الطلب", notifyWhenReadyHint: "سيتواصل معك الفرع عندما يصبح الطلب جاهزاً",
+    chooseArrivalTime: "تحديد وقت الوصول للفرع", chooseArrivalTimeHint: "حدد اليوم والوقت المتوقع لوصولك",
     deliveryDate: "التاريخ", hour: "الساعة", minute: "الدقائق", period: "الفترة",
     morning: "صباحاً", evening: "مساءً", chooseValidTime: "يرجى اختيار تاريخ ووقت قادم",
+    chooseTimeAfterMinimum: "للطلبات في نفس اليوم اختر وقتاً بعد ساعتين على الأقل من الوقت الحالي",
+    deliveryHoursNotice: "مواعيد التوصيل من 9:30 صباحاً إلى 10:30 مساءً",
+    lateDeliveryWarning: "قد يتعرض طلبك للتأجيل بسبب تأخر الوقت.. سارع في إتمام الطلب",
     expectedDeliveryTime: "الوقت المتوقع للتوصيل", betweenTime: "بين", andTime: "إلى",
-    scheduledDeliveryTime: "موعد التوصيل المحدد",
+    scheduledDeliveryTime: "وقت التوصيل المحدد", scheduledPickupTime: "وقت الوصول المحدد",
+    pickupStatus: "حالة الاستلام", pickupContactConfirmation: "سيتم التواصل معك من الفرع لتأكيد الطلب",
     confirmPay: "تأكيد ودفع", confirmContinue: "تأكيد ومتابعة", productsTotal: "قيمة المنتجات",
     deliveryFee: "قيمة التوصيل", delivery: "توصيل", pickup: "استلام", chooseBranch: "يرجى اختيار الفرع",
     completeDelivery: "يرجى اختيار عنوان للتوصيل", preparing: "لحظة واحدة…",
@@ -49,6 +55,7 @@ const translations = {
     createTimeout: "استغرق إنشاء الرابط وقتاً أطول من المتوقع. يمكنك إعادة المحاولة بأمان.",
     checkingPayment: "جارٍ التحقق من الدفع", checkingResult: "نتحقق من نتيجة عملية الدفع",
     autoAccept: "سيتم نقلك إلى صفحة قبول الطلب فور تأكيد العملية.", returnGateway: "العودة إلى بوابة الدفع",
+    createNewPaymentLink: "إنشاء رابط دفع جديد",
     stillPending: "الدفع ما زال قيد الانتظار… نتحقق تلقائياً.",
     tempCheckError: "تعذر التحقق مؤقتاً، سنواصل المحاولة تلقائياً…",
     declinedTitle: "لم يتم قبول الدفع", declinedText: "لم يتم اعتماد الطلب ولم يُسجل كطلب مدفوع. يمكنك المحاولة مرة أخرى.",
@@ -91,12 +98,18 @@ const translations = {
     all: "All", products: "products", add: "Add +", added: "Product added", inCart: "In cart",
     total: "Total", checkout: "Checkout →", back: "Back", noResults: "No matching products",
     order: "Your order", completeOrder: "Complete order", review: "Review", deliveryDetails: "Delivery details",
-    deliveryTime: "Delivery time", withinTwoHours: "Within two hours", withinTwoHoursHint: "Your order will arrive as soon as possible",
+    deliveryTime: "Delivery time", pickupTime: "Pickup time", withinTwoHours: "Within two hours", withinTwoHoursHint: "Your order will arrive as soon as possible",
     chooseSpecificTime: "Choose a specific time", chooseSpecificTimeHint: "Select the day and time that suits you",
+    notifyWhenReady: "Notify me when ready", notifyWhenReadyHint: "The branch will contact you when your order is ready",
+    chooseArrivalTime: "Choose branch arrival time", chooseArrivalTimeHint: "Select your expected arrival date and time",
     deliveryDate: "Date", hour: "Hour", minute: "Minutes", period: "Period",
     morning: "AM", evening: "PM", chooseValidTime: "Please choose a future date and time",
+    chooseTimeAfterMinimum: "For same-day orders, choose a time at least two hours from now",
+    deliveryHoursNotice: "Delivery hours are from 9:30 AM to 10:30 PM",
+    lateDeliveryWarning: "Your order may be delayed because it is late. Please complete it soon.",
     expectedDeliveryTime: "Expected delivery time", betweenTime: "Between", andTime: "and",
-    scheduledDeliveryTime: "Scheduled delivery time",
+    scheduledDeliveryTime: "Scheduled delivery time", scheduledPickupTime: "Scheduled arrival time",
+    pickupStatus: "Pickup status", pickupContactConfirmation: "The branch will contact you to confirm the order",
     confirmPay: "Confirm & pay", confirmContinue: "Confirm and continue", productsTotal: "Products value",
     deliveryFee: "Delivery fee", delivery: "Delivery", pickup: "Pickup", chooseBranch: "Please choose a branch",
     completeDelivery: "Please select a delivery address", preparing: "One moment…",
@@ -106,6 +119,7 @@ const translations = {
     createTimeout: "Creating the link took longer than expected. You can retry safely.",
     checkingPayment: "Checking payment", checkingResult: "Checking your payment result",
     autoAccept: "You will be taken to the accepted order page once payment is confirmed.", returnGateway: "Return to payment",
+    createNewPaymentLink: "Create a new payment link",
     stillPending: "Payment is still pending… checking automatically.",
     tempCheckError: "Verification is temporarily unavailable. We will keep trying…",
     declinedTitle: "Payment was not accepted", declinedText: "The payment was not approved and the order was not recorded as paid.",
@@ -140,7 +154,6 @@ const translations = {
 };
 
 const branches = [
-  { id: "hawalli", nameAr: "فرع حولي", nameEn: "Hawalli Branch", brandAr: "صحي ولذيذ للتجهيزات الغذائية", brandEn: "Healthy & Delicious Food", addressAr: "حولي، شارع تونس، مجمع علي فهد الخالد، دور الميزانين", addressEn: "Hawalli, Tunis Street, Ali Fahad Al-Khaled Complex, Mezzanine", phone: "66906605 | 22085888" },
   { id: "yarmouk", nameAr: "فرع اليرموك", nameEn: "Yarmouk Branch", brandAr: "مخبز التين والزيتون", brandEn: "Figs & Olives Bakery", addressAr: "اليرموك، قطعة 2، شارع 2", addressEn: "Yarmouk, Block 2, Street 2", phone: "22085889 | 65162277" },
   { id: "abu", nameAr: "فرع أبو الحصانية", nameEn: "Abu Al Hasaniya Branch", brandAr: "مطعم التين الطبيعي", brandEn: "Natural Figs Restaurant", addressAr: "أبو الحصانية، مول 30", addressEn: "Abu Al Hasaniya, The 30 Mall", phone: "22085886 | 99176512" }
 ];
@@ -182,6 +195,8 @@ function loadUserCart(user) {
 const initialUser = loadCurrentUser();
 const DEFAULT_APPEARANCE = Object.freeze({
   heroImage: "",
+  heroPositionX: 50,
+  heroPositionY: 50,
   heroTextColor: "#18352a",
   badgeBackgroundColor: "#ffffff",
   badgeTextColor: "#18352a"
@@ -226,6 +241,11 @@ function validHexColor(value, fallback) {
   return /^#[0-9a-f]{6}$/i.test(String(value || "")) ? String(value) : fallback;
 }
 
+function validPercent(value, fallback = 50) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.min(100, Math.max(0, number)) : fallback;
+}
+
 function normalizeAppearance(value = {}) {
   let heroImage = "";
   try {
@@ -236,6 +256,8 @@ function normalizeAppearance(value = {}) {
   }
   return {
     heroImage,
+    heroPositionX: validPercent(value.heroPositionX, DEFAULT_APPEARANCE.heroPositionX),
+    heroPositionY: validPercent(value.heroPositionY, DEFAULT_APPEARANCE.heroPositionY),
     heroTextColor: validHexColor(value.heroTextColor, DEFAULT_APPEARANCE.heroTextColor),
     badgeBackgroundColor: validHexColor(value.badgeBackgroundColor, DEFAULT_APPEARANCE.badgeBackgroundColor),
     badgeTextColor: validHexColor(value.badgeTextColor, DEFAULT_APPEARANCE.badgeTextColor)
@@ -249,6 +271,8 @@ function applyStoreAppearance(value) {
   hero.style.setProperty("--hero-title-color", state.appearance.heroTextColor);
   hero.style.setProperty("--hero-badge-background", state.appearance.badgeBackgroundColor);
   hero.style.setProperty("--hero-badge-text", state.appearance.badgeTextColor);
+  hero.style.setProperty("--hero-position-x", `${state.appearance.heroPositionX}%`);
+  hero.style.setProperty("--hero-position-y", `${state.appearance.heroPositionY}%`);
   const title = $("h1", hero);
   if (title) title.style.color = state.appearance.heroTextColor;
   $$(".hero-badges span", hero).forEach(badge => {
@@ -989,6 +1013,7 @@ async function logout() {
 
 function openAccountDrawer(page = "home", options = {}) {
   if (!state.user?.name) return openAuth("login");
+  $("#accountDrawer").classList.toggle("order-detail-mode", page === "orderDetails");
   accountReturnToCheckout = Boolean(options.returnToCheckout);
   $("#accountDrawer").classList.remove("hidden");
   $("#accountDrawer").setAttribute("aria-hidden", "false");
@@ -1017,7 +1042,11 @@ const accountIcons = {
   info: `<svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7 8a7 7 0 0 0-14 0"/></svg>`,
   address: `<svg viewBox="0 0 24 24"><path d="M12 21s6-5.3 6-11a6 6 0 1 0-12 0c0 5.7 6 11 6 11Zm0-8.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"/></svg>`,
   order: `<svg viewBox="0 0 24 24"><path d="M5 3h14v18l-3-2-4 2-4-2-3 2V3Zm4 5h6M9 12h6"/></svg>`,
-  logout: `<svg viewBox="0 0 24 24"><path d="M10 4H4v16h6M14 8l4 4-4 4M8 12h10"/></svg>`
+  logout: `<svg viewBox="0 0 24 24"><path d="M10 4H4v16h6M14 8l4 4-4 4M8 12h10"/></svg>`,
+  phone: `<svg viewBox="0 0 24 24"><path d="M8.1 3.5 5.4 4.8c-1.2.6-.9 3.2.8 6.4s4.8 6.3 8 7.9c3.2 1.6 5.7 1.5 6.2.2l1.1-2.8-4.8-2.3-1.5 2c-1.6-.8-3.3-2.1-4.8-3.6-1.4-1.5-2.6-3.1-3.3-4.6l2-1.4-1-3.1Z"/></svg>`,
+  clock: `<svg viewBox="0 0 24 24"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-13v4.5l3 1.8"/></svg>`,
+  card: `<svg viewBox="0 0 24 24"><path d="M3 6.5h18v12H3v-12Zm0 4h18M7 15h3"/></svg>`,
+  box: `<svg viewBox="0 0 24 24"><path d="m4 7 8-4 8 4v10l-8 4-8-4V7Zm0 0 8 4 8-4M12 11v10"/></svg>`
 };
 
 function renderAccountHome() {
@@ -1155,6 +1184,7 @@ function renderAddressForm(addressId = "") {
 }
 
 function renderOrders() {
+  $("#accountDrawer").classList.remove("order-detail-mode");
   const orders = (state.user.orders || []).slice().sort((a, b) => Number(b.createdAt) - Number(a.createdAt));
   resetAccountDrawerScroll();
   $("#accountContent").innerHTML = `${drawerPageHeader(tr("myOrders"))}
@@ -1178,22 +1208,31 @@ function renderOrderDetails(orderId, fromSuccess = false) {
   const order = (state.user?.orders || []).find(item => item.orderId === orderId) ||
     (state.lastInvoice?.orderId === orderId ? state.lastInvoice : null);
   if (!order) return renderOrders();
+  $("#accountDrawer").classList.add("order-detail-mode");
   resetAccountDrawerScroll();
   $("#accountContent").innerHTML = `${drawerPageHeader(tr("orderDetails"))}
     <section class="order-detail">
-      <div class="order-detail-hero"><div><small>${tr("orderNumber")}</small><strong>${escapeHtml(order.orderId)}</strong></div><span class="paid-badge">${tr("paid")}</span></div>
-      <div class="order-detail-grid">
-        <div><small>${tr("customerName")}</small><strong>${escapeHtml(order.customerName || state.user?.name || "")}</strong></div>
-        <div><small>${tr("phone")}</small><strong class="phone">${escapeHtml(order.phone || state.user?.phone || "")}</strong></div>
-        <div class="full"><small>${order.mode === "delivery" ? tr("deliveryAddress") : tr("pickupBranch")}</small><strong>${escapeHtml(orderDestination(order))}</strong></div>
-        <div class="full"><small>${tr("expectedDeliveryTime")}</small><strong>${escapeHtml(deliveryTimeSummary(order))}</strong></div>
+      <div class="order-detail-hero">
+        <div class="order-detail-brand"><img src="logo.png" alt=""><div><small>${tr("orderNumber")}</small><strong>${escapeHtml(order.orderId)}</strong><p>${escapeHtml(trLocaleDate(order.createdAt))}</p></div></div>
+        <span class="paid-badge">${tr("paid")}</span>
       </div>
-      <div class="order-detail-items">${(order.items || []).map(item => `
-        <article><span><b>${escapeHtml(orderItemName(item))}</b><small>${tr("quantity")}: ${item.quantity}</small></span><strong>${money(item.total)}</strong></article>`).join("")}</div>
-      <div class="order-detail-totals">
-        <span>${tr("productsTotal")} <b>${money(order.subtotal)}</b></span>
-        <span>${tr("deliveryFee")} <b>${money(order.deliveryFee)}</b></span>
-        <strong>${tr("total")} <b>${money(order.total)}</b></strong>
+      <div class="detail-section-title"><span class="detail-title-icon">${accountIcons.info}</span><div><small>${tr("customer")}</small><b>${tr("deliveryDetails")}</b></div></div>
+      <div class="order-detail-grid">
+        <div><span class="detail-item-icon">${accountIcons.info}</span><span><small>${tr("customerName")}</small><strong>${escapeHtml(order.customerName || state.user?.name || "")}</strong></span></div>
+        <div><span class="detail-item-icon">${accountIcons.phone}</span><span><small>${tr("phone")}</small><strong class="phone">${escapeHtml(order.phone || state.user?.phone || "")}</strong></span></div>
+        <div><span class="detail-item-icon">${accountIcons.address}</span><span><small>${order.mode === "delivery" ? tr("deliveryAddress") : tr("pickupBranch")}</small><strong>${escapeHtml(orderDestination(order))}</strong></span></div>
+        <div><span class="detail-item-icon">${accountIcons.clock}</span><span><small>${order.mode === "pickup" ? tr("pickupStatus") : tr("expectedDeliveryTime")}</small><strong>${escapeHtml(deliveryTimeSummary(order))}</strong></span></div>
+      </div>
+      <div class="detail-section-title"><span class="detail-title-icon">${accountIcons.box}</span><div><small>${(order.items || []).length} ${tr("products")}</small><b>${tr("showProducts")}</b></div></div>
+      <div class="order-detail-body">
+        <div class="order-detail-items">${(order.items || []).map((item, index) => `
+          <article><i>${index + 1}</i><span><b>${escapeHtml(orderItemName(item))}</b><small>${tr("quantity")}: ${item.quantity} × ${money(item.unitPrice || (item.total / item.quantity))}</small></span><strong>${money(item.total)}</strong></article>`).join("")}</div>
+        <div class="order-detail-totals">
+          <span>${tr("productsTotal")} <b>${money(order.subtotal)}</b></span>
+          <span>${tr("deliveryFee")} <b>${money(order.deliveryFee)}</b></span>
+          <strong>${tr("total")} <b>${money(order.total)}</b></strong>
+          <small>${accountIcons.card} ${tr("payOnline")}</small>
+        </div>
       </div>
       <button class="primary download-invoice-button" id="downloadOrderInvoice">${tr("downloadInvoice")}</button>
     </section>`;
@@ -1229,12 +1268,18 @@ function setSteps() {
     const step = Number(element.dataset.step);
     element.classList.toggle("active", step === state.step);
     element.classList.toggle("done", step < state.step);
+    if (step === 3) {
+      const label = $("span", element);
+      if (label) label.textContent = state.mode === "pickup" ? tr("pickupTime") : tr("deliveryTime");
+    }
   });
 }
 
 function renderCheckout() {
   setSteps();
-  $("#checkoutTitle").textContent = state.step === 3 ? tr("deliveryTime") : state.step === 4 ? tr("confirmPay") : tr("completeOrder");
+  $("#checkoutTitle").textContent = state.step === 3
+    ? (state.mode === "pickup" ? tr("pickupTime") : tr("deliveryTime"))
+    : state.step === 4 ? tr("confirmPay") : tr("completeOrder");
   if (state.step === 1) renderReview();
   else if (state.step === 2) renderDelivery();
   else if (state.step === 3) renderDeliveryTime();
@@ -1266,6 +1311,7 @@ function selectSavedAddress(addressId) {
 }
 
 function renderDelivery() {
+  if (state.mode === "pickup" && !branches.some(branch => branch.id === state.branch)) state.branch = "";
   const addresses = state.user.addresses || [];
   const deliveryForm = addresses.length ? `
     <h3>${tr("selectAddress")}</h3><div class="checkout-addresses">${addresses.map(address => `
@@ -1281,8 +1327,18 @@ function renderDelivery() {
     <div class="tabs"><button class="${state.mode === "delivery" ? "active" : ""}" id="deliveryTab">🚚 ${tr("delivery")}</button><button class="${state.mode === "pickup" ? "active" : ""}" id="pickupTab">⌂ ${tr("pickup")}</button></div>
     ${state.mode === "delivery" ? deliveryForm : pickupForm}
     <div class="actions"><button class="secondary" id="back1">${tr("back")}</button><button class="primary" id="next2">${tr("confirmContinue")}</button></div>`;
-  $("#deliveryTab").onclick = () => { state.mode = "delivery"; renderDelivery(); };
-  $("#pickupTab").onclick = () => { state.mode = "pickup"; renderDelivery(); };
+  $("#deliveryTab").onclick = () => {
+    state.mode = "delivery";
+    if (state.deliveryTiming === "notify") state.deliveryTiming = "asap";
+    state.paymentRequestId = "";
+    renderDelivery();
+  };
+  $("#pickupTab").onclick = () => {
+    state.mode = "pickup";
+    if (state.deliveryTiming === "asap") state.deliveryTiming = "notify";
+    state.paymentRequestId = "";
+    renderDelivery();
+  };
   $("#back1").onclick = () => { state.step = 1; renderCheckout(); };
   $("#checkoutAddAddress")?.addEventListener("click", () => openAccountDrawer("addressForm", { returnToCheckout: true }));
   $$("[data-checkout-address]").forEach(button => button.onclick = () => selectSavedAddress(button.dataset.checkoutAddress));
@@ -1319,17 +1375,119 @@ function scheduledDateTime() {
   return Number.isNaN(result.getTime()) ? null : result;
 }
 
+function minimumScheduledDateTime(now = new Date()) {
+  return new Date(now.getTime() + 2 * 60 * 60 * 1000);
+}
+
+function minutesSinceMidnight(value = new Date()) {
+  return value.getHours() * 60 + value.getMinutes();
+}
+
+function isWithinDeliveryHours(value) {
+  const minutes = minutesSinceMidnight(value);
+  return minutes >= 9 * 60 + 30 && minutes <= 22 * 60 + 30;
+}
+
+function isAsapDeliveryUnavailable(value = new Date()) {
+  const minutes = minutesSinceMidnight(value);
+  return minutes >= 22 * 60 || minutes < 7 * 60 + 30;
+}
+
+function nextDeliveryOpening(value = new Date()) {
+  const result = new Date(value);
+  if (minutesSinceMidnight(result) >= 22 * 60) result.setDate(result.getDate() + 1);
+  result.setHours(9, 30, 0, 0);
+  return result;
+}
+
+function normalizeToDeliveryHours(value) {
+  const result = new Date(value);
+  const minutes = minutesSinceMidnight(result);
+  if (minutes < 9 * 60 + 30) {
+    result.setHours(9, 30, 0, 0);
+    return result;
+  }
+  if (minutes > 22 * 60 + 30) {
+    result.setDate(result.getDate() + 1);
+    result.setHours(9, 30, 0, 0);
+  }
+  return result;
+}
+
+function asapDeliveryWindow(value = new Date()) {
+  let start = new Date(value.getTime() + 60 * 60 * 1000);
+  const opening = nextDeliveryOpening(value);
+  if (start.getTime() < opening.getTime()) start = opening;
+  return { start, end: new Date(start.getTime() + 60 * 60 * 1000) };
+}
+
+function isLateAsapDelivery(value = new Date()) {
+  return asapDeliveryWindow(value).end.getTime() > new Date(
+    value.getFullYear(), value.getMonth(), value.getDate(), 22, 30, 0, 0
+  ).getTime();
+}
+
+function roundUpToHalfHour(value) {
+  const result = new Date(value);
+  result.setSeconds(0, 0);
+  const minutes = result.getMinutes();
+  if (minutes === 0 || minutes === 30) return result;
+  if (minutes < 30) result.setMinutes(30);
+  else {
+    result.setHours(result.getHours() + 1);
+    result.setMinutes(0);
+  }
+  return result;
+}
+
+function setScheduledFields(value) {
+  const date = new Date(value);
+  const hour24 = date.getHours();
+  state.scheduledDate = dateInputValue(date);
+  state.scheduledHour = String(hour24 % 12 || 12);
+  state.scheduledMinute = date.getMinutes() >= 30 ? "30" : "00";
+  state.scheduledPeriod = hour24 >= 12 ? "pm" : "am";
+}
+
+function ensureFutureScheduledDefault() {
+  const minimum = minimumScheduledDateTime();
+  const selected = scheduledDateTime();
+  if (!selected || selected.getTime() < minimum.getTime()) {
+    const candidate = roundUpToHalfHour(minimum);
+    setScheduledFields(state.mode === "delivery" ? normalizeToDeliveryHours(candidate) : candidate);
+  }
+}
+
+function isScheduledTimeAllowed(value, now = new Date()) {
+  if (!(value instanceof Date) || Number.isNaN(value.getTime())) return false;
+  return value.getTime() >= minimumScheduledDateTime(now).getTime();
+}
+
 function renderDeliveryTime() {
+  if (state.mode === "pickup" && state.deliveryTiming === "asap") state.deliveryTiming = "notify";
+  if (state.mode === "delivery" && state.deliveryTiming === "notify") state.deliveryTiming = "asap";
+  const asapUnavailable = state.mode === "delivery" && isAsapDeliveryUnavailable();
+  if (asapUnavailable && state.deliveryTiming !== "scheduled") {
+    state.deliveryTiming = "scheduled";
+    setScheduledFields(nextDeliveryOpening());
+  }
+  const immediateTiming = state.mode === "pickup" ? "notify" : "asap";
   state.scheduledDate = state.scheduledDate || dateInputValue();
   const specific = state.deliveryTiming === "scheduled";
+  const showLateWarning = state.mode === "delivery" && !specific && isLateAsapDelivery();
+  const immediateTitle = state.mode === "pickup" ? tr("notifyWhenReady") : tr("withinTwoHours");
+  const immediateHint = state.mode === "pickup" ? tr("notifyWhenReadyHint") : tr("withinTwoHoursHint");
+  const scheduledTitle = state.mode === "pickup" ? tr("chooseArrivalTime") : tr("chooseSpecificTime");
+  const scheduledHint = state.mode === "pickup" ? tr("chooseArrivalTimeHint") : tr("chooseSpecificTimeHint");
   const hours = Array.from({ length: 12 }, (_, index) => index + 1);
   $("#checkoutBody").innerHTML = `
     <section class="delivery-time-panel">
-      <button class="time-choice ${specific ? "" : "selected"}" id="asapTime" type="button">
-        <span class="radio">${specific ? "" : "✓"}</span><span><strong>${tr("withinTwoHours")}</strong><small>${tr("withinTwoHoursHint")}</small></span>
+      <button class="time-choice ${specific ? "" : "selected"} ${asapUnavailable ? "disabled" : ""}" id="asapTime" type="button" ${asapUnavailable ? "disabled aria-disabled=\"true\"" : ""}>
+        <span class="radio">${specific ? "" : "✓"}</span><span><strong>${immediateTitle}</strong><small>${immediateHint}</small></span>
       </button>
+      ${showLateWarning ? `<p class="time-warning">${tr("lateDeliveryWarning")}</p>` : ""}
       <button class="time-choice ${specific ? "selected" : ""}" id="scheduledTime" type="button">
-        <span class="radio">${specific ? "✓" : ""}</span><span><strong>${tr("chooseSpecificTime")}</strong><small>${tr("chooseSpecificTimeHint")}</small></span>
+        <span class="radio">${specific ? "✓" : ""}</span><span><strong>${scheduledTitle}</strong><small>${scheduledHint}</small></span>
       </button>
       ${specific ? `<div class="time-fields">
         <label class="time-date">${tr("deliveryDate")}<input id="scheduledDate" type="date" min="${dateInputValue()}" value="${escapeHtml(state.scheduledDate)}"></label>
@@ -1339,8 +1497,13 @@ function renderDeliveryTime() {
       </div>` : ""}
       <div class="actions"><button class="secondary" id="backTime">${tr("back")}</button><button class="primary" id="confirmTime">${tr("confirmContinue")}</button></div>
     </section>`;
-  $("#asapTime").onclick = () => { state.deliveryTiming = "asap"; state.paymentRequestId = ""; renderDeliveryTime(); };
-  $("#scheduledTime").onclick = () => { state.deliveryTiming = "scheduled"; state.paymentRequestId = ""; renderDeliveryTime(); };
+  $("#asapTime").onclick = () => { state.deliveryTiming = immediateTiming; state.paymentRequestId = ""; renderDeliveryTime(); };
+  $("#scheduledTime").onclick = () => {
+    ensureFutureScheduledDefault();
+    state.deliveryTiming = "scheduled";
+    state.paymentRequestId = "";
+    renderDeliveryTime();
+  };
   $("#scheduledDate")?.addEventListener("change", event => { state.scheduledDate = event.target.value; state.paymentRequestId = ""; });
   $("#scheduledHour")?.addEventListener("change", event => { state.scheduledHour = event.target.value; state.paymentRequestId = ""; });
   $("#scheduledMinute")?.addEventListener("change", event => { state.scheduledMinute = event.target.value; state.paymentRequestId = ""; });
@@ -1349,7 +1512,9 @@ function renderDeliveryTime() {
   $("#confirmTime").onclick = () => {
     if (state.deliveryTiming === "scheduled") {
       const selected = scheduledDateTime();
-      if (!selected || selected.getTime() <= Date.now()) return toast(tr("chooseValidTime"));
+      if (!selected) return toast(tr("chooseValidTime"));
+      if (state.mode === "delivery" && !isWithinDeliveryHours(selected)) return toast(tr("deliveryHoursNotice"));
+      if (!isScheduledTimeAllowed(selected)) return toast(tr("chooseTimeAfterMinimum"));
     }
     state.step = 4;
     renderCheckout();
@@ -1360,14 +1525,29 @@ function formatDeliveryTime(value) {
   return new Date(value).toLocaleTimeString(state.lang === "ar" ? "ar-KW" : "en-GB", { hour: "numeric", minute: "2-digit" });
 }
 
+function formatScheduleDate(value) {
+  return new Date(value).toLocaleDateString(state.lang === "ar" ? "ar-KW" : "en-GB", {
+    weekday: "long", year: "numeric", month: "long", day: "numeric"
+  });
+}
+
+function scheduledWindowSummary(value, mode = state.mode) {
+  const end = new Date(value);
+  const start = new Date(end.getTime() - 60 * 60 * 1000);
+  const label = mode === "pickup" ? tr("scheduledPickupTime") : tr("scheduledDeliveryTime");
+  return `${label}: ${formatScheduleDate(end)}، ${tr("betweenTime")} ${formatDeliveryTime(start)} ${tr("andTime")} ${formatDeliveryTime(end)}`;
+}
+
 function deliveryTimeSummary(source = state) {
+  if (source.mode === "pickup" && source.status === "paid") return tr("pickupContactConfirmation");
   if (source.deliveryTiming === "scheduled" && source.scheduledAt) {
-    return `${tr("scheduledDeliveryTime")}: ${trLocaleDate(source.scheduledAt)}`;
+    return scheduledWindowSummary(source.scheduledAt, source.mode);
   }
   if (source.deliveryTiming === "scheduled") {
     const scheduled = scheduledDateTime();
-    return scheduled ? `${tr("scheduledDeliveryTime")}: ${trLocaleDate(scheduled.getTime())}` : tr("chooseSpecificTime");
+    return scheduled ? scheduledWindowSummary(scheduled, source.mode) : tr("chooseSpecificTime");
   }
+  if (source.mode === "pickup" || source.deliveryTiming === "notify") return tr("notifyWhenReady");
   if (source.expectedStart && source.expectedEnd) {
     return `${tr("betweenTime")} ${formatDeliveryTime(source.expectedStart)} ${tr("andTime")} ${formatDeliveryTime(source.expectedEnd)}`;
   }
@@ -1378,20 +1558,22 @@ function renderConfirmation() {
   $("#checkoutTitle").textContent = tr("confirmPay");
   $("#checkoutBody").innerHTML = `
     <section class="confirmation-card">
+      <div class="confirmation-heading"><span class="detail-title-icon">${accountIcons.info}</span><div><small>${tr("customer")}</small><b>${tr("deliveryDetails")}</b></div></div>
       <div class="customer-summary">
-        <div class="summary-box"><small>${tr("customerName")}</small><strong>${escapeHtml(state.user.name)}</strong></div>
-        <div class="summary-box"><small>${tr("phone")}</small><strong class="phone">${escapeHtml(state.user.phone)}</strong></div>
-        <div class="summary-box full"><small>${state.mode === "delivery" ? tr("deliveryAddress") : tr("pickupBranch")}</small><strong>${escapeHtml(deliverySummary())}</strong></div>
-        <div class="summary-box full"><small>${tr("deliveryTime")}</small><strong>${escapeHtml(deliveryTimeSummary())}</strong></div>
+        <div class="summary-box"><span class="summary-icon">${accountIcons.info}</span><span><small>${tr("customerName")}</small><strong>${escapeHtml(state.user.name)}</strong></span></div>
+        <div class="summary-box"><span class="summary-icon">${accountIcons.phone}</span><span><small>${tr("phone")}</small><strong class="phone">${escapeHtml(state.user.phone)}</strong></span></div>
+        <div class="summary-box"><span class="summary-icon">${accountIcons.address}</span><span><small>${state.mode === "delivery" ? tr("deliveryAddress") : tr("pickupBranch")}</small><strong>${escapeHtml(deliverySummary())}</strong></span></div>
+        <div class="summary-box"><span class="summary-icon">${accountIcons.clock}</span><span><small>${state.mode === "pickup" ? tr("pickupTime") : tr("deliveryTime")}</small><strong>${escapeHtml(deliveryTimeSummary())}</strong></span></div>
       </div>
       <div class="price-summary">
+        <div class="price-summary-head"><span class="detail-title-icon">${accountIcons.box}</span><div><small>${tr("order")}</small><b>${tr("orderNumber")} ${escapeHtml(state.order)}</b></div></div>
         <button class="price-row products-toggle" id="productsToggle"><span><b class="arrow">‹</b> ${tr("productsTotal")}</span><strong>${money(subtotal())}</strong></button>
         <div class="confirmation-products hidden" id="confirmationProducts">${cartItems().map(({ product: item, quantity }) => `
           <div class="confirmation-product"><img src="${escapeHtml(productImages(item)[0] || "logo.png")}" alt=""><span>${escapeHtml(productName(item))} × ${quantity}</span><b>${money(Number(item.price) * quantity)}</b></div>`).join("")}</div>
         <div class="price-row"><span>${tr("deliveryFee")}</span><strong>${money(deliveryFee())}</strong></div>
         <div class="price-row total-row"><span>${tr("total")}</span><strong>${money(total())}</strong></div>
       </div>
-      <div class="actions"><button class="secondary" id="back2">${tr("back")}</button><button class="primary pay-now" id="finish">${tr("payNow")}</button></div>
+      <div class="actions"><button class="secondary" id="back2">${tr("back")}</button><button class="primary pay-now" id="finish" aria-label="${tr("payNow")} — KNET"><span>${tr("payNow")}</span><span class="knet-mark"><img src="knet-logo.png" alt="KNET"></span></button></div>
     </section>`;
   $("#productsToggle").onclick = () => {
     const details = $("#confirmationProducts");
@@ -1465,7 +1647,9 @@ function restorePending(pending) {
   state.name = saved.name || state.name;
   state.phone = saved.phone || state.phone;
   state.paymentMethod = "knet";
-  state.deliveryTiming = saved.deliveryTiming === "scheduled" ? "scheduled" : "asap";
+  state.deliveryTiming = saved.deliveryTiming === "scheduled"
+    ? "scheduled"
+    : saved.deliveryTiming === "notify" ? "notify" : "asap";
   state.scheduledDate = saved.scheduledDate || state.scheduledDate;
   state.scheduledHour = saved.scheduledHour || state.scheduledHour;
   state.scheduledMinute = saved.scheduledMinute || state.scheduledMinute;
@@ -1513,8 +1697,8 @@ async function finishOrder() {
 
 function showPaymentWaiting(pending) {
   $("#checkoutTitle").textContent = tr("checkingPayment");
-  $("#checkoutBody").innerHTML = `<div class="loading-state"><div class="spinner"></div><h3>${tr("checkingResult")}</h3><p id="paymentStatusText">${tr("autoAccept")}</p><button class="secondary" id="reopenPayment" style="width:min(360px,100%);margin-top:18px">${tr("returnGateway")}</button></div>`;
-  $("#reopenPayment").onclick = () => window.location.replace(pending.paymentUrl);
+  $("#checkoutBody").innerHTML = `<div class="loading-state"><div class="spinner"></div><h3>${tr("checkingResult")}</h3><p id="paymentStatusText">${tr("autoAccept")}</p><button class="secondary" id="reopenPayment" style="width:min(360px,100%);margin-top:18px">${tr("createNewPaymentLink")}</button></div>`;
+  $("#reopenPayment").onclick = createFreshPaymentLink;
 }
 
 const delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
@@ -1565,9 +1749,17 @@ function paymentDeclined() {
 
 function paymentPendingTimeout(pending) {
   $("#checkoutTitle").textContent = tr("unconfirmed");
-  $("#checkoutBody").innerHTML = `<div class="payment-error"><div class="error-mark">!</div><h3>${tr("unconfirmed")}</h3><p>${tr("unconfirmedText")}</p><div class="actions"><button class="secondary" id="pendingOpen">${tr("returnGateway")}</button><button class="primary" id="pendingCheck">${tr("checkAgain")}</button></div></div>`;
-  $("#pendingOpen").onclick = () => window.location.replace(pending.paymentUrl);
+  $("#checkoutBody").innerHTML = `<div class="payment-error"><div class="error-mark">!</div><h3>${tr("unconfirmed")}</h3><p>${tr("unconfirmedText")}</p><div class="actions"><button class="secondary" id="pendingOpen">${tr("createNewPaymentLink")}</button><button class="primary" id="pendingCheck">${tr("checkAgain")}</button></div></div>`;
+  $("#pendingOpen").onclick = createFreshPaymentLink;
   $("#pendingCheck").onclick = () => { showPaymentWaiting(pending); watchPayment(pending); };
+}
+
+function createFreshPaymentLink() {
+  paymentWatchVersion++;
+  sessionStorage.removeItem("pendingBedeOrder");
+  state.paymentRequestId = "";
+  $("#steps").classList.add("hidden");
+  finishOrder();
 }
 
 function paymentError(message) {
@@ -1601,14 +1793,17 @@ function resumePendingPayment() {
 function currentInvoiceModel() {
   const approvedAt = Date.now();
   const scheduled = state.deliveryTiming === "scheduled" ? scheduledDateTime() : null;
+  const asapWindow = state.mode === "delivery" && state.deliveryTiming === "asap"
+    ? asapDeliveryWindow(new Date(approvedAt))
+    : null;
   return {
     orderId: state.order, createdAt: approvedAt, customerName: state.user?.name || state.name,
     phone: state.user?.phone || state.phone, mode: state.mode, areaName: state.area?.name || "",
     address: state.address, branchId: state.branch,
     deliveryTiming: state.deliveryTiming,
     scheduledAt: scheduled?.getTime() || null,
-    expectedStart: state.deliveryTiming === "asap" ? approvedAt + 60 * 60 * 1000 : null,
-    expectedEnd: state.deliveryTiming === "asap" ? approvedAt + 2 * 60 * 60 * 1000 : null,
+    expectedStart: asapWindow?.start.getTime() || null,
+    expectedEnd: asapWindow?.end.getTime() || null,
     items: cartItems().map(({ product: item, quantity }) => ({ id: String(item.id), nameAr: item.name, nameEn: item.nameEn || item.name, quantity, unitPrice: Number(item.price), total: Number(item.price) * quantity })),
     subtotal: subtotal(), deliveryFee: deliveryFee(), total: total(), status: "paid"
   };
@@ -1627,7 +1822,7 @@ function showSuccess() {
   saveCompletedOrder(order);
   buildInvoice(order);
   $("#checkoutTitle").textContent = tr("received");
-  $("#checkoutBody").innerHTML = `<div class="success"><div class="check">✓</div><h3>${tr("received")}</h3><p>${tr("orderNumber")}</p><strong class="order-no">${escapeHtml(state.order)}</strong><div class="success-delivery-time"><small>${tr("expectedDeliveryTime")}</small><strong>${escapeHtml(deliveryTimeSummary(order))}</strong></div><div class="actions" style="width:min(420px,100%)"><button class="secondary" id="newOrder">${tr("backStore")}</button><button class="primary" id="orderDetailsButton">${tr("viewOrderDetails")}</button></div></div>`;
+  $("#checkoutBody").innerHTML = `<div class="success"><div class="check">✓</div><h3>${tr("received")}</h3><p>${tr("orderNumber")}</p><strong class="order-no">${escapeHtml(state.order)}</strong><div class="success-delivery-time"><small>${order.mode === "pickup" ? tr("pickupStatus") : tr("expectedDeliveryTime")}</small><strong>${escapeHtml(deliveryTimeSummary(order))}</strong></div><div class="actions" style="width:min(420px,100%)"><button class="secondary" id="newOrder">${tr("backStore")}</button><button class="primary" id="orderDetailsButton">${tr("viewOrderDetails")}</button></div></div>`;
   $("#newOrder").onclick = () => {
     state.cart = {};
     persistCart();
@@ -1648,15 +1843,31 @@ function orderItemName(item) {
 function buildInvoice(order) {
   const pickup = branches.find(branch => branch.id === order.branchId);
   const destination = order.mode === "delivery" ? `${order.areaName || ""} - ${order.address || ""}` : `${tr("pickup")}: ${pickup ? branchField(pickup, "name") : ""}`;
+  const locale = state.lang === "ar" ? "ar-KW" : "en-GB";
+  const createdAt = new Date(order.createdAt);
   $("#invoice").innerHTML = `
-    <img src="logo.png" alt=""><h2>${tr("brand")}</h2>
-    <p>${state.lang === "ar" ? "الكويت، حولي، شارع تونس، مجمع علي فهد الخالد، دور الميزانين" : "Kuwait, Hawalli, Tunis Street, Ali Fahad Al-Khaled Complex"}<br>66906605 | 22085888</p>
-    <hr><p>${tr("orderNumber")}: <b>#${escapeHtml(order.orderId)}</b> — ${new Date(order.createdAt).toLocaleDateString(state.lang === "ar" ? "ar-KW" : "en-GB")}</p>
-    <p><b>${tr("customer")}: ${escapeHtml(order.customerName || tr("customer"))}</b><br>${escapeHtml(order.phone || "")}<br>📍 ${escapeHtml(destination)}<br>🕒 ${escapeHtml(deliveryTimeSummary(order))}<br>${tr("payOnline")}</p>
-    <table><thead><tr><th>${tr("item")}</th><th>${tr("quantity")}</th><th>${tr("price")}</th></tr></thead>
-    <tbody>${order.items.map(item => `<tr><td>${escapeHtml(orderItemName(item))}</td><td>${item.quantity}</td><td>${money(item.total)}</td></tr>`).join("")}</tbody></table>
-    <div class="invoice-totals"><span>${tr("productsTotal")} <b>${money(order.subtotal)}</b></span><span>${tr("deliveryFee")} <b>${money(order.deliveryFee)}</b></span><strong>${tr("total")} <b>${money(order.total)}</b></strong></div>
-    <footer>${tr("thankYou")}<br><small>${tr("healthPhrase")}</small></footer>`;
+    <div class="invoice-topline"></div>
+    <header class="invoice-header">
+      <div class="invoice-brand"><img src="logo.png" alt=""><div><h1>${tr("brand")}</h1><p>${state.lang === "ar" ? "شركة صحي ولذيذ للتجهيزات الغذائية" : "Healthy & Delicious Foodstuff Co."}</p></div></div>
+      <div class="invoice-title"><span>${state.lang === "ar" ? "فاتورة مبيعات" : "SALES INVOICE"}</span><strong>#${escapeHtml(order.orderId)}</strong><small>${createdAt.toLocaleDateString(locale)}</small></div>
+    </header>
+    <div class="invoice-company-line">
+      <span>${state.lang === "ar" ? "الكويت، حولي، شارع تونس، مجمع علي فهد الخالد، دور الميزانين" : "Kuwait, Hawalli, Tunis Street, Ali Fahad Al-Khaled Complex, Mezzanine"}</span>
+      <b>66906605 · 22085888</b>
+    </div>
+    <section class="invoice-parties">
+      <div><span>${tr("customer")}</span><h3>${escapeHtml(order.customerName || tr("customer"))}</h3><p class="invoice-phone">${escapeHtml(order.phone || "")}</p></div>
+      <div><span>${order.mode === "delivery" ? tr("deliveryAddress") : tr("pickupBranch")}</span><h3>${escapeHtml(destination)}</h3><p>${escapeHtml(deliveryTimeSummary(order))}</p></div>
+      <div class="invoice-payment"><span>${state.lang === "ar" ? "حالة وطريقة الدفع" : "Payment"}</span><h3>${tr("paid")} · ${tr("payOnline")}</h3><p>${createdAt.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}</p></div>
+    </section>
+    <table class="invoice-items"><thead><tr><th>#</th><th>${tr("item")}</th><th>${tr("quantity")}</th><th>${state.lang === "ar" ? "سعر الوحدة" : "Unit price"}</th><th>${tr("price")}</th></tr></thead>
+    <tbody>${order.items.map((item, index) => `<tr><td>${index + 1}</td><td><b>${escapeHtml(orderItemName(item))}</b></td><td>${item.quantity}</td><td>${money(item.unitPrice || (item.total / item.quantity))}</td><td><b>${money(item.total)}</b></td></tr>`).join("")}</tbody></table>
+    <section class="invoice-bottom">
+      <div class="invoice-note"><span>${state.lang === "ar" ? "ملاحظة" : "Note"}</span><p>${tr("healthPhrase")}</p><small>${state.lang === "ar" ? "تم إنشاء هذه الفاتورة إلكترونياً ولا تحتاج إلى توقيع." : "This invoice was generated electronically and requires no signature."}</small></div>
+      <div class="invoice-totals"><span>${tr("productsTotal")} <b>${money(order.subtotal)}</b></span><span>${tr("deliveryFee")} <b>${money(order.deliveryFee)}</b></span><strong>${tr("total")} <b>${money(order.total)}</b></strong></div>
+    </section>
+    <footer><img src="logo.png" alt=""><div><b>${tr("thankYou")}</b><small>${state.lang === "ar" ? "نعتز بخدمتكم ونتمنى لكم صحة دائمة" : "Thank you for choosing a healthier life"}</small></div><span>figsandolives.com</span></footer>`;
+  $("#invoice").setAttribute("dir", state.lang === "ar" ? "rtl" : "ltr");
 }
 
 async function createInvoiceFile(order) {
