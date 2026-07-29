@@ -69,6 +69,8 @@ const translations = {
     viewInvoice: "عرض / طباعة الفاتورة", paid: "مدفوع", customerName: "اسم الزبون",
     deliveryAddress: "عنوان التوصيل", pickupBranch: "فرع الاستلام", payNow: "ادفع الآن",
     showProducts: "عرض تفاصيل المنتجات", hideProducts: "إخفاء تفاصيل المنتجات",
+    choosePaymentMethod: "اختر طريقة الدفع", applePay: "Apple Pay", knet: "كي نت",
+    applePayHint: "دفع سريع وآمن من جهاز Apple", knetHint: "الانتقال إلى صفحة الدفع الآمنة من KNET",
     loginServiceUnavailable: "خدمة تسجيل الدخول غير مربوطة حالياً", sendFailed: "تعذر إرسال رمز الدخول",
     verifyFailed: "تعذر التحقق من الرمز", loggedOut: "تم تسجيل الخروج", invoiceFailed: "تعذر إنشاء الفاتورة. حاول مرة أخرى.",
     noZoom: ""
@@ -116,6 +118,8 @@ const translations = {
     viewInvoice: "View / print invoice", paid: "Paid", customerName: "Customer name", deliveryAddress: "Delivery address",
     pickupBranch: "Pickup branch", payNow: "Pay now", showProducts: "Show product details",
     hideProducts: "Hide product details", loginServiceUnavailable: "Login service is not connected",
+    choosePaymentMethod: "Choose payment method", applePay: "Apple Pay", knet: "KNET",
+    applePayHint: "Fast and secure payment from your Apple device", knetHint: "Continue to the secure KNET payment page",
     sendFailed: "Could not send login code", verifyFailed: "Could not verify the code", loggedOut: "Logged out",
     invoiceFailed: "Could not create the invoice. Please try again.", noZoom: ""
   }
@@ -147,7 +151,7 @@ const state = {
   lang: localStorage.getItem("storeLanguage") === "en" ? "en" : "ar",
   step: 1, mode: "delivery", area: null, branch: "", addressId: "", address: "",
   name: "", phone: "", order: "W00001", paymentRequestId: "", detailProductId: "",
-  user: loadCurrentUser(), lastInvoice: null
+  paymentMethod: "knet", user: loadCurrentUser(), lastInvoice: null
 };
 
 let imageObserver;
@@ -998,7 +1002,7 @@ function renderConfirmation() {
     $("#productsToggle").setAttribute("aria-label", open ? tr("hideProducts") : tr("showProducts"));
   };
   $("#back2").onclick = () => { state.step = 2; renderCheckout(); };
-  $("#finish").onclick = finishOrder;
+  $("#finish").onclick = beginPayment;
 }
 
 function requestId() {
@@ -1006,12 +1010,41 @@ function requestId() {
   return `${Date.now()}_${Math.random().toString(36).slice(2)}_${Math.random().toString(36).slice(2)}`;
 }
 
-function paymentPayload() {
+function isAppleMobileDevice() {
+  const userAgent = navigator.userAgent || "";
+  return /iPhone|iPad|iPod/i.test(userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
+function beginPayment() {
+  if (!isAppleMobileDevice()) return finishOrder("knet");
+  $("#checkoutTitle").textContent = tr("choosePaymentMethod");
+  $("#checkoutBody").innerHTML = `
+    <section class="payment-method-picker">
+      <button class="payment-method-option apple-pay-option" id="payApple" type="button">
+        <span class="payment-method-mark apple-pay-mark"> Pay</span>
+        <span><strong>${tr("applePay")}</strong><small>${tr("applePayHint")}</small></span>
+        <b class="payment-method-arrow">‹</b>
+      </button>
+      <button class="payment-method-option knet-option" id="payKnet" type="button">
+        <span class="payment-method-mark knet-mark">KNET</span>
+        <span><strong>${tr("knet")}</strong><small>${tr("knetHint")}</small></span>
+        <b class="payment-method-arrow">‹</b>
+      </button>
+      <button class="secondary payment-method-back" id="paymentMethodBack" type="button">${tr("back")}</button>
+    </section>`;
+  $("#payApple").onclick = () => finishOrder("applepay");
+  $("#payKnet").onclick = () => finishOrder("knet");
+  $("#paymentMethodBack").onclick = renderConfirmation;
+}
+
+function paymentPayload(paymentMethod = state.paymentMethod) {
   return {
     idempotencyKey: state.paymentRequestId,
     customer: { name: state.user.name.trim(), phone: normalizePhone(state.user.phone) },
     items: cartItems().map(({ product: item, quantity }) => ({ id: String(item.id), quantity })),
-    delivery: { mode: state.mode, areaName: state.area?.name || "", branchId: state.branch || "", address: state.address || "" }
+    delivery: { mode: state.mode, areaName: state.area?.name || "", branchId: state.branch || "", address: state.address || "" },
+    paymentMethod
   };
 }
 
@@ -1020,7 +1053,8 @@ function pendingSnapshot(payment) {
     ...payment,
     checkout: {
       cart: state.cart, mode: state.mode, areaName: state.area?.name || "", branch: state.branch,
-      addressId: state.addressId, address: state.address, name: state.user.name, phone: state.user.phone, lang: state.lang
+      addressId: state.addressId, address: state.address, name: state.user.name, phone: state.user.phone,
+      lang: state.lang, paymentMethod: state.paymentMethod
     }
   };
 }
@@ -1035,32 +1069,37 @@ function restorePending(pending) {
   state.address = saved.address || state.address;
   state.name = saved.name || state.name;
   state.phone = saved.phone || state.phone;
+  state.paymentMethod = saved.paymentMethod === "applepay" ? "applepay" : "knet";
   state.order = pending.orderId || state.order;
   if (saved.lang && saved.lang !== state.lang) setLanguage(saved.lang);
   persistCart();
   renderCartBar();
 }
 
-async function finishOrder() {
+async function finishOrder(paymentMethod = "knet") {
   if (!state.user?.name || normalizePhone(state.user.phone).length !== 8) return openAuth("login");
   if (!orderingConfig.paymentWebhookUrl || !orderingConfig.paymentStatusWebhookUrl) return paymentError(tr("paymentUnavailable"));
+  state.paymentMethod = paymentMethod === "applepay" ? "applepay" : "knet";
   state.paymentRequestId = state.paymentRequestId || requestId();
   $("#steps").classList.add("hidden");
   $("#checkoutTitle").textContent = tr("redirecting");
   $("#checkoutBody").innerHTML = `<div class="loading-state"><div class="spinner"></div><h3>${tr("redirecting")}</h3><p>${tr("creatingSecureLink")}</p></div>`;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 75000);
+  const timer = setTimeout(() => controller.abort(), 35000);
   try {
     const response = await fetch(orderingConfig.paymentWebhookUrl, {
       method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/json" },
-      body: JSON.stringify(paymentPayload()), signal: controller.signal, cache: "no-store"
+      body: JSON.stringify(paymentPayload(state.paymentMethod)), signal: controller.signal, cache: "no-store"
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok || !data.ok) throw new Error(data.error || tr("createFailed"));
     const target = new URL(data.paymentUrl);
     if (target.protocol !== "https:") throw new Error(tr("invalidSecureLink"));
     state.order = data.orderId || state.order;
-    const pending = pendingSnapshot({ orderId: state.order, statusToken: data.statusToken || "", paymentUrl: target.href, createdAt: Date.now() });
+    const pending = pendingSnapshot({
+      orderId: state.order, statusToken: data.statusToken || "", paymentUrl: target.href,
+      paymentMethod: state.paymentMethod, paymentGateway: data.paymentGateway || "", createdAt: Date.now()
+    });
     sessionStorage.setItem("pendingBedeOrder", JSON.stringify(pending));
     window.location.replace(target.href);
   } catch (error) {
@@ -1136,7 +1175,7 @@ function paymentError(message) {
   $("#checkoutTitle").textContent = tr("startFailed");
   $("#checkoutBody").innerHTML = `<div class="payment-error"><div class="error-mark">!</div><h3>${tr("linkNotCreated")}</h3><p>${escapeHtml(message || tr("createFailed"))}</p><div class="actions"><button class="secondary" id="paymentBack">${tr("back")}</button><button class="primary" id="paymentRetry">${tr("retry")}</button></div></div>`;
   $("#paymentBack").onclick = () => { state.step = 3; renderCheckout(); };
-  $("#paymentRetry").onclick = finishOrder;
+  $("#paymentRetry").onclick = () => finishOrder(state.paymentMethod);
 }
 
 function resumePendingPayment() {
