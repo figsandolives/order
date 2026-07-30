@@ -27,7 +27,7 @@ const firebaseIdentityReady = new Promise(resolve => {
 const translations = {
   ar: {
     brand: "مخبز التين والزيتون", tagline: "طبيعي، صحي، مصنوع بحب", yourCart: "سلتك",
-    deliveryEverywhere: "توصيل لجميع مناطق الكويت", heroTitle: "أكل صحي بطعم<br>يستحق التكرار",
+    deliveryEverywhere: "توصيل لجميع مناطق الكويت", heroTitle: "مخبز التين والزيتون:<br>خبز قمح كامل وأكل صحي",
     heroText: "اختر من منتجاتنا الطبيعية والمخبوزات الطازجة، ونحن نتكفل بالباقي.",
     naturalIngredients: "مكونات طبيعية", dailyPreparation: "تحضير يومي", securePayment: "دفع آمن",
     ourMenu: "قائمتنا", whatToday: "ماذا تشتهي اليوم؟", searchPlaceholder: "ابحث عن منتج…", searchStart: "اكتب اسم المنتج لعرض النتائج",
@@ -91,7 +91,7 @@ const translations = {
   },
   en: {
     brand: "Figs & Olives Bakery", tagline: "Natural, healthy, made with love", yourCart: "Cart",
-    deliveryEverywhere: "Delivery across Kuwait", heroTitle: "Healthy food with a taste<br>worth repeating",
+    deliveryEverywhere: "Delivery across Kuwait", heroTitle: "Figs & Olives Bakery:<br>Whole wheat bread and healthy food",
     heroText: "Choose from our natural products and fresh bakes, and we will handle the rest.",
     naturalIngredients: "Natural ingredients", dailyPreparation: "Prepared daily", securePayment: "Secure payment",
     ourMenu: "Our menu", whatToday: "What are you craving today?", searchPlaceholder: "Search products…", searchStart: "Type a product name to see results",
@@ -163,6 +163,9 @@ const SESSION_KEY = "figsOlivesSessionV1";
 const LEGACY_CART_KEY = "figsOlivesCartV1";
 const CART_KEY = "figsOlivesCartV2";
 const CATALOG_CACHE_KEY = "figsOlivesCatalogV2";
+const VISITOR_KEY = "figsOlivesVisitorV1";
+const visitorId = localStorage.getItem(VISITOR_KEY) || (crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+localStorage.setItem(VISITOR_KEY, visitorId);
 
 function readJson(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch { return fallback; }
@@ -367,6 +370,20 @@ function persistCart() {
   queueUserSync();
 }
 
+function trackStoreEvent(type, details = {}) {
+  const endpoint = orderingConfig.analyticsWebhookUrl;
+  if (!endpoint) return;
+  const onceKey = `figsOlivesEvent:${type}:${new Date().toISOString().slice(0, 10)}`;
+  if (type === "visit" && sessionStorage.getItem(onceKey)) return;
+  if (type === "visit") sessionStorage.setItem(onceKey, "1");
+  fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Accept": "application/json" },
+    body: JSON.stringify({ type, visitorId, customer: state.user?.name ? { name: state.user.name, phone: state.user.phone } : null, details }),
+    cache: "no-store"
+  }).catch(() => undefined);
+}
+
 function queueUserSync() {
   clearTimeout(userSyncTimer);
   userSyncTimer = setTimeout(() => {
@@ -532,7 +549,6 @@ function productCard(item, category) {
         <b class="in-cart ${quantity ? "" : "hidden"}" data-cart-badge="${escapeHtml(item.id)}">${quantity ? `${tr("inCart")} × ${quantity}` : ""}</b>
       </div>
       <div class="product-info">
-        <small>${escapeHtml(categoryName(category))}</small>
         <h3>${escapeHtml(productName(item))}</h3>
         <p>${escapeHtml(productDescription(item) || item.nameEn || item.name)}</p>
         <div class="product-foot"><strong>${money(item.price)}</strong><div class="product-quantity-slot" data-product-quantity="${escapeHtml(item.id)}">${productQuantityControl(item.id, quantity)}</div></div>
@@ -647,6 +663,7 @@ function observeImages() {
 }
 
 function scrollToCategory(categoryId) {
+  if (categoryId !== "all") trackStoreEvent("category_click", { categoryId, categoryName: categoryName(state.categories.find(item => item.id === categoryId) || {}) });
   if (categoryId === "all") return window.scrollTo({ top: 0, behavior: "smooth" });
   const section = document.querySelector(`[data-category-section="${CSS.escape(categoryId)}"]`);
   if (!section) return;
@@ -683,12 +700,14 @@ function updateCategoryFromScroll() {
 }
 
 function changeQuantity(id, difference) {
+  const wasEmpty = cartCount() === 0;
   state.cart[id] = Math.max(0, Number(state.cart[id] || 0) + difference);
   if (!state.cart[id]) delete state.cart[id];
   state.paymentRequestId = "";
   persistCart();
   renderCartBar();
   syncProductQuantityControls(id);
+  if (difference > 0 && wasEmpty) trackStoreEvent("cart_created", { productId: id });
   if (!$("#checkoutModal").classList.contains("hidden")) renderCheckout();
 }
 
@@ -758,6 +777,8 @@ function renderProductDetail(id) {
 }
 
 function openProductPage(id, push = true) {
+  const trackedProduct = product(id);
+  if (trackedProduct) trackStoreEvent("product_click", { productId: trackedProduct.id, productName: trackedProduct.name || trackedProduct.nameEn || "" });
   if (!state.detailProductId && push) catalogScrollPosition = window.scrollY;
   state.detailProductId = String(id);
   renderProductDetail(id);
@@ -986,6 +1007,7 @@ function renderUsernameAuth() {
     if (!name) return setAuthMessage(tr("nameRequired"));
     state.user.name = name;
     persistUser();
+    trackStoreEvent("account_created");
     completeLogin();
   };
   setTimeout(() => $("#usernameInput").focus(), 60);
@@ -1283,7 +1305,10 @@ function renderOrderDetails(orderId, fromSuccess = false) {
 }
 
 function openCheckout() {
-  if (!cartCount()) return;
+  if (!cartCount()) {
+    toast(state.lang === "ar" ? "أضف منتجاً إلى السلة أولاً" : "Add a product to your cart first");
+    return;
+  }
   if (!state.user?.name) return openAuth("login");
   clearProductRoute();
   if (state.detailProductId) closeProductPage(false);
@@ -1329,7 +1354,11 @@ function renderReview() {
         <div><h4>${escapeHtml(productName(item))}</h4><strong>${money(item.price * quantity)}</strong></div>
         <div class="qty"><button data-plus="${escapeHtml(item.id)}">+</button><span>${quantity}</span><button data-minus="${escapeHtml(item.id)}">${quantity === 1 ? "×" : "−"}</button></div>
       </div>`).join("")}</div><div class="checkout-sticky-actions">${totalsHtml()}<button class="primary" id="next1">${tr("confirmContinue")}</button></div></section>`;
-  $("#next1").onclick = () => { state.step = 2; renderCheckout(); };
+  $("#next1").onclick = () => {
+    if (!cartCount()) return toast(state.lang === "ar" ? "لا يمكن المتابعة وسلتك فارغة" : "You cannot continue with an empty cart");
+    state.step = 2;
+    renderCheckout();
+  };
 }
 
 function selectSavedAddress(addressId) {
@@ -1376,6 +1405,7 @@ function renderDelivery() {
   $$("[data-checkout-address]").forEach(button => button.onclick = () => selectSavedAddress(button.dataset.checkoutAddress));
   $$("[data-branch]").forEach(button => button.onclick = () => { state.branch = button.dataset.branch; state.paymentRequestId = ""; renderDelivery(); });
   $("#next2").onclick = () => {
+    if (!cartCount()) return toast(state.lang === "ar" ? "لا يمكن المتابعة وسلتك فارغة" : "You cannot continue with an empty cart");
     if (state.mode === "delivery" && !state.addressId) return toast(tr("completeDelivery"));
     if (state.mode === "pickup" && !state.branch) return toast(tr("chooseBranch"));
     state.step = 3;
@@ -1726,6 +1756,7 @@ function restorePending(pending) {
 }
 
 async function finishOrder() {
+  if (!cartCount()) return paymentError(state.lang === "ar" ? "لا يمكن إنشاء طلب من سلة فارغة" : "Cannot create an order from an empty cart");
   if (!state.user?.name || normalizePhone(state.user.phone).length !== 8) return openAuth("login");
   if (!orderingConfig.paymentWebhookUrl || !orderingConfig.paymentStatusWebhookUrl) return paymentError(tr("paymentUnavailable"));
   if (!state.paymentMethod) return toast(tr("choosePaymentMethod"));
@@ -1785,6 +1816,7 @@ async function watchPayment(pending) {
       if (!response.ok || !data.ok) throw new Error(data.error || "Verification failed");
       errors = 0;
       if (data.status === "paid") {
+        trackStoreEvent("checkout_complete", { orderId: pending.orderId });
         paymentWatchVersion++;
         sessionStorage.removeItem("pendingBedeOrder");
         history.replaceState({}, "", location.pathname);
@@ -1913,20 +1945,17 @@ function buildInvoice(order) {
   $("#invoice").innerHTML = `
     <div class="invoice-topline"></div>
     <header class="invoice-header">
-      <div class="invoice-brand"><img src="logo.png" alt=""><div><h1>${tr("brand")}</h1><p>${state.lang === "ar" ? "شركة صحي ولذيذ للتجهيزات الغذائية" : "Healthy & Delicious Foodstuff Co."}</p></div></div>
-      <div class="invoice-title"><span>${state.lang === "ar" ? "فاتورة مبيعات" : "SALES INVOICE"}</span><strong>#${escapeHtml(order.orderId)}</strong><small>${createdAt.toLocaleDateString(locale)}</small></div>
+      <div class="invoice-brand"><img src="logo.png" alt=""><div><h1>مخبز التين والزيتون</h1><p>Figs &amp; Olives Bakery</p></div></div>
+      <div class="invoice-title"><span>فاتورة مبيعات / SALES INVOICE</span><strong>#${escapeHtml(order.orderId)}</strong><small>${createdAt.toLocaleDateString(locale)}</small></div>
     </header>
-    <div class="invoice-company-line">
-      <span>${state.lang === "ar" ? "الكويت، حولي، شارع تونس، مجمع علي فهد الخالد، دور الميزانين" : "Kuwait, Hawalli, Tunis Street, Ali Fahad Al-Khaled Complex, Mezzanine"}</span>
-      <b>66906605 · 22085888</b>
-    </div>
+    <div class="invoice-company-box"><b>معلومات الشركة / COMPANY</b><span>شركة صحي ولذيذ للتجهيزات الغذائية<br>Healthy &amp; Delicious Foodstuff Co.</span><span>الكويت، حولي، شارع تونس، مجمع علي فهد الخالد، دور الميزانين<br>Kuwait, Hawalli, Tunis St., Ali Fahad Al-Khaled Complex, Mezzanine</span><strong dir="ltr">66906605 · 22085888</strong></div>
     <section class="invoice-parties">
       <div><span>${tr("customer")}</span><h3>${escapeHtml(order.customerName || tr("customer"))}</h3><p class="invoice-phone">${escapeHtml(order.phone || "")}</p></div>
       <div><span>${order.mode === "delivery" ? tr("deliveryAddress") : tr("pickupBranch")}</span><h3>${escapeHtml(destination)}</h3><p>${escapeHtml(deliveryTimeSummary(order))}</p></div>
       <div class="invoice-payment"><span>${state.lang === "ar" ? "حالة وطريقة الدفع" : "Payment"}</span><h3>${tr("paid")} · ${tr("payOnline")}</h3><p>${createdAt.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}</p></div>
     </section>
-    <table class="invoice-items"><thead><tr><th>#</th><th>${tr("item")}</th><th>${tr("quantity")}</th><th>${state.lang === "ar" ? "سعر الوحدة" : "Unit price"}</th><th>${tr("price")}</th></tr></thead>
-    <tbody>${order.items.map((item, index) => `<tr><td>${index + 1}</td><td><b>${escapeHtml(orderItemName(item))}</b></td><td>${item.quantity}</td><td>${money(item.unitPrice || (item.total / item.quantity))}</td><td><b>${money(item.total)}</b></td></tr>`).join("")}</tbody></table>
+    <table class="invoice-items"><thead><tr><th>#</th><th>الصنف / ITEM</th><th>الكمية / QTY</th><th>سعر الوحدة / UNIT PRICE</th><th>الإجمالي / TOTAL</th></tr></thead>
+    <tbody>${order.items.map((item, index) => `<tr><td>${index + 1}</td><td><b>${escapeHtml(item.nameAr || item.nameEn || item.id)}</b><small dir="ltr">${escapeHtml(item.nameEn || item.nameAr || item.id)}</small></td><td>${item.quantity}</td><td>${money(item.unitPrice || (item.total / item.quantity))}</td><td><b>${money(item.total)}</b></td></tr>`).join("")}</tbody></table>
     <section class="invoice-bottom">
       <div class="invoice-note"><span>${state.lang === "ar" ? "ملاحظة" : "Note"}</span><p>${tr("healthPhrase")}</p><small>${state.lang === "ar" ? "تم إنشاء هذه الفاتورة إلكترونياً ولا تحتاج إلى توقيع." : "This invoice was generated electronically and requires no signature."}</small></div>
       <div class="invoice-totals"><span>${tr("productsTotal")} <b>${money(order.subtotal)}</b></span><span>${tr("deliveryFee")} <b>${money(order.deliveryFee)}</b></span><strong>${tr("total")} <b>${money(order.total)}</b></strong></div>
@@ -2191,6 +2220,7 @@ async function initializeStoreData() {
   }
   if (hasCatalog) resumePendingPayment();
   hydrateUserFromFirebase();
+  trackStoreEvent("visit");
   if (firebaseServices) {
     const catalogRef = firebaseServices.database.ref("orderingPlatform/catalog");
     catalogRef.on("value", liveSnapshot => {
