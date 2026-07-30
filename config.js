@@ -1,7 +1,7 @@
 window.ORDERING_CONFIG = Object.freeze({
-  // ضع هنا Production URL بعد استيراد وتفعيل n8n-workflow.json.
-  paymentWebhookUrl: "https://yards-bottles-choice-terminology.trycloudflare.com/webhook/store/create-bede-payment",
-  paymentStatusWebhookUrl: "https://yards-bottles-choice-terminology.trycloudflare.com/webhook/store/bede-payment-status",
+  // بوابة الدفع تعمل عبر Firebase Cloud Functions؛ لا توجد مفاتيح دفع في المتصفح.
+  paymentWebhookUrl: "https://us-central1-menassafigs.cloudfunctions.net/createBedePayment",
+  paymentStatusWebhookUrl: "https://us-central1-menassafigs.cloudfunctions.net/checkBedePayment",
   sendLoginCodeWebhookUrl: "https://yards-bottles-choice-terminology.trycloudflare.com/webhook/store/send-login-code",
   verifyLoginCodeWebhookUrl: "https://yards-bottles-choice-terminology.trycloudflare.com/webhook/store/verify-login-code"
 });
