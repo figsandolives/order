@@ -80,10 +80,10 @@ const translations = {
     chooseArea: "اختر المنطقة", addressSaved: "تم حفظ العنوان", selectAddress: "اختر عنوان التوصيل",
     noAddedAddresses: "لا يوجد عناوين مضافة", ordersEmpty: "لا توجد طلبات سابقة",
     viewInvoice: "عرض / طباعة الفاتورة", viewOrderDetails: "عرض تفاصيل الطلب", orderDetails: "تفاصيل الطلب",
-    paid: "مدفوع", customerName: "اسم الزبون",
+    paid: "مدفوع", customerName: "الاسم", choosePaymentMethod: "اختر طريقة الدفع",
     deliveryAddress: "عنوان التوصيل", pickupBranch: "فرع الاستلام", payNow: "ادفع الآن",
     showProducts: "عرض تفاصيل المنتجات", hideProducts: "إخفاء تفاصيل المنتجات",
-    knet: "كي نت", knetHint: "الانتقال إلى صفحة الدفع الآمنة من KNET",
+    knet: "كي نت", knetHint: "الانتقال إلى صفحة الدفع الآمنة من KNET", applePay: "Apple Pay",
     loginServiceUnavailable: "خدمة تسجيل الدخول غير مربوطة حالياً", sendFailed: "تعذر إرسال رمز الدخول",
     verifyFailed: "تعذر التحقق من الرمز", accountSyncFailed: "تعذر فتح بيانات حسابك المحفوظة. حاول تسجيل الدخول مرة أخرى.",
     loggedOut: "تم تسجيل الخروج", invoiceFailed: "تعذر إنشاء الفاتورة. حاول مرة أخرى.",
@@ -143,10 +143,10 @@ const translations = {
     addressPlaceholder: "Block, street, house and floor…", chooseArea: "Choose an area", addressSaved: "Address saved",
     selectAddress: "Select delivery address", noAddedAddresses: "No addresses added", ordersEmpty: "No previous orders",
     viewInvoice: "View / print invoice", viewOrderDetails: "View order details", orderDetails: "Order details",
-    paid: "Paid", customerName: "Customer name", deliveryAddress: "Delivery address",
+    paid: "Paid", customerName: "Name", choosePaymentMethod: "Choose a payment method", deliveryAddress: "Delivery address",
     pickupBranch: "Pickup branch", payNow: "Pay now", showProducts: "Show product details",
     hideProducts: "Hide product details", loginServiceUnavailable: "Login service is not connected",
-    knet: "KNET", knetHint: "Continue to the secure KNET payment page",
+    knet: "KNET", knetHint: "Continue to the secure KNET payment page", applePay: "Apple Pay",
     sendFailed: "Could not send login code", verifyFailed: "Could not verify the code",
     accountSyncFailed: "Could not open your saved account data. Please log in again.", loggedOut: "Logged out",
     invoiceFailed: "Could not create the invoice. Please try again.", noZoom: ""
@@ -206,7 +206,7 @@ const state = {
   lang: localStorage.getItem("storeLanguage") === "en" ? "en" : "ar",
   step: 1, mode: "delivery", area: null, branch: "", addressId: "", address: "",
   name: "", phone: "", order: "W00001", paymentRequestId: "", detailProductId: "",
-  paymentMethod: "knet", deliveryTiming: "asap", scheduledDate: "", scheduledHour: "1",
+  paymentMethod: "", deliveryTiming: "asap", scheduledDate: "", scheduledHour: "1",
   scheduledMinute: "00", scheduledPeriod: "pm", user: initialUser, lastInvoice: null,
   appearance: { ...DEFAULT_APPEARANCE }
 };
@@ -224,6 +224,8 @@ let catalogScrollPosition = 0;
 let userSyncTimer;
 let pendingPaymentResumed = false;
 let catalogSignature = "";
+let pageScrollLocked = false;
+let pageScrollLockY = 0;
 const invoiceFileCache = new Map();
 if ("scrollRestoration" in history) history.scrollRestoration = "manual";
 
@@ -596,6 +598,29 @@ function closeHeaderSearch() {
   $("#searchToggle").setAttribute("aria-expanded", "false");
   state.search = "";
   $("#searchInput").value = "";
+}
+
+function visibleLayer(selector) {
+  const element = $(selector);
+  return Boolean(element && !element.classList.contains("hidden"));
+}
+
+function syncPageScrollLock() {
+  const shouldLock = visibleLayer("#productPage") || visibleLayer("#checkoutModal")
+    || visibleLayer("#accountDrawer") || visibleLayer("#authModal") || visibleLayer("#searchPopover");
+  if (shouldLock && !pageScrollLocked) {
+    pageScrollLockY = window.scrollY || window.pageYOffset || 0;
+    document.documentElement.classList.add("page-scroll-locked");
+    document.body.classList.add("page-scroll-locked");
+    document.body.style.top = `-${pageScrollLockY}px`;
+    pageScrollLocked = true;
+  } else if (!shouldLock && pageScrollLocked) {
+    document.documentElement.classList.remove("page-scroll-locked");
+    document.body.classList.remove("page-scroll-locked");
+    document.body.style.top = "";
+    pageScrollLocked = false;
+    requestAnimationFrame(() => window.scrollTo({ top: pageScrollLockY, behavior: "auto" }));
+  }
 }
 
 function toggleHeaderSearch() {
@@ -1015,6 +1040,7 @@ function openAccountDrawer(page = "home", options = {}) {
   if (!state.user?.name) return openAuth("login");
   $("#accountDrawer").classList.toggle("order-detail-mode", page === "orderDetails");
   accountReturnToCheckout = Boolean(options.returnToCheckout);
+  if (accountReturnToCheckout) $("#checkoutModal").classList.add("hidden");
   $("#accountDrawer").classList.remove("hidden");
   $("#accountDrawer").setAttribute("aria-hidden", "false");
   if (page === "info") renderAccountInfo();
@@ -1025,9 +1051,15 @@ function openAccountDrawer(page = "home", options = {}) {
   else renderAccountHome();
 }
 
-function closeAccountDrawer() {
+function closeAccountDrawer(returnToCheckout = false) {
+  const restoreCheckout = returnToCheckout && accountReturnToCheckout;
+  accountReturnToCheckout = false;
   $("#accountDrawer").classList.add("hidden");
   $("#accountDrawer").setAttribute("aria-hidden", "true");
+  if (restoreCheckout) {
+    $("#checkoutModal").classList.remove("hidden");
+    renderCheckout();
+  }
 }
 
 function resetAccountDrawerScroll() {
@@ -1126,15 +1158,16 @@ function renderAddressForm(addressId = "") {
   let selectedArea = existing ? { name: existing.areaName, price: existing.price } : null;
   const resultsHtml = query => {
     const normalizedQuery = String(query || "").trim();
-    return state.areas.filter(area => !normalizedQuery || area.name.includes(normalizedQuery)).slice(0, 60).map(area =>
-      `<button type="button" class="${selectedArea?.name === area.name ? "selected" : ""}" data-pick-area="${escapeHtml(area.name)}"><span>${escapeHtml(area.name)}</span><b>${money(area.price)}</b></button>`
+    if (!normalizedQuery) return "";
+    return state.areas.filter(area => area.name.includes(normalizedQuery)).slice(0, 60).map(area =>
+      `<button type="button" class="${selectedArea?.name === area.name ? "selected" : ""}" data-pick-area="${escapeHtml(area.name)}"><span class="area-name">${selectedArea?.name === area.name ? "<i>✓</i>" : ""}${escapeHtml(area.name)}</span><b>${money(area.price)}</b></button>`
     ).join("");
   };
   $("#accountContent").innerHTML = `${drawerPageHeader(existing ? tr("edit") : tr("addAddress"))}
     <form class="address-form" id="addressForm">
       <label>${tr("areaSearch")}
         <div class="area-picker"><input id="addressAreaSearch" value="${escapeHtml(selectedArea?.name || "")}" placeholder="${tr("areaSearch")}" autocomplete="off">
-        <div class="area-results" id="addressAreaResults">${resultsHtml("")}</div></div>
+        <div class="area-results hidden" id="addressAreaResults"></div></div>
       </label>
       <label>${tr("addressDetails")}<textarea id="addressDetails" placeholder="${tr("addressPlaceholder")}">${escapeHtml(existing?.details || "")}</textarea></label>
       <p class="auth-message" id="addressMessage"></p>
@@ -1142,21 +1175,22 @@ function renderAddressForm(addressId = "") {
     </form>`;
   $("[data-drawer-back]").onclick = () => {
     if (accountReturnToCheckout) {
-      accountReturnToCheckout = false;
-      closeAccountDrawer();
-      renderDelivery();
+      closeAccountDrawer(true);
     } else renderAddresses();
   };
   const bindAreas = () => $$("[data-pick-area]").forEach(button => button.onclick = () => {
     selectedArea = state.areas.find(area => area.name === button.dataset.pickArea) || null;
     $("#addressAreaSearch").value = selectedArea?.name || "";
-    $("#addressAreaResults").innerHTML = resultsHtml(selectedArea?.name || "");
+    $("#addressAreaResults").innerHTML = "";
+    $("#addressAreaResults").classList.add("hidden");
     bindAreas();
   });
   bindAreas();
   $("#addressAreaSearch").oninput = event => {
     if (event.target.value !== selectedArea?.name) selectedArea = null;
-    $("#addressAreaResults").innerHTML = resultsHtml(event.target.value);
+    const results = resultsHtml(event.target.value);
+    $("#addressAreaResults").innerHTML = results;
+    $("#addressAreaResults").classList.toggle("hidden", !results);
     bindAreas();
   };
   $("#addressDetails").oninput = event => { event.target.value = normalizeAddressText(event.target.value); };
@@ -1176,9 +1210,7 @@ function renderAddressForm(addressId = "") {
       state.addressId = saved.id;
       state.area = state.areas.find(area => area.name === saved.areaName) || { name: saved.areaName, price: saved.price };
       state.address = saved.details;
-      accountReturnToCheckout = false;
-      closeAccountDrawer();
-      renderDelivery();
+      closeAccountDrawer(true);
     } else renderAddresses();
   };
 }
@@ -1292,11 +1324,11 @@ function totalsHtml() {
 
 function renderReview() {
   $("#checkoutBody").innerHTML = `
-    <div class="cart-list">${cartItems().map(({ product: item, quantity }) => `
+    <section class="checkout-review"><div class="cart-list">${cartItems().map(({ product: item, quantity }) => `
       <div class="cart-row"><img src="${escapeHtml(productImages(item)[0] || "logo.png")}" alt="">
         <div><h4>${escapeHtml(productName(item))}</h4><strong>${money(item.price * quantity)}</strong></div>
         <div class="qty"><button data-plus="${escapeHtml(item.id)}">+</button><span>${quantity}</span><button data-minus="${escapeHtml(item.id)}">${quantity === 1 ? "×" : "−"}</button></div>
-      </div>`).join("")}</div>${totalsHtml()}<button class="primary" id="next1">${tr("confirmContinue")}</button>`;
+      </div>`).join("")}</div><div class="checkout-sticky-actions">${totalsHtml()}<button class="primary" id="next1">${tr("confirmContinue")}</button></div></section>`;
   $("#next1").onclick = () => { state.step = 2; renderCheckout(); };
 }
 
@@ -1573,6 +1605,15 @@ function deliveryTimeSummaryMarkup(source = state) {
 }
 
 function renderConfirmation() {
+  const appleSafari = isIphoneSafari();
+  if (!appleSafari) state.paymentMethod = "knet";
+  const paymentMark = method => method === "applepay"
+    ? `<span class="apple-pay-mark" aria-label="Apple Pay"> Pay</span>`
+    : `<span class="knet-mark"><img src="knet-logo.png" alt="KNET"></span>`;
+  const paymentChoices = appleSafari ? `<div class="payment-method-choices" role="radiogroup" aria-label="${tr("choosePaymentMethod")}">
+    <button type="button" class="payment-choice ${state.paymentMethod === "applepay" ? "selected" : ""}" data-payment-method="applepay" role="radio" aria-checked="${state.paymentMethod === "applepay"}"><span class="payment-radio"></span>${paymentMark("applepay")}<strong>${tr("applePay")}</strong></button>
+    <button type="button" class="payment-choice ${state.paymentMethod === "knet" ? "selected" : ""}" data-payment-method="knet" role="radio" aria-checked="${state.paymentMethod === "knet"}"><span class="payment-radio"></span>${paymentMark("knet")}<strong>${tr("knet")}</strong></button>
+  </div>` : "";
   $("#checkoutTitle").textContent = tr("confirmPay");
   $("#checkoutBody").innerHTML = `
     <section class="confirmation-card">
@@ -1591,7 +1632,7 @@ function renderConfirmation() {
         <div class="price-row"><span>${tr("deliveryFee")}</span><strong>${money(deliveryFee())}</strong></div>
         <div class="price-row total-row"><span>${tr("total")}</span><strong>${money(total())}</strong></div>
       </div>
-      <div class="actions"><button class="secondary" id="back2">${tr("back")}</button><button class="primary pay-now" id="finish" aria-label="${tr("payNow")} — KNET"><span class="knet-mark"><img src="knet-logo.png" alt="KNET"></span><span>${tr("payNow")}</span></button></div>
+      <div class="confirmation-sticky-actions">${paymentChoices}<div class="actions"><button class="secondary" id="back2">${tr("back")}</button><button class="primary pay-now" id="finish" aria-label="${tr("payNow")}">${state.paymentMethod ? paymentMark(state.paymentMethod) : ""}<span>${tr("payNow")}</span></button></div></div>
     </section>`;
   $("#productsToggle").onclick = () => {
     const details = $("#confirmationProducts");
@@ -1600,6 +1641,7 @@ function renderConfirmation() {
     $("#productsToggle").setAttribute("aria-label", open ? tr("hideProducts") : tr("showProducts"));
   };
   $("#back2").onclick = () => { state.step = 3; renderCheckout(); };
+  $$('[data-payment-method]').forEach(button => button.onclick = () => { state.paymentMethod = button.dataset.paymentMethod; state.paymentRequestId = ""; renderConfirmation(); });
   $("#finish").onclick = beginPayment;
 }
 
@@ -1612,6 +1654,11 @@ function isAppleMobileDevice() {
   const userAgent = navigator.userAgent || "";
   return /iPhone|iPad|iPod/i.test(userAgent) ||
     (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
+function isIphoneSafari() {
+  const userAgent = navigator.userAgent || "";
+  return isAppleMobileDevice() && /Safari/i.test(userAgent) && !/CriOS|FxiOS|EdgiOS|OPiOS|GSA/i.test(userAgent);
 }
 
 function beginPayment() {
@@ -1664,7 +1711,7 @@ function restorePending(pending) {
   state.address = saved.address || state.address;
   state.name = saved.name || state.name;
   state.phone = saved.phone || state.phone;
-  state.paymentMethod = "knet";
+  state.paymentMethod = saved.paymentMethod || "knet";
   state.deliveryTiming = saved.deliveryTiming === "scheduled"
     ? "scheduled"
     : saved.deliveryTiming === "notify" ? "notify" : "asap";
@@ -1681,9 +1728,9 @@ function restorePending(pending) {
 async function finishOrder() {
   if (!state.user?.name || normalizePhone(state.user.phone).length !== 8) return openAuth("login");
   if (!orderingConfig.paymentWebhookUrl || !orderingConfig.paymentStatusWebhookUrl) return paymentError(tr("paymentUnavailable"));
+  if (!state.paymentMethod) return toast(tr("choosePaymentMethod"));
   clearProductRoute();
   if (state.detailProductId) closeProductPage(false);
-  state.paymentMethod = "knet";
   state.paymentRequestId = state.paymentRequestId || requestId();
   $("#steps").classList.add("hidden");
   $("#checkoutTitle").textContent = tr("redirecting");
@@ -1994,17 +2041,21 @@ $("#searchResults").onclick = event => {
   closeHeaderSearch();
   openProductPage(id);
 };
-document.addEventListener("click", event => {
-  if (!$("#headerSearch").contains(event.target)) closeHeaderSearch();
-});
+document.addEventListener("pointerdown", event => {
+  if (!$("#searchPopover").classList.contains("hidden") && !$("#headerSearch").contains(event.target)) {
+    event.preventDefault();
+    event.stopPropagation();
+    closeHeaderSearch();
+  }
+}, true);
 document.addEventListener("keydown", event => {
   if (event.key === "Escape" && !$("#searchPopover").classList.contains("hidden")) closeHeaderSearch();
 });
 $("#accountButton").onclick = () => state.user?.name ? openAccountDrawer() : openAuth("login");
 $("#authClose").onclick = closeAuth;
 $("#authModal").onclick = event => { if (event.target === $("#authModal")) closeAuth(); };
-$("#drawerClose").onclick = closeAccountDrawer;
-$("#drawerBackdrop").onclick = closeAccountDrawer;
+$("#drawerClose").onclick = () => closeAccountDrawer(true);
+$("#drawerBackdrop").onclick = () => closeAccountDrawer(true);
 $("#categories").onclick = event => {
   const button = event.target.closest("[data-category-link]");
   if (button) scrollToCategory(button.dataset.categoryLink);
@@ -2058,6 +2109,13 @@ window.addEventListener("scroll", () => {
 window.addEventListener("hashchange", syncProductRoute);
 window.addEventListener("popstate", syncProductRoute);
 document.addEventListener("gesturestart", event => event.preventDefault(), { passive: false });
+
+const overlayStateObserver = new MutationObserver(syncPageScrollLock);
+["#productPage", "#checkoutModal", "#accountDrawer", "#authModal", "#searchPopover"].forEach(selector => {
+  const element = $(selector);
+  if (element) overlayStateObserver.observe(element, { attributes: true, attributeFilter: ["class"] });
+});
+syncPageScrollLock();
 document.addEventListener("gesturechange", event => event.preventDefault(), { passive: false });
 document.addEventListener("gestureend", event => event.preventDefault(), { passive: false });
 document.addEventListener("touchmove", event => { if (event.touches.length > 1) event.preventDefault(); }, { passive: false });
