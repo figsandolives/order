@@ -210,3 +210,17 @@ body.detail-open .categories{display:none}
   .product-page{inset:var(--site-header-height) 0 0}
   .section-heading{margin-bottom:15px}
 }
+
+html.page-scroll-locked,body.page-scroll-locked{overflow:hidden;overscroll-behavior:none}
+body.page-scroll-locked{position:fixed;left:0;right:0;width:100%}
+.modal,.product-page,.drawer-layer,.auth-modal,.checkout-panel,.account-drawer,.search-popover{overscroll-behavior:contain}
+.checkout-review{display:grid;gap:14px;padding-bottom:4px}
+.checkout-sticky-actions,.confirmation-sticky-actions{position:sticky;bottom:-22px;z-index:8;padding:12px 0 calc(12px + env(safe-area-inset-bottom));background:linear-gradient(180deg,#fffefb00 0,#fffefb 22px 100%)}
+.checkout-sticky-actions .totals{margin:0 0 10px;box-shadow:0 10px 26px #153a2b12}
+.confirmation-sticky-actions .actions{margin-top:10px}
+.knet-mark{overflow:visible;background:#fff;padding:2px}
+.knet-mark img{object-fit:contain!important;border-radius:4px}
+.apple-pay-mark{display:inline-flex;align-items:center;justify-content:center;min-width:58px;height:36px;padding:0 9px;border-radius:7px;background:#000;color:#fff;font-family:Arial,sans-serif;font-size:16px;font-weight:700;white-space:nowrap}
+.payment-method-choices{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:10px}
+.payment-choice{min-height:62px;display:flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);border-radius:15px;background:#fff;color:var(--ink);padding:8px}.payment-choice.selected{border-color:#141414;box-shadow:0 0 0 2px #14141412}.payment-choice strong{font-size:12px}.payment-choice .knet-mark{width:47px;height:33px}.payment-choice .apple-pay-mark{min-width:55px;height:33px;font-size:14px}.payment-radio{width:17px;height:17px;border:2px solid #9aa7a0;border-radius:50%;flex:0 0 auto}.payment-choice.selected .payment-radio{border:5px solid #151515}
+@media(max-width:760px){.checkout-sticky-actions,.confirmation-sticky-actions{bottom:-16px}.checkout-review{padding-bottom:8px}.payment-choice{min-height:58px;padding:7px 5px;gap:6px}.payment-choice strong{font-size:10px}}
