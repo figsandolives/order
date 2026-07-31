@@ -1873,22 +1873,46 @@ function paymentError(message) {
   $("#paymentRetry").onclick = finishOrder;
 }
 
-function resumePendingPayment() {
-  if (pendingPaymentResumed) return;
-  pendingPaymentResumed = true;
+function paymentReturnResult() {
+  const value = new URLSearchParams(location.search).get("payment");
+  return value === "success" || value === "failed" ? value : "";
+}
+
+function readPendingPayment() {
   const raw = sessionStorage.getItem("pendingBedeOrder");
-  if (!raw) return;
+  if (!raw) return null;
   try {
     const pending = JSON.parse(raw);
     if (!pending.orderId || !pending.statusToken || !pending.paymentUrl) throw new Error("Invalid payment state");
-    restorePending(pending);
-    $("#checkoutModal").classList.remove("hidden");
-    $("#steps").classList.add("hidden");
-    showPaymentWaiting(pending);
-    watchPayment(pending);
+    return pending;
   } catch {
     sessionStorage.removeItem("pendingBedeOrder");
+    return null;
   }
+}
+
+function showReturnedPaymentFailure(pending) {
+  paymentWatchVersion++;
+  pendingPaymentResumed = true;
+  sessionStorage.removeItem("pendingBedeOrder");
+  restorePending(pending);
+  $("#checkoutModal").classList.remove("hidden");
+  $("#steps").classList.add("hidden");
+  history.replaceState({}, "", location.pathname);
+  paymentDeclined();
+}
+
+function resumePendingPayment() {
+  if (pendingPaymentResumed) return;
+  pendingPaymentResumed = true;
+  const pending = readPendingPayment();
+  if (!pending) return;
+  if (paymentReturnResult() !== "success") return showReturnedPaymentFailure(pending);
+  restorePending(pending);
+  $("#checkoutModal").classList.remove("hidden");
+  $("#steps").classList.add("hidden");
+  showPaymentWaiting(pending);
+  watchPayment(pending);
 }
 
 function currentInvoiceModel() {
@@ -2152,6 +2176,11 @@ syncPageScrollLock();
 document.addEventListener("gesturechange", event => event.preventDefault(), { passive: false });
 document.addEventListener("gestureend", event => event.preventDefault(), { passive: false });
 document.addEventListener("touchmove", event => { if (event.touches.length > 1) event.preventDefault(); }, { passive: false });
+window.addEventListener("pageshow", () => {
+  if (paymentReturnResult() === "success") return;
+  const pending = readPendingPayment();
+  if (pending) showReturnedPaymentFailure(pending);
+});
 
 applyLanguage();
 if (state.user) {
