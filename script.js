@@ -1185,6 +1185,7 @@ function renderAddressForm(addressId = "") {
   let pendingArea = null;
   let areaQuery = selectedArea?.name || "";
   let areaResults = "";
+  let confirmedAreaName = selectedArea?.name || "";
   const areaLabel = area => state.lang === "ar" ? (area.nameAr || area.name) : (area.nameEn || area.nameAr || area.name);
   const resultsHtml = query => {
     const normalizedQuery = String(query || "").trim();
@@ -1193,12 +1194,15 @@ function renderAddressForm(addressId = "") {
       `<button type="button" class="${selectedArea?.name === area.name ? "selected" : ""}" data-pick-area="${escapeHtml(area.name)}"><span class="area-name">${selectedArea?.name === area.name ? "<i>✓</i>" : ""}${escapeHtml(areaLabel(area))}</span><b>${money(area.price)}</b></button>`
     ).join("");
   };
-  const areaPickerHtml = () => selectedArea ? `
+  const areaPickerHtml = () => {
+    const confirmedArea = selectedArea || (confirmedAreaName ? state.areas.find(area => area.name === confirmedAreaName) : null);
+    if (confirmedArea) return `
     <div class="confirmed-area">
       <span class="confirmed-area-check" aria-hidden="true">✓</span>
-      <div><strong>${escapeHtml(areaLabel(selectedArea))}</strong><small>${tr("deliveryFee")}: ${money(selectedArea.price)}</small></div>
+      <div><strong>${escapeHtml(areaLabel(confirmedArea))}</strong><small>${tr("deliveryFee")}: ${money(confirmedArea.price)}</small></div>
       <button type="button" class="edit-area-button" id="editAddressArea">${tr("edit")}</button>
-    </div>` : `
+    </div>`;
+    return `
     <input id="addressAreaSearch" value="${escapeHtml(areaQuery)}" placeholder="${tr("areaSearch")}" autocomplete="off">
     <div class="area-results${areaResults ? "" : " hidden"}" id="addressAreaResults">${areaResults}</div>
     ${pendingArea ? `<div class="area-confirmation" role="dialog" aria-modal="true" aria-labelledby="area-confirm-title">
@@ -1208,6 +1212,7 @@ function renderAddressForm(addressId = "") {
         <div class="area-confirm-actions"><button type="button" class="primary" id="confirmAddressArea" data-confirm-area="${escapeHtml(pendingArea.name)}">${state.lang === "ar" ? "نعم" : "Yes"}</button><button type="button" class="secondary" id="cancelAddressArea">${state.lang === "ar" ? "لا" : "No"}</button></div>
       </div>
     </div>` : ""}`;
+  };
   $("#accountContent").innerHTML = `${drawerPageHeader(existing ? tr("edit") : tr("addAddress"))}
     <form class="address-form" id="addressForm">
       <label>${tr("areaSearch")}
@@ -1237,22 +1242,25 @@ function renderAddressForm(addressId = "") {
       results.classList.toggle("hidden", !areaResults);
       bindAreaResults();
     });
-    $("#confirmAddressArea")?.addEventListener("click", event => {
-      const areaName = event.currentTarget.dataset.confirmArea;
+    const confirmButton = $("#confirmAddressArea");
+    if (confirmButton) confirmButton.onclick = () => {
+      const areaName = confirmButton.dataset.confirmArea;
       const confirmedArea = state.areas.find(area => area.name === areaName) || pendingArea;
       if (!confirmedArea) return;
       selectedArea = { ...confirmedArea };
+      confirmedAreaName = confirmedArea.name;
       pendingArea = null;
       areaQuery = "";
       areaResults = "";
       renderAreaPicker();
-    });
+    };
     $("#cancelAddressArea")?.addEventListener("click", () => {
       pendingArea = null;
       renderAreaPicker();
     });
     $("#editAddressArea")?.addEventListener("click", () => {
       selectedArea = null;
+      confirmedAreaName = "";
       pendingArea = null;
       areaQuery = "";
       renderAreaPicker();
