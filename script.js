@@ -1178,18 +1178,36 @@ function renderAddressForm(addressId = "") {
   const existing = (state.user.addresses || []).find(address => address.id === addressId);
   resetAccountDrawerScroll();
   let selectedArea = existing ? { name: existing.areaName, price: existing.price } : null;
+  let pendingArea = null;
+  let areaQuery = selectedArea?.name || "";
+  let areaResults = "";
+  const areaLabel = area => state.lang === "ar" ? (area.nameAr || area.name) : (area.nameEn || area.nameAr || area.name);
   const resultsHtml = query => {
     const normalizedQuery = String(query || "").trim();
     if (!normalizedQuery) return "";
-    return state.areas.filter(area => area.name.includes(normalizedQuery)).slice(0, 60).map(area =>
-      `<button type="button" class="${selectedArea?.name === area.name ? "selected" : ""}" data-pick-area="${escapeHtml(area.name)}"><span class="area-name">${selectedArea?.name === area.name ? "<i>✓</i>" : ""}${escapeHtml(area.name)}</span><b>${money(area.price)}</b></button>`
+    return state.areas.filter(area => [area.name, area.nameAr, area.nameEn].filter(Boolean).some(name => name.toLocaleLowerCase().includes(normalizedQuery.toLocaleLowerCase()))).slice(0, 60).map(area =>
+      `<button type="button" class="${selectedArea?.name === area.name ? "selected" : ""}" data-pick-area="${escapeHtml(area.name)}"><span class="area-name">${selectedArea?.name === area.name ? "<i>✓</i>" : ""}${escapeHtml(areaLabel(area))}</span><b>${money(area.price)}</b></button>`
     ).join("");
   };
+  const areaPickerHtml = () => selectedArea ? `
+    <div class="confirmed-area">
+      <span class="confirmed-area-check" aria-hidden="true">✓</span>
+      <div><strong>${escapeHtml(areaLabel(selectedArea))}</strong><small>${tr("deliveryFee")}: ${money(selectedArea.price)}</small></div>
+      <button type="button" class="edit-area-button" id="editAddressArea">${tr("edit")}</button>
+    </div>` : `
+    <input id="addressAreaSearch" value="${escapeHtml(areaQuery)}" placeholder="${tr("areaSearch")}" autocomplete="off">
+    <div class="area-results${areaResults ? "" : " hidden"}" id="addressAreaResults">${areaResults}</div>
+    ${pendingArea ? `<div class="area-confirmation" role="dialog" aria-modal="true" aria-labelledby="area-confirm-title">
+      <div class="area-confirm-card"><span class="area-confirm-icon" aria-hidden="true">⌖</span>
+        <h3 id="area-confirm-title">${state.lang === "ar" ? `هل تريد اختيار منطقة ${escapeHtml(areaLabel(pendingArea))}؟` : `Do you want to choose ${escapeHtml(areaLabel(pendingArea))}?`}</h3>
+        <p>${tr("deliveryFee")}: ${money(pendingArea.price)}</p>
+        <div class="area-confirm-actions"><button type="button" class="primary" id="confirmAddressArea">${state.lang === "ar" ? "نعم" : "Yes"}</button><button type="button" class="secondary" id="cancelAddressArea">${state.lang === "ar" ? "لا" : "No"}</button></div>
+      </div>
+    </div>` : ""}`;
   $("#accountContent").innerHTML = `${drawerPageHeader(existing ? tr("edit") : tr("addAddress"))}
     <form class="address-form" id="addressForm">
       <label>${tr("areaSearch")}
-        <div class="area-picker"><input id="addressAreaSearch" value="${escapeHtml(selectedArea?.name || "")}" placeholder="${tr("areaSearch")}" autocomplete="off">
-        <div class="area-results hidden" id="addressAreaResults"></div></div>
+        <div class="area-picker" id="addressAreaPicker">${areaPickerHtml()}</div>
       </label>
       <label>${tr("addressDetails")}<textarea id="addressDetails" placeholder="${tr("addressPlaceholder")}">${escapeHtml(existing?.details || "")}</textarea></label>
       <p class="auth-message" id="addressMessage"></p>
@@ -1200,21 +1218,37 @@ function renderAddressForm(addressId = "") {
       closeAccountDrawer(true);
     } else renderAddresses();
   };
-  const bindAreas = () => $$("[data-pick-area]").forEach(button => button.onclick = () => {
-    selectedArea = state.areas.find(area => area.name === button.dataset.pickArea) || null;
-    $("#addressAreaSearch").value = selectedArea?.name || "";
-    $("#addressAreaResults").innerHTML = "";
-    $("#addressAreaResults").classList.add("hidden");
-    bindAreas();
-  });
-  bindAreas();
-  $("#addressAreaSearch").oninput = event => {
-    if (event.target.value !== selectedArea?.name) selectedArea = null;
-    const results = resultsHtml(event.target.value);
-    $("#addressAreaResults").innerHTML = results;
-    $("#addressAreaResults").classList.toggle("hidden", !results);
-    bindAreas();
+  const renderAreaPicker = () => {
+    $("#addressAreaPicker").innerHTML = areaPickerHtml();
+    $$('[data-pick-area]').forEach(button => button.onclick = () => {
+      pendingArea = state.areas.find(area => area.name === button.dataset.pickArea) || null;
+      renderAreaPicker();
+    });
+    $("#addressAreaSearch")?.addEventListener("input", event => {
+      areaQuery = event.target.value;
+      areaResults = resultsHtml(areaQuery);
+      renderAreaPicker();
+    });
+    $("#confirmAddressArea")?.addEventListener("click", () => {
+      selectedArea = pendingArea;
+      pendingArea = null;
+      areaQuery = "";
+      areaResults = "";
+      renderAreaPicker();
+    });
+    $("#cancelAddressArea")?.addEventListener("click", () => {
+      pendingArea = null;
+      renderAreaPicker();
+    });
+    $("#editAddressArea")?.addEventListener("click", () => {
+      selectedArea = null;
+      pendingArea = null;
+      areaQuery = "";
+      renderAreaPicker();
+      $("#addressAreaSearch")?.focus();
+    });
   };
+  renderAreaPicker();
   $("#addressDetails").oninput = event => { event.target.value = normalizeAddressText(event.target.value); };
   $("#addressForm").onsubmit = event => {
     event.preventDefault();
@@ -2194,7 +2228,8 @@ function applyCatalog(catalog, cache = true) {
     catalog.version || "", catalog.updatedAt || "",
     catalog.appearance || {},
     catalog.categories.map(category => [category.id, category.active !== false, category.order, category.nameAr, category.nameEn]),
-    catalog.products.map(item => [item.id, item.active !== false, item.category, item.order, item.price, item.name, item.nameEn, item.image])
+    catalog.products.map(item => [item.id, item.active !== false, item.category, item.order, item.price, item.name, item.nameEn, item.image]),
+    catalog.deliveryAreas.map(area => [area.id, area.nameAr || area.name, area.nameEn, area.price, area.order])
   ]);
   if (signature === catalogSignature) return true;
   catalogSignature = signature;
@@ -2206,6 +2241,10 @@ function applyCatalog(catalog, cache = true) {
   state.categories = visibleCategories;
   state.products = visibleProducts;
   state.areas = Array.isArray(catalog?.deliveryAreas) ? catalog.deliveryAreas : [];
+  if (state.area) {
+    const currentAreaName = state.area.name || state.area.nameAr;
+    state.area = state.areas.find(area => (area.name || area.nameAr) === currentAreaName) || null;
+  }
   applyStoreAppearance(catalog.appearance);
   const visibleProductIds = new Set(visibleProducts.map(item => String(item.id)));
   let removedCartItem = false;
