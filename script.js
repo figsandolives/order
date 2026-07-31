@@ -1220,17 +1220,22 @@ function renderAddressForm(addressId = "") {
   };
   const renderAreaPicker = () => {
     $("#addressAreaPicker").innerHTML = areaPickerHtml();
-    $$('[data-pick-area]').forEach(button => button.onclick = () => {
+    const bindAreaResults = () => $$('[data-pick-area]').forEach(button => button.onclick = () => {
       pendingArea = state.areas.find(area => area.name === button.dataset.pickArea) || null;
       renderAreaPicker();
     });
+    bindAreaResults();
     $("#addressAreaSearch")?.addEventListener("input", event => {
       areaQuery = event.target.value;
       areaResults = resultsHtml(areaQuery);
-      renderAreaPicker();
+      const results = $("#addressAreaResults");
+      results.innerHTML = areaResults;
+      results.classList.toggle("hidden", !areaResults);
+      bindAreaResults();
     });
     $("#confirmAddressArea")?.addEventListener("click", () => {
-      selectedArea = pendingArea;
+      if (!pendingArea) return;
+      selectedArea = { ...pendingArea };
       pendingArea = null;
       areaQuery = "";
       areaResults = "";
