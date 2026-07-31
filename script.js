@@ -1235,6 +1235,16 @@ function renderAddressForm(addressId = "") {
     if (label) label.textContent = areaFieldLabel();
     const picker = $("#addressAreaPicker");
     picker.innerHTML = areaPickerHtml();
+    const confirmPendingArea = areaName => {
+      const confirmedArea = state.areas.find(area => area.name === areaName) || pendingArea;
+      if (!confirmedArea) return;
+      selectedArea = { ...confirmedArea };
+      confirmedAreaName = confirmedArea.name;
+      pendingArea = null;
+      areaQuery = "";
+      areaResults = "";
+      renderAreaPicker();
+    };
     picker.onclick = event => {
       const target = event.target.closest("button");
       if (!target) return;
@@ -1247,14 +1257,7 @@ function renderAddressForm(addressId = "") {
       }
 
       if (target.id === "confirmAddressArea") {
-        const confirmedArea = state.areas.find(area => area.name === target.dataset.confirmArea) || pendingArea;
-        if (!confirmedArea) return;
-        selectedArea = { ...confirmedArea };
-        confirmedAreaName = confirmedArea.name;
-        pendingArea = null;
-        areaQuery = "";
-        areaResults = "";
-        renderAreaPicker();
+        confirmPendingArea(target.dataset.confirmArea);
         return;
       }
 
@@ -1274,6 +1277,11 @@ function renderAddressForm(addressId = "") {
         $("#addressAreaSearch")?.focus();
       }
     };
+    $("#confirmAddressArea")?.addEventListener("click", event => {
+      event.preventDefault();
+      event.stopPropagation();
+      confirmPendingArea(event.currentTarget.dataset.confirmArea);
+    });
     $("#addressAreaSearch")?.addEventListener("input", event => {
       areaQuery = event.target.value;
       areaResults = resultsHtml(areaQuery);
