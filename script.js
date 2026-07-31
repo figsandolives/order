@@ -42,6 +42,7 @@ const translations = {
     morning: "صباحاً", evening: "مساءً", chooseValidTime: "يرجى اختيار تاريخ ووقت قادم",
     chooseTimeAfterMinimum: "للطلبات في نفس اليوم اختر وقتاً بعد ساعتين على الأقل من الوقت الحالي",
     deliveryHoursNotice: "مواعيد التوصيل من 9:30 صباحاً إلى 10:30 مساءً",
+    pickupHoursNotice: "ساعات دوام الفرع الرسمية من الساعة ٨ صباحاً حتى الساعة ١٠:٣٠ مساءً.",
     lateDeliveryWarning: "قد يتعرض طلبك للتأجيل بسبب تأخر الوقت.. سارع في إتمام الطلب",
     expectedDeliveryTime: "الوقت المتوقع للتوصيل", betweenTime: "بين", andTime: "إلى",
     scheduledDeliveryTime: "وقت التوصيل المحدد", scheduledPickupTime: "وقت الوصول المحدد",
@@ -106,6 +107,7 @@ const translations = {
     morning: "AM", evening: "PM", chooseValidTime: "Please choose a future date and time",
     chooseTimeAfterMinimum: "For same-day orders, choose a time at least two hours from now",
     deliveryHoursNotice: "Delivery hours are from 9:30 AM to 10:30 PM",
+    pickupHoursNotice: "Official branch hours are from 8:00 AM to 10:30 PM.",
     lateDeliveryWarning: "Your order may be delayed because it is late. Please complete it soon.",
     expectedDeliveryTime: "Expected delivery time", betweenTime: "Between", andTime: "and",
     scheduledDeliveryTime: "Scheduled delivery time", scheduledPickupTime: "Scheduled arrival time",
@@ -154,6 +156,7 @@ const translations = {
 };
 
 const branches = [
+  { id: "hawalli", nameAr: "فرع حولي", nameEn: "Hawalli Branch", brandAr: "المطبخ الرئيسي", brandEn: "Main Kitchen", addressAr: "حولي، شارع تونس، مجمع علي فهد الخالد، دور الميزانين", addressEn: "Hawalli, Tunis Street, Ali Fahad Al Khaled Complex, Mezzanine Floor", phone: "66906605 | 22085888" },
   { id: "yarmouk", nameAr: "فرع اليرموك", nameEn: "Yarmouk Branch", brandAr: "مخبز التين والزيتون", brandEn: "Figs & Olives Bakery", addressAr: "اليرموك، قطعة 2، شارع 2", addressEn: "Yarmouk, Block 2, Street 2", phone: "22085889 | 65162277" },
   { id: "abu", nameAr: "فرع أبو الحصانية", nameEn: "Abu Al Hasaniya Branch", brandAr: "مطعم التين الطبيعي", brandEn: "Natural Figs Restaurant", addressAr: "أبو الحصانية، مول 30", addressEn: "Abu Al Hasaniya, The 30 Mall", phone: "22085886 | 99176512" }
 ];
@@ -356,9 +359,10 @@ function total() {
   return subtotal() + deliveryFee();
 }
 
-function toast(message) {
+function toast(message, variant = "") {
   const element = $("#toast");
   element.textContent = message;
+  element.classList.toggle("error", variant === "error");
   element.classList.remove("hidden");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => element.classList.add("hidden"), 2200);
@@ -1201,7 +1205,7 @@ function renderAddressForm(addressId = "") {
       <div class="area-confirm-card"><span class="area-confirm-icon" aria-hidden="true">⌖</span>
         <h3 id="area-confirm-title">${state.lang === "ar" ? `هل تريد اختيار منطقة ${escapeHtml(areaLabel(pendingArea))}؟` : `Do you want to choose ${escapeHtml(areaLabel(pendingArea))}?`}</h3>
         <p>${tr("deliveryFee")}: ${money(pendingArea.price)}</p>
-        <div class="area-confirm-actions"><button type="button" class="primary" id="confirmAddressArea">${state.lang === "ar" ? "نعم" : "Yes"}</button><button type="button" class="secondary" id="cancelAddressArea">${state.lang === "ar" ? "لا" : "No"}</button></div>
+        <div class="area-confirm-actions"><button type="button" class="primary" id="confirmAddressArea" data-confirm-area="${escapeHtml(pendingArea.name)}">${state.lang === "ar" ? "نعم" : "Yes"}</button><button type="button" class="secondary" id="cancelAddressArea">${state.lang === "ar" ? "لا" : "No"}</button></div>
       </div>
     </div>` : ""}`;
   $("#accountContent").innerHTML = `${drawerPageHeader(existing ? tr("edit") : tr("addAddress"))}
@@ -1233,9 +1237,11 @@ function renderAddressForm(addressId = "") {
       results.classList.toggle("hidden", !areaResults);
       bindAreaResults();
     });
-    $("#confirmAddressArea")?.addEventListener("click", () => {
-      if (!pendingArea) return;
-      selectedArea = { ...pendingArea };
+    $("#confirmAddressArea")?.addEventListener("click", event => {
+      const areaName = event.currentTarget.dataset.confirmArea;
+      const confirmedArea = state.areas.find(area => area.name === areaName) || pendingArea;
+      if (!confirmedArea) return;
+      selectedArea = { ...confirmedArea };
       pendingArea = null;
       areaQuery = "";
       areaResults = "";
@@ -1420,8 +1426,10 @@ function renderDelivery() {
       </button>`).join("")}</div><button class="add-address-button" id="checkoutAddAddress">＋ ${tr("addAddress")}</button>` :
     `<div class="empty-state">${accountIcons.address}<h3>${tr("noAddedAddresses")}</h3><button class="primary" id="checkoutAddAddress">＋ ${tr("addAddress")}</button></div>`;
   const pickupForm = `<div class="branches">${branches.map(branch => `
-    <button class="option ${state.branch === branch.id ? "selected" : ""}" data-branch="${branch.id}">
-      <span class="radio"></span><div><strong>${escapeHtml(branchField(branch, "name"))}</strong><b>${escapeHtml(branchField(branch, "brand"))}</b><small>${escapeHtml(branchField(branch, "address"))}<br>${branch.phone}</small></div>
+    <button class="option branch-option ${state.branch === branch.id ? "selected" : ""}" data-branch="${branch.id}">
+      <span class="radio"></span>
+      <div class="branch-main"><strong>${escapeHtml(branchField(branch, "name"))}</strong><b>${escapeHtml(branchField(branch, "brand"))}</b></div>
+      <div class="branch-meta"><small>${escapeHtml(branchField(branch, "address"))}</small><small class="branch-phone">${escapeHtml(branch.phone)}</small></div>
     </button>`).join("")}</div>`;
   $("#checkoutBody").innerHTML = `
     <div class="tabs"><button class="${state.mode === "delivery" ? "active" : ""}" id="deliveryTab">🚚 ${tr("delivery")}</button><button class="${state.mode === "pickup" ? "active" : ""}" id="pickupTab">⌂ ${tr("pickup")}</button></div>
@@ -1487,6 +1495,11 @@ function minutesSinceMidnight(value = new Date()) {
 function isWithinDeliveryHours(value) {
   const minutes = minutesSinceMidnight(value);
   return minutes >= 9 * 60 + 30 && minutes <= 22 * 60 + 30;
+}
+
+function isWithinPickupHours(value) {
+  const minutes = minutesSinceMidnight(value);
+  return minutes >= 8 * 60 && minutes <= 22 * 60 + 30;
 }
 
 function isAsapDeliveryUnavailable(value = new Date()) {
@@ -1590,6 +1603,7 @@ function renderDeliveryTime() {
       <button class="time-choice ${specific ? "selected" : ""}" id="scheduledTime" type="button">
         <span class="radio">${specific ? "✓" : ""}</span><span><strong>${scheduledTitle}</strong><small>${scheduledHint}</small></span>
       </button>
+      ${state.mode === "pickup" && specific ? `<p class="pickup-hours-warning">${tr("pickupHoursNotice")}</p>` : ""}
       ${specific ? `<div class="time-fields">
         <label class="time-date">${tr("deliveryDate")}<input id="scheduledDate" type="date" min="${dateInputValue()}" value="${escapeHtml(state.scheduledDate)}"></label>
         <label class="time-period">${tr("period")}<select id="scheduledPeriod"><option value="am" ${state.scheduledPeriod === "am" ? "selected" : ""}>${tr("morning")}</option><option value="pm" ${state.scheduledPeriod === "pm" ? "selected" : ""}>${tr("evening")}</option></select></label>
@@ -1615,6 +1629,7 @@ function renderDeliveryTime() {
       const selected = scheduledDateTime();
       if (!selected) return toast(tr("chooseValidTime"));
       if (state.mode === "delivery" && !isWithinDeliveryHours(selected)) return toast(tr("deliveryHoursNotice"));
+      if (state.mode === "pickup" && !isWithinPickupHours(selected)) return toast(tr("pickupHoursNotice"), "error");
       if (!isScheduledTimeAllowed(selected)) return toast(tr("chooseTimeAfterMinimum"));
     }
     state.step = 4;

@@ -228,3 +228,11 @@ body.page-scroll-locked{position:fixed;left:0;right:0;width:100%}
 .payment-method-choices{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:10px}
 .payment-choice{min-height:62px;display:flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);border-radius:15px;background:#fff;color:var(--ink);padding:8px}.payment-choice.selected{border-color:#141414;box-shadow:0 0 0 2px #14141412}.payment-choice strong{font-size:12px}.payment-choice .knet-mark{width:47px;height:33px}.payment-choice .apple-pay-mark{min-width:55px;height:33px;font-size:14px}.payment-radio{width:17px;height:17px;border:2px solid #9aa7a0;border-radius:50%;flex:0 0 auto}.payment-choice.selected .payment-radio{border:5px solid #151515}
 @media(max-width:760px){.checkout-sticky-actions,.confirmation-sticky-actions{bottom:-16px}.checkout-review{padding-bottom:8px}.payment-choice{min-height:58px;padding:7px 5px;gap:6px}.payment-choice strong{font-size:10px}}
+/* Pickup branch cards and time validation */
+.branch-option{display:grid;grid-template-columns:22px minmax(0,1fr) minmax(0,1.1fr);align-items:center;gap:14px;min-height:112px;text-align:right}
+.branch-main{display:grid!important;gap:5px!important;min-width:0}.branch-main strong{font-size:15px}.branch-main b{font-size:11px;color:var(--green)}
+.branch-meta{display:grid!important;gap:5px!important;min-width:0;padding-inline-start:14px;border-inline-start:1px solid #e8ece8;text-align:start}
+.branch-meta small{font-size:10px;color:var(--muted);line-height:1.7}.branch-meta .branch-phone{direction:ltr;text-align:right;color:var(--green);font-weight:800;white-space:nowrap}
+.pickup-hours-warning{margin:-2px 6px 2px;color:#bd2d2d;font-size:11px;font-weight:900;line-height:1.8}
+.toast.error{background:#b82e2e;box-shadow:0 12px 30px #8e20204d}
+@media(max-width:760px){.branch-option{grid-template-columns:22px minmax(0,1fr) minmax(0,1.05fr);gap:9px;padding:13px}.branch-main strong{font-size:13px}.branch-main b{font-size:10px}.branch-meta{padding-inline-start:9px}.branch-meta small{font-size:9px}}
