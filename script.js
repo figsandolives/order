@@ -1702,6 +1702,8 @@ function isAllowedPaymentGatewayUrl(target) {
     || host.endsWith(".kpaytest.com.kw")
     || host === "kpay.com.kw"
     || host.endsWith(".kpay.com.kw")
+    || host === "bede.kw"
+    || host.endsWith(".bede.kw")
     || host === "bookeey.com"
     || host.endsWith(".bookeey.com");
 }
