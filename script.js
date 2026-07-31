@@ -1187,6 +1187,9 @@ function renderAddressForm(addressId = "") {
   let areaResults = "";
   let confirmedAreaName = selectedArea?.name || "";
   const areaLabel = area => state.lang === "ar" ? (area.nameAr || area.name) : (area.nameEn || area.nameAr || area.name);
+  const areaFieldLabel = () => selectedArea
+    ? (state.lang === "ar" ? "المنطقة" : "Area")
+    : tr("areaSearch");
   const resultsHtml = query => {
     const normalizedQuery = String(query || "").trim();
     if (!normalizedQuery) return "";
@@ -1215,7 +1218,7 @@ function renderAddressForm(addressId = "") {
   };
   $("#accountContent").innerHTML = `${drawerPageHeader(existing ? tr("edit") : tr("addAddress"))}
     <form class="address-form" id="addressForm">
-      <label>${tr("areaSearch")}
+      <label><span id="addressAreaLabel">${areaFieldLabel()}</span>
         <div class="area-picker" id="addressAreaPicker">${areaPickerHtml()}</div>
       </label>
       <label>${tr("addressDetails")}<textarea id="addressDetails" placeholder="${tr("addressPlaceholder")}">${escapeHtml(existing?.details || "")}</textarea></label>
@@ -1228,6 +1231,8 @@ function renderAddressForm(addressId = "") {
     } else renderAddresses();
   };
   const renderAreaPicker = () => {
+    const label = $("#addressAreaLabel");
+    if (label) label.textContent = areaFieldLabel();
     $("#addressAreaPicker").innerHTML = areaPickerHtml();
     const bindAreaResults = () => $$('[data-pick-area]').forEach(button => button.onclick = () => {
       pendingArea = state.areas.find(area => area.name === button.dataset.pickArea) || null;
