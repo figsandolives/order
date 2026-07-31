@@ -1233,43 +1233,53 @@ function renderAddressForm(addressId = "") {
   const renderAreaPicker = () => {
     const label = $("#addressAreaLabel");
     if (label) label.textContent = areaFieldLabel();
-    $("#addressAreaPicker").innerHTML = areaPickerHtml();
-    const bindAreaResults = () => $$('[data-pick-area]').forEach(button => button.onclick = () => {
-      pendingArea = state.areas.find(area => area.name === button.dataset.pickArea) || null;
-      renderAreaPicker();
-    });
-    bindAreaResults();
+    const picker = $("#addressAreaPicker");
+    picker.innerHTML = areaPickerHtml();
+    picker.onclick = event => {
+      const target = event.target.closest("button");
+      if (!target) return;
+
+      const pickedAreaName = target.dataset.pickArea;
+      if (pickedAreaName) {
+        pendingArea = state.areas.find(area => area.name === pickedAreaName) || null;
+        renderAreaPicker();
+        return;
+      }
+
+      if (target.id === "confirmAddressArea") {
+        const confirmedArea = state.areas.find(area => area.name === target.dataset.confirmArea) || pendingArea;
+        if (!confirmedArea) return;
+        selectedArea = { ...confirmedArea };
+        confirmedAreaName = confirmedArea.name;
+        pendingArea = null;
+        areaQuery = "";
+        areaResults = "";
+        renderAreaPicker();
+        return;
+      }
+
+      if (target.id === "cancelAddressArea") {
+        pendingArea = null;
+        renderAreaPicker();
+        return;
+      }
+
+      if (target.id === "editAddressArea") {
+        selectedArea = null;
+        confirmedAreaName = "";
+        pendingArea = null;
+        areaQuery = "";
+        areaResults = "";
+        renderAreaPicker();
+        $("#addressAreaSearch")?.focus();
+      }
+    };
     $("#addressAreaSearch")?.addEventListener("input", event => {
       areaQuery = event.target.value;
       areaResults = resultsHtml(areaQuery);
       const results = $("#addressAreaResults");
       results.innerHTML = areaResults;
       results.classList.toggle("hidden", !areaResults);
-      bindAreaResults();
-    });
-    const confirmButton = $("#confirmAddressArea");
-    if (confirmButton) confirmButton.onclick = () => {
-      const areaName = confirmButton.dataset.confirmArea;
-      const confirmedArea = state.areas.find(area => area.name === areaName) || pendingArea;
-      if (!confirmedArea) return;
-      selectedArea = { ...confirmedArea };
-      confirmedAreaName = confirmedArea.name;
-      pendingArea = null;
-      areaQuery = "";
-      areaResults = "";
-      renderAreaPicker();
-    };
-    $("#cancelAddressArea")?.addEventListener("click", () => {
-      pendingArea = null;
-      renderAreaPicker();
-    });
-    $("#editAddressArea")?.addEventListener("click", () => {
-      selectedArea = null;
-      confirmedAreaName = "";
-      pendingArea = null;
-      areaQuery = "";
-      renderAreaPicker();
-      $("#addressAreaSearch")?.focus();
     });
   };
   renderAreaPicker();
