@@ -27,7 +27,7 @@ const firebaseIdentityReady = new Promise(resolve => {
 const translations = {
   ar: {
     brand: "مخبز التين والزيتون", tagline: "طبيعي، صحي، مصنوع بحب", yourCart: "سلتك",
-    deliveryEverywhere: "توصيل لجميع مناطق الكويت", heroTitle: "مخبز التين والزيتون:<br>خبز قمح كامل وأكل صحي",
+    deliveryEverywhere: "توصيل لجميع مناطق الكويت", heroTitle: "أكل صحي بطعم<br>يستحق التكرار",
     heroText: "اختر من منتجاتنا الطبيعية والمخبوزات الطازجة، ونحن نتكفل بالباقي.",
     naturalIngredients: "مكونات طبيعية", dailyPreparation: "تحضير يومي", securePayment: "دفع آمن",
     ourMenu: "قائمتنا", whatToday: "ماذا تشتهي اليوم؟", searchPlaceholder: "ابحث عن منتج…", searchStart: "اكتب اسم المنتج لعرض النتائج",
@@ -91,7 +91,7 @@ const translations = {
   },
   en: {
     brand: "Figs & Olives Bakery", tagline: "Natural, healthy, made with love", yourCart: "Cart",
-    deliveryEverywhere: "Delivery across Kuwait", heroTitle: "Figs & Olives Bakery:<br>Whole wheat bread and healthy food",
+    deliveryEverywhere: "Delivery across Kuwait", heroTitle: "Healthy food with a taste<br>worth repeating",
     heroText: "Choose from our natural products and fresh bakes, and we will handle the rest.",
     naturalIngredients: "Natural ingredients", dailyPreparation: "Prepared daily", securePayment: "Secure payment",
     ourMenu: "Our menu", whatToday: "What are you craving today?", searchPlaceholder: "Search products…", searchStart: "Type a product name to see results",
