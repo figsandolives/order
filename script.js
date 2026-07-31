@@ -1700,6 +1700,8 @@ function isAllowedPaymentGatewayUrl(target) {
   const host = target.hostname.toLowerCase();
   return host === "kpaytest.com.kw"
     || host.endsWith(".kpaytest.com.kw")
+    || host === "kpay.com.kw"
+    || host.endsWith(".kpay.com.kw")
     || host === "bookeey.com"
     || host.endsWith(".bookeey.com");
 }
