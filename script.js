@@ -193,6 +193,27 @@ function normalizeLegacyOrder(order) {
   return order?.orderId === "W00020" ? { ...order, orderId: "W00001" } : order;
 }
 
+// The order tracker and the customer's invoice must always use the same
+// completed-order record. Local storage is only a fallback for offline use.
+async function canonicalOnlineOrder(order) {
+  if (!order?.orderId || !firebaseServices?.database) return order;
+  try {
+    const snapshot = await firebaseServices.database.ref(`orderingPlatform/onlineOrders/${order.orderId}`).once("value");
+    const remote = snapshot.val();
+    if (!remote) return order;
+    const merged = { ...order, ...remote, items: Array.isArray(remote.items) ? remote.items : (order.items || []) };
+    if (state.user?.orders) {
+      state.user.orders = state.user.orders.map(item => item.orderId === merged.orderId ? merged : item);
+      persistUser();
+    }
+    if (state.lastInvoice?.orderId === merged.orderId) state.lastInvoice = merged;
+    return merged;
+  } catch (error) {
+    console.warn("Could not refresh completed order", error);
+    return order;
+  }
+}
+
 function cartStorageKey(phone) {
   return phone ? `${CART_KEY}:${normalizePhone(phone)}` : "";
 }
@@ -1375,10 +1396,11 @@ function orderDestination(order) {
   return branch ? `${branchField(branch, "name")} — ${branchField(branch, "address")}` : "";
 }
 
-function renderOrderDetails(orderId, fromSuccess = false) {
-  const order = (state.user?.orders || []).map(normalizeLegacyOrder).find(item => item.orderId === orderId || (orderId === "W00020" && item.orderId === "W00001")) ||
+async function renderOrderDetails(orderId, fromSuccess = false) {
+  let order = (state.user?.orders || []).map(normalizeLegacyOrder).find(item => item.orderId === orderId || (orderId === "W00020" && item.orderId === "W00001")) ||
     (state.lastInvoice?.orderId === orderId ? state.lastInvoice : null);
   if (!order) return renderOrders();
+  order = await canonicalOnlineOrder(order);
   $("#accountDrawer").classList.add("order-detail-mode");
   resetAccountDrawerScroll();
   $("#accountContent").innerHTML = `${drawerPageHeader(tr("orderDetails"))}
@@ -2060,7 +2082,7 @@ function currentInvoiceModel() {
     expectedStart: asapWindow?.start.getTime() || null,
     expectedEnd: asapWindow?.end.getTime() || null,
     items: cartItems().map(({ product: item, quantity, note }) => ({ id: String(item.id), nameAr: item.name, nameEn: item.nameEn || item.name, quantity, note, unitPrice: Number(item.price), total: Number(item.price) * quantity })),
-    subtotal: subtotal(), deliveryFee: deliveryFee(), total: total(), status: "paid"
+    subtotal: subtotal(), deliveryFee: deliveryFee(), total: total(), paymentMethod: state.paymentMethod || "knet", status: "paid"
   };
 }
 
@@ -2119,15 +2141,17 @@ function buildInvoice(order) {
 }
 
 async function createInvoiceFile(order) {
-  const cacheKey = `${order.orderId}:${state.lang}`;
-  if (invoiceFileCache.has(cacheKey)) return invoiceFileCache.get(cacheKey);
-  const promise = (async () => {
-    buildInvoice(order);
-    if (!window.html2canvas || !window.jspdf?.jsPDF) throw new Error("PDF libraries unavailable");
-    await document.fonts?.ready;
-    const logo = $("#invoice img");
+    const cacheKey = `${order.orderId}:${order.paymentMethod || "knet"}:${order.updatedAt || order.paidAt || ""}:${state.lang}`;
+    if (invoiceFileCache.has(cacheKey)) return invoiceFileCache.get(cacheKey);
+    const promise = (async () => {
+      buildInvoice(order);
+      if (!window.html2canvas || !window.jspdf?.jsPDF) throw new Error("PDF libraries unavailable");
+      await document.fonts?.ready;
+    const invoiceNode = $("#invoice .a4-invoice");
+    if (!invoiceNode) throw new Error("Invoice template unavailable");
+    const logo = invoiceNode.querySelector("img");
     if (logo?.decode) await logo.decode().catch(() => undefined);
-    const canvas = await html2canvas($("#invoice"), { scale: 2, backgroundColor: "#fff", useCORS: true, logging: false });
+    const canvas = await html2canvas(invoiceNode, { scale: 2, backgroundColor: "#fff", useCORS: true, logging: false });
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF("p", "mm", "a4");
     const pageWidth = 190;
@@ -2176,7 +2200,7 @@ function prepareInvoiceFile(order, button) {
 async function downloadPdf(order = state.lastInvoice || currentInvoiceModel()) {
   try {
     toast(tr("preparingInvoiceDownload"));
-    const file = await createInvoiceFile(order);
+    const file = await createInvoiceFile(await canonicalOnlineOrder(order));
     if (isAppleMobileDevice() && navigator.canShare?.({ files: [file] })) {
       try {
         await navigator.share({ files: [file], title: file.name });
