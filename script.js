@@ -864,9 +864,11 @@ function clearProductRoute() {
 }
 
 function closeProductPage(useHistory = true) {
+  const productPage = $("#productPage");
+  if (productPage.contains(document.activeElement)) $("#headerCart")?.focus({ preventScroll: true });
   state.detailProductId = "";
-  $("#productPage").classList.add("hidden");
-  $("#productPage").setAttribute("aria-hidden", "true");
+  productPage.classList.add("hidden");
+  productPage.setAttribute("aria-hidden", "true");
   document.body.classList.remove("detail-open");
   if (useHistory) clearProductRoute();
   restoreCatalogScrollPosition();
