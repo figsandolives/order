@@ -2086,25 +2086,7 @@ function buildInvoice(order) {
   const destination = order.mode === "delivery" ? `${order.areaName || ""} - ${order.address || ""}` : `${tr("pickup")}: ${pickup ? branchField(pickup, "name") : ""}`;
   const locale = state.lang === "ar" ? "ar-KW" : "en-GB";
   const createdAt = new Date(order.createdAt);
-  $("#invoice").innerHTML = `
-    <div class="invoice-topline"></div>
-    <header class="invoice-header">
-      <div class="invoice-brand"><img src="logo.png" alt=""><div><h1>مخبز التين والزيتون</h1><p>Figs &amp; Olives Bakery</p></div></div>
-      <div class="invoice-title"><span>فاتورة مبيعات / SALES INVOICE</span><strong>#${escapeHtml(order.orderId)}</strong><small>${createdAt.toLocaleDateString(locale)}</small></div>
-    </header>
-    <div class="invoice-company-box"><b>معلومات الشركة / COMPANY</b><span>شركة صحي ولذيذ للتجهيزات الغذائية<br>Healthy &amp; Delicious Foodstuff Co.</span><span>الكويت، حولي، شارع تونس، مجمع علي فهد الخالد، دور الميزانين<br>Kuwait, Hawalli, Tunis St., Ali Fahad Al-Khaled Complex, Mezzanine</span><strong dir="ltr">66906605 · 22085888</strong></div>
-    <section class="invoice-parties">
-      <div><span>${tr("customer")}</span><h3>${escapeHtml(order.customerName || tr("customer"))}</h3><p class="invoice-phone">${escapeHtml(order.phone || "")}</p></div>
-      <div><span>${order.mode === "delivery" ? tr("deliveryAddress") : tr("pickupBranch")}</span><h3>${escapeHtml(destination)}</h3><p>${escapeHtml(deliveryTimeSummary(order))}</p></div>
-      <div class="invoice-payment"><span>${state.lang === "ar" ? "حالة وطريقة الدفع" : "Payment"}</span><h3>${tr("paid")} · ${tr("payOnline")}</h3><p>${createdAt.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}</p></div>
-    </section>
-    <table class="invoice-items"><thead><tr><th>#</th><th>الصنف / ITEM</th><th>ملاحظات / NOTES</th><th>الكمية / QTY</th><th>سعر الوحدة / UNIT PRICE</th><th>الإجمالي / TOTAL</th></tr></thead>
-    <tbody>${order.items.map((item, index) => `<tr><td>${index + 1}</td><td><b>${escapeHtml(item.nameAr || item.nameEn || item.id)}</b><small dir="ltr">${escapeHtml(item.nameEn || item.nameAr || item.id)}</small></td><td>${escapeHtml(item.note || "—")}</td><td>${item.quantity}</td><td>${money(item.unitPrice || (item.total / item.quantity))}</td><td><b>${money(item.total)}</b></td></tr>`).join("")}</tbody></table>
-    <section class="invoice-bottom">
-      <div class="invoice-note"><span>${state.lang === "ar" ? "ملاحظة" : "Note"}</span><p>${tr("healthPhrase")}</p><small>${state.lang === "ar" ? "تم إنشاء هذه الفاتورة إلكترونياً ولا تحتاج إلى توقيع." : "This invoice was generated electronically and requires no signature."}</small></div>
-      <div class="invoice-totals"><span>${tr("productsTotal")} <b>${money(order.subtotal)}</b></span><span>${tr("deliveryFee")} <b>${money(order.deliveryFee)}</b></span><strong>${tr("total")} <b>${money(order.total)}</b></strong></div>
-    </section>
-    <footer><img src="logo.png" alt=""><div><b>${tr("thankYou")}</b><small>${state.lang === "ar" ? "نعتز بخدمتكم ونتمنى لكم صحة دائمة" : "Thank you for choosing a healthier life"}</small></div><span>figsandolives.com</span></footer>`;
+  $("#invoice").innerHTML = `<section class="a4-invoice"><header class="a4-head"><img src="logo.png" alt=""><div><h1>فاتورة شراء</h1><p>Purchase Invoice</p></div></header><section class="a4-meta"><div><b>رقم الفاتورة</b><strong>#${escapeHtml(order.orderId)}</strong><b>تاريخ الإصدار</b><strong>${createdAt.toLocaleDateString(locale)}</strong></div><div class="a4-company">شركة صحي ولذيذ للتجهيزات الغذائية<br>Healthy &amp; Delicious Foodstuff Co.<br>الكويت، حولي، شارع تونس، مجمع علي فهد الخالد، دور الميزانين<br><span dir="ltr">66906605 · 22085888</span></div></section><section class="a4-parties"><div><span>العميل</span><b>${escapeHtml(order.customerName || tr("customer"))}</b><small dir="ltr">${escapeHtml(order.phone || "—")}</small></div><div><span>${order.mode === "delivery" ? "عنوان التوصيل" : "فرع الاستلام"}</span><b>${escapeHtml(destination)}</b><small>${escapeHtml(deliveryTimeSummary(order))}</small></div></section><table class="a4-items"><thead><tr><th>#</th><th>الصنف</th><th>الملاحظات</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead><tbody>${order.items.map((item, index) => `<tr><td>${index + 1}</td><td><b>${escapeHtml(item.nameAr || item.nameEn || item.id)}</b><small dir="ltr">${escapeHtml(item.nameEn || item.nameAr || item.id)}</small></td><td>${escapeHtml(item.note || "—")}</td><td>${item.quantity}</td><td>${money(item.unitPrice || (item.total / item.quantity))}</td><td><b>${money(item.total)}</b></td></tr>`).join("")}</tbody></table><section class="a4-total"><span>الإجمالي</span><strong>${money(order.total)}</strong></section></section>`;
   $("#invoice").setAttribute("dir", state.lang === "ar" ? "rtl" : "ltr");
 }
 
