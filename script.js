@@ -2076,6 +2076,10 @@ function showSuccess() {
   state.lastInvoice = order;
   saveCompletedOrder(order);
   buildInvoice(order);
+  state.cart = {};
+  persistCart();
+  renderCartBar();
+  syncAllProductQuantityControls();
   $("#checkoutTitle").textContent = tr("received");
   $("#checkoutBody").innerHTML = `<div class="success"><div class="check">✓</div><h3>${tr("received")}</h3><p>${tr("orderNumber")}</p><strong class="order-no">${escapeHtml(state.order)}</strong><div class="success-delivery-time"><small>${order.mode === "pickup" ? tr("pickupStatus") : tr("expectedDeliveryTime")}</small><strong>${escapeHtml(deliveryTimeSummary(order))}</strong></div><div class="actions" style="width:min(420px,100%)"><button class="secondary" id="newOrder">${tr("backStore")}</button><button class="primary" id="orderDetailsButton">${tr("viewOrderDetails")}</button></div></div>`;
   $("#newOrder").onclick = () => {
