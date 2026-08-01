@@ -178,7 +178,15 @@ function loadCurrentUser() {
   const session = readJson(SESSION_KEY, null);
   const profiles = readJson(PROFILE_KEY, {});
   if (!session?.phone || !profiles[session.phone]) return null;
-  return { ...profiles[session.phone] };
+  const profile = profiles[session.phone];
+  let migrated = false;
+  profile.orders = (profile.orders || []).map(order => {
+    if (order?.orderId !== "W00020") return order;
+    migrated = true;
+    return { ...order, orderId: "W00001" };
+  });
+  if (migrated) localStorage.setItem(PROFILE_KEY, JSON.stringify(profiles));
+  return { ...profile };
 }
 
 function cartStorageKey(phone) {
