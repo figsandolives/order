@@ -2225,6 +2225,16 @@ async function downloadPdf(order = state.lastInvoice || currentInvoiceModel()) {
 }
 
 $("#languageToggle").onclick = () => setLanguage(state.lang === "ar" ? "en" : "ar");
+const whatsappWidget = $("#whatsappWidget");
+const whatsappToggle = $("#whatsappToggle");
+function setWhatsAppMenu(open) {
+  whatsappWidget.classList.toggle("open", open);
+  whatsappToggle.setAttribute("aria-expanded", String(open));
+  $("#whatsappMenu").setAttribute("aria-hidden", String(!open));
+}
+whatsappToggle.onclick = event => { event.stopPropagation(); setWhatsAppMenu(!whatsappWidget.classList.contains("open")); };
+document.addEventListener("click", event => { if (!whatsappWidget.contains(event.target)) setWhatsAppMenu(false); });
+document.addEventListener("keydown", event => { if (event.key === "Escape") setWhatsAppMenu(false); });
 $("#searchToggle").onclick = event => {
   event.stopPropagation();
   toggleHeaderSearch();
