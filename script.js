@@ -1486,6 +1486,14 @@ function totalsHtml() {
   return `<div class="totals"><span>${tr("productsTotal")} <b>${money(subtotal())}</b></span>${deliveryFee() ? `<span>${tr("deliveryFee")} <b>${money(deliveryFee())}</b></span>` : ""}<strong>${tr("total")} <b>${money(total())}</b></strong></div>`;
 }
 
+function hasMinimumOrderValue() {
+  return subtotal() >= 5;
+}
+
+function minimumOrderNotice() {
+  return state.lang === "ar" ? "أقل قيمة لقبول الطلب: 5 د.ك" : "Minimum order value: 5 KWD";
+}
+
 function renderReview() {
   $("#checkoutBody").innerHTML = `
     <section class="checkout-review"><div class="cart-list">${cartItems().map(({ product: item, quantity, note }) => `
@@ -1496,6 +1504,7 @@ function renderReview() {
   $$('[data-cart-note]').forEach(input => input.onchange = () => updateCartNote(input.dataset.cartNote, input.value));
   $("#next1").onclick = () => {
     if (!cartCount()) return toast(state.lang === "ar" ? "لا يمكن المتابعة وسلتك فارغة" : "You cannot continue with an empty cart");
+    if (!hasMinimumOrderValue()) return toast(minimumOrderNotice(), "error");
     state.step = 2;
     renderCheckout();
   };
