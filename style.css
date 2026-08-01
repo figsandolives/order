@@ -219,6 +219,7 @@ html.page-scroll-locked,body.page-scroll-locked{overflow:hidden;overscroll-behav
 body.page-scroll-locked{position:fixed;left:0;right:0;width:100%}
 .modal,.product-page,.drawer-layer,.auth-modal,.checkout-panel,.account-drawer,.search-popover{overscroll-behavior:contain}
 .checkout-review{display:grid;gap:14px;padding-bottom:4px}
+.cart-copy{min-width:0}.cart-note-label{display:grid;gap:5px;margin-top:8px;color:var(--muted);font-size:9px;font-weight:800}.cart-note-label textarea{width:100%;min-height:48px;resize:vertical;border:1px solid #dce5df;border-radius:9px;padding:7px 9px;background:#fbfcfa;color:var(--ink);font-size:10px;line-height:1.6}.cart-note-label textarea:focus{outline:0;border-color:var(--green);box-shadow:0 0 0 3px #2d6a4f14}
 .checkout-sticky-actions,.confirmation-sticky-actions{position:sticky;bottom:-22px;z-index:8;padding:12px 0 calc(12px + env(safe-area-inset-bottom));background:linear-gradient(180deg,#fffefb00 0,#fffefb 22px 100%)}
 .checkout-sticky-actions .totals{margin:0 0 10px;box-shadow:0 10px 26px #153a2b12}
 .confirmation-sticky-actions .actions{margin-top:10px}
