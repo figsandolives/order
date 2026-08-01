@@ -244,4 +244,5 @@ body.page-scroll-locked{position:fixed;left:0;right:0;width:100%}
 .branch-meta small{font-size:10px;color:var(--muted);line-height:1.7}.branch-meta .branch-phone{direction:ltr;text-align:right;color:var(--green);font-weight:800;white-space:nowrap}
 .pickup-hours-warning{margin:-2px 6px 2px;color:#bd2d2d;font-size:11px;font-weight:900;line-height:1.8}
 .toast.error{background:#b82e2e;box-shadow:0 12px 30px #8e20204d}
+.toast{background:#b82e2e!important;color:#fff;box-shadow:0 12px 30px #8e20204d}
 @media(max-width:760px){.branch-option{grid-template-columns:22px minmax(0,1fr) minmax(0,1.05fr);gap:9px;padding:13px}.branch-main strong{font-size:13px}.branch-main b{font-size:10px}.branch-meta{padding-inline-start:9px}.branch-meta small{font-size:9px}}
