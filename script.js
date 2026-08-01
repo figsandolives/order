@@ -189,6 +189,10 @@ function loadCurrentUser() {
   return { ...profile };
 }
 
+function normalizeLegacyOrder(order) {
+  return order?.orderId === "W00020" ? { ...order, orderId: "W00001" } : order;
+}
+
 function cartStorageKey(phone) {
   return phone ? `${CART_KEY}:${normalizePhone(phone)}` : "";
 }
@@ -1350,7 +1354,9 @@ function renderAddressForm(addressId = "") {
 
 function renderOrders() {
   $("#accountDrawer").classList.remove("order-detail-mode");
-  const orders = (state.user.orders || []).slice().sort((a, b) => Number(b.createdAt) - Number(a.createdAt));
+  const orders = (state.user.orders || []).map(normalizeLegacyOrder).sort((a, b) => Number(b.createdAt) - Number(a.createdAt));
+  state.user.orders = orders;
+  persistUser();
   resetAccountDrawerScroll();
   $("#accountContent").innerHTML = `${drawerPageHeader(tr("myOrders"))}
     ${orders.length ? `<div class="order-list">${orders.map(order => `
@@ -1370,7 +1376,7 @@ function orderDestination(order) {
 }
 
 function renderOrderDetails(orderId, fromSuccess = false) {
-  const order = (state.user?.orders || []).find(item => item.orderId === orderId) ||
+  const order = (state.user?.orders || []).map(normalizeLegacyOrder).find(item => item.orderId === orderId || (orderId === "W00020" && item.orderId === "W00001")) ||
     (state.lastInvoice?.orderId === orderId ? state.lastInvoice : null);
   if (!order) return renderOrders();
   $("#accountDrawer").classList.add("order-detail-mode");
@@ -2089,12 +2095,20 @@ function orderItemName(item) {
   return state.lang === "ar" ? (item.nameAr || item.nameEn) : (item.nameEn || item.nameAr);
 }
 
+function invoiceDeliveryTime(order) {
+  if (!order.scheduledAt) return escapeHtml(deliveryTimeSummary(order));
+  const end = new Date(order.scheduledAt), start = new Date(end.getTime() - 60 * 60 * 1000);
+  const date = new Intl.DateTimeFormat("ar-KW", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(end);
+  const time = value => new Intl.DateTimeFormat("ar-KW", { hour: "numeric", minute: "2-digit" }).format(value);
+  return `وقت التوصيل المحدد:<br>${date}،<br>بين ${time(start)} إلى ${time(end)}`;
+}
+
 function buildInvoice(order) {
   const pickup = branches.find(branch => branch.id === order.branchId);
   const destination = order.mode === "delivery" ? `${order.areaName || ""} - ${order.address || ""}` : `${tr("pickup")}: ${pickup ? branchField(pickup, "name") : ""}`;
   const locale = state.lang === "ar" ? "ar-KW" : "en-GB";
   const createdAt = new Date(order.createdAt);
-  $("#invoice").innerHTML = `<section class="a4-invoice"><header class="a4-head"><img src="logo.png" alt=""><div><h1>فاتورة شراء</h1><p>Purchase Invoice</p></div></header><section class="a4-meta"><div><b>رقم الفاتورة</b><strong>#${escapeHtml(order.orderId)}</strong><b>تاريخ الإصدار</b><strong>${createdAt.toLocaleDateString(locale)}</strong></div><div class="a4-company">شركة صحي ولذيذ للتجهيزات الغذائية<br>Healthy &amp; Delicious Foodstuff Co.<br>الكويت، حولي، شارع تونس، مجمع علي فهد الخالد، دور الميزانين<br><span dir="ltr">66906605 · 22085888</span></div></section><section class="a4-parties"><div><span>العميل</span><b>${escapeHtml(order.customerName || tr("customer"))}</b><small dir="ltr">${escapeHtml(order.phone || "—")}</small></div><div><span>${order.mode === "delivery" ? "عنوان التوصيل" : "فرع الاستلام"}</span><b>${escapeHtml(destination)}</b><small>${escapeHtml(deliveryTimeSummary(order))}</small></div></section><table class="a4-items"><thead><tr><th>#</th><th>الصنف</th><th>الملاحظات</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead><tbody>${order.items.map((item, index) => `<tr><td>${index + 1}</td><td><b>${escapeHtml(item.nameAr || item.nameEn || item.id)}</b><small dir="ltr">${escapeHtml(item.nameEn || item.nameAr || item.id)}</small></td><td>${escapeHtml(item.note || "—")}</td><td>${item.quantity}</td><td>${money(item.unitPrice || (item.total / item.quantity))}</td><td><b>${money(item.total)}</b></td></tr>`).join("")}</tbody></table><section class="a4-total"><span>الإجمالي</span><strong>${money(order.total)}</strong></section></section>`;
+  $("#invoice").innerHTML = `<section class="a4-invoice"><header class="a4-head"><img src="logo.png" alt=""><div><h1>فاتورة شراء</h1><p>Purchase Invoice</p></div></header><section class="a4-meta"><div><b>رقم الفاتورة</b><strong>#${escapeHtml(order.orderId)}</strong><b>تاريخ الإصدار</b><strong>${createdAt.toLocaleDateString(locale)}</strong></div><div class="a4-company">شركة صحي ولذيذ للتجهيزات الغذائية<br>Healthy &amp; Delicious Foodstuff Co.<br>الكويت، حولي، شارع تونس، مجمع علي فهد الخالد، دور الميزانين<br><span dir="ltr">66906605 · 22085888</span></div></section><section class="a4-parties"><div><span>العميل</span><b>${escapeHtml(order.customerName || tr("customer"))}</b><small class="a4-phone" dir="ltr">☎ ${escapeHtml(order.phone || "—")}</small></div><div><span>${order.mode === "delivery" ? "عنوان التوصيل" : "فرع الاستلام"}</span><b>${escapeHtml(destination)}</b><small class="a4-time">${invoiceDeliveryTime(order)}</small></div></section><table class="a4-items"><thead><tr><th>#</th><th>الصنف</th><th>الملاحظات</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead><tbody>${order.items.map((item, index) => `<tr><td>${index + 1}</td><td><b>${escapeHtml(item.nameAr || item.nameEn || item.id)}</b><small dir="ltr">${escapeHtml(item.nameEn || item.nameAr || item.id)}</small></td><td>${escapeHtml(item.note || "—")}</td><td>${item.quantity}</td><td>${money(item.unitPrice || (item.total / item.quantity))}</td><td><b>${money(item.total)}</b></td></tr>`).join("")}</tbody></table><section class="a4-total"><span>الإجمالي</span><strong>${money(order.total)}</strong></section><div class="a4-paid">✓&nbsp; مدفوع: ${escapeHtml(String(order.paymentMethod || "KNET").toUpperCase())}</div></section>`;
   $("#invoice").setAttribute("dir", state.lang === "ar" ? "rtl" : "ltr");
 }
 
@@ -2110,18 +2124,18 @@ async function createInvoiceFile(order) {
     const canvas = await html2canvas($("#invoice"), { scale: 2, backgroundColor: "#fff", useCORS: true, logging: false });
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF("p", "mm", "a4");
-    const pageWidth = 190;
-    const pageHeight = 277;
+    const pageWidth = 210;
+    const pageHeight = 297;
     const imageHeight = canvas.height * pageWidth / canvas.width;
     const image = canvas.toDataURL("image/jpeg", .94);
     let remaining = imageHeight;
-    let y = 10;
-    pdf.addImage(image, "JPEG", 10, y, pageWidth, imageHeight, undefined, "FAST");
+    let y = 0;
+    pdf.addImage(image, "JPEG", 0, y, pageWidth, imageHeight, undefined, "FAST");
     remaining -= pageHeight;
     while (remaining > 0) {
       pdf.addPage();
-      y = 10 - (imageHeight - remaining);
-      pdf.addImage(image, "JPEG", 10, y, pageWidth, imageHeight, undefined, "FAST");
+      y = -(imageHeight - remaining);
+      pdf.addImage(image, "JPEG", 0, y, pageWidth, imageHeight, undefined, "FAST");
       remaining -= pageHeight;
     }
     const filename = `invoice-${order.orderId}.pdf`;
