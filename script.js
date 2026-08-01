@@ -244,7 +244,7 @@ const state = {
   products: [], categories: [], areas: [], cart: loadUserCart(initialUser), search: "", activeCategory: "all",
   lang: localStorage.getItem("storeLanguage") === "en" ? "en" : "ar",
   step: 1, mode: "delivery", area: null, branch: "", addressId: "", address: "",
-  name: "", phone: "", order: "W00001", paymentRequestId: "", detailProductId: "",
+  name: "", phone: "", order: "", paymentRequestId: "", detailProductId: "",
   paymentMethod: "", deliveryTiming: "asap", scheduledDate: "", scheduledHour: "1",
   scheduledMinute: "00", scheduledPeriod: "pm", user: initialUser, lastInvoice: null,
   appearance: { ...DEFAULT_APPEARANCE }
@@ -1815,7 +1815,7 @@ function renderConfirmation() {
         <div class="summary-box"><span class="summary-icon">${accountIcons.clock}</span><span><small>${state.mode === "pickup" ? tr("pickupTime") : tr("deliveryTime")}</small><strong class="delivery-time-lines">${deliveryTimeSummaryMarkup()}</strong></span></div>
       </div>
       <div class="price-summary">
-        <div class="price-summary-head"><span class="detail-title-icon">${accountIcons.box}</span><div><small>${tr("order")}</small><b>${tr("orderNumber")} ${escapeHtml(state.order)}</b></div></div>
+        <div class="price-summary-head"><span class="detail-title-icon">${accountIcons.box}</span><div><small>${tr("order")}</small><b>${state.order ? `${tr("orderNumber")} ${escapeHtml(state.order)}` : (state.lang === "ar" ? "رقم الطلب يُمنح بعد نجاح الدفع" : "Order number is assigned after payment")}</b></div></div>
         <button class="price-row products-toggle" id="productsToggle"><span><b class="arrow">‹</b> ${tr("productsTotal")}</span><strong>${money(subtotal())}</strong></button>
         <div class="confirmation-products hidden" id="confirmationProducts">${cartItems().map(({ product: item, quantity }) => `
           <div class="confirmation-product"><img src="${escapeHtml(productImages(item)[0] || "logo.png")}" alt=""><span>${escapeHtml(productName(item))} × ${quantity}</span><b>${money(Number(item.price) * quantity)}</b></div>`).join("")}</div>
