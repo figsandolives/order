@@ -345,6 +345,10 @@ function cartItems() {
     return { product: product(id), quantity: Number(entry.quantity), note: String(entry.note || "").slice(0, 240) };
   }).filter(item => item.product && item.quantity > 0);
 }
+function cartQuantity(id) {
+  const value = state.cart[id];
+  return Number(typeof value === "object" && value ? value.quantity : value || 0);
+}
 
 function cartCount() {
   return cartItems().reduce((sum, item) => sum + item.quantity, 0);
@@ -558,7 +562,7 @@ function productQuantityControl(id, quantity, detail = false) {
 
 function productCard(item, category) {
   const source = productImages(item)[0] || "logo.png";
-  const quantity = state.cart[item.id] || 0;
+  const quantity = cartQuantity(item.id);
   return `
     <article class="product-card" data-product="${escapeHtml(item.id)}" tabindex="0">
       <div class="product-image">
@@ -748,7 +752,7 @@ function requestAddToCart(id) {
 }
 
 function syncProductQuantityControls(id) {
-  const quantity = Number(state.cart[id] || 0);
+  const quantity = cartQuantity(id);
   $$(`[data-product-quantity="${CSS.escape(String(id))}"]`).forEach(slot => {
     slot.innerHTML = productQuantityControl(id, quantity, slot.dataset.detailQuantity === "true");
   });
@@ -761,10 +765,10 @@ function syncProductQuantityControls(id) {
 function syncAllProductQuantityControls() {
   $$("[data-product-quantity]").forEach(slot => {
     const id = slot.dataset.productQuantity;
-    slot.innerHTML = productQuantityControl(id, Number(state.cart[id] || 0), slot.dataset.detailQuantity === "true");
+    slot.innerHTML = productQuantityControl(id, cartQuantity(id), slot.dataset.detailQuantity === "true");
   });
   $$("[data-cart-badge]").forEach(badge => {
-    const quantity = Number(state.cart[badge.dataset.cartBadge] || 0);
+    const quantity = cartQuantity(badge.dataset.cartBadge);
     badge.classList.toggle("hidden", !quantity);
     badge.textContent = quantity ? `${tr("inCart")} × ${quantity}` : "";
   });
@@ -784,7 +788,7 @@ function renderProductDetail(id) {
   const category = state.categories.find(entry => entry.id === item.category);
   const images = productImages(item);
   const main = images[0] || "logo.png";
-  const quantity = state.cart[item.id] || 0;
+  const quantity = cartQuantity(item.id);
   $("#productDetail").innerHTML = `
     <div class="product-detail-grid">
       <div class="product-gallery">
@@ -1450,7 +1454,7 @@ function renderReview() {
   $("#checkoutBody").innerHTML = `
     <section class="checkout-review"><div class="cart-list">${cartItems().map(({ product: item, quantity, note }) => `
       <div class="cart-row"><img src="${escapeHtml(productImages(item)[0] || "logo.png")}" alt="">
-        <div class="cart-copy"><h4>${escapeHtml(productName(item))}</h4><strong>${money(item.price * quantity)}</strong></div><label class="cart-note-label"><textarea aria-label="${state.lang === "ar" ? "ملاحظة على المنتج" : "Product note"}" data-cart-note="${escapeHtml(item.id)}" maxlength="240" placeholder="${state.lang === "ar" ? "ملاحظة على المنتج" : "Product note"}">${escapeHtml(note)}</textarea></label>
+        <div class="cart-copy"><h4>${escapeHtml(productName(item))}</h4><strong>${money(item.price * quantity)}</strong></div><label class="cart-note-label"><textarea aria-label="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}" data-cart-note="${escapeHtml(item.id)}" maxlength="240" placeholder="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}">${escapeHtml(note)}</textarea></label>
         <div class="qty"><button data-plus="${escapeHtml(item.id)}">+</button><span>${quantity}</span><button data-minus="${escapeHtml(item.id)}">${quantity === 1 ? "×" : "−"}</button></div>
       </div>`).join("")}</div><div class="checkout-sticky-actions">${totalsHtml()}<button class="primary" id="next1">${tr("confirmContinue")}</button></div></section>`;
   $$('[data-cart-note]').forEach(input => input.onchange = () => updateCartNote(input.dataset.cartNote, input.value));
