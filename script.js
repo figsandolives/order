@@ -419,7 +419,7 @@ function reportVisitorPresence() {
   if (!endpoint) return;
   fetch(endpoint, {
     method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/json" },
-    body: JSON.stringify({ visitorId, visitorType: state.user?.phone ? "registered" : "new" }),
+    body: JSON.stringify({ visitorId, visitorType: state.user?.phone ? "registered" : "new", customer: state.user?.phone ? { name: state.user.name, phone: state.user.phone } : null }),
     cache: "no-store", keepalive: true
   }).catch(() => undefined);
 }
