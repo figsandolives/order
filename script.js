@@ -2129,10 +2129,10 @@ async function createInvoiceFile(order) {
     const imageHeight = canvas.height * pageWidth / canvas.width;
     const image = canvas.toDataURL("image/jpeg", .94);
     let remaining = imageHeight;
-    let y = 0;
+    let y = imageHeight <= pageHeight ? Math.max(0, (pageHeight - imageHeight) / 2) : 0;
     pdf.addImage(image, "JPEG", 0, y, pageWidth, imageHeight, undefined, "FAST");
     remaining -= pageHeight;
-    while (remaining > 0) {
+    while (remaining > 0.5) {
       pdf.addPage();
       y = -(imageHeight - remaining);
       pdf.addImage(image, "JPEG", 0, y, pageWidth, imageHeight, undefined, "FAST");
