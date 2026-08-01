@@ -340,7 +340,10 @@ function product(id) {
 }
 
 function cartItems() {
-  return Object.entries(state.cart).map(([id, quantity]) => ({ product: product(id), quantity: Number(quantity) })).filter(item => item.product && item.quantity > 0);
+  return Object.entries(state.cart).map(([id, value]) => {
+    const entry = typeof value === "object" && value ? value : { quantity: value };
+    return { product: product(id), quantity: Number(entry.quantity), note: String(entry.note || "").slice(0, 240) };
+  }).filter(item => item.product && item.quantity > 0);
 }
 
 function cartCount() {
@@ -372,6 +375,16 @@ function persistCart() {
   if (!state.user?.phone) return;
   localStorage.setItem(cartStorageKey(state.user.phone), JSON.stringify(state.cart));
   queueUserSync();
+}
+
+function reportVisitorPresence() {
+  const endpoint = orderingConfig.visitorPresenceWebhookUrl;
+  if (!endpoint) return;
+  fetch(endpoint, {
+    method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/json" },
+    body: JSON.stringify({ visitorId, visitorType: state.user?.phone ? "registered" : "new" }),
+    cache: "no-store", keepalive: true
+  }).catch(() => undefined);
 }
 
 function trackStoreEvent(type, details = {}) {
@@ -705,7 +718,8 @@ function updateCategoryFromScroll() {
 
 function changeQuantity(id, difference) {
   const wasEmpty = cartCount() === 0;
-  state.cart[id] = Math.max(0, Number(state.cart[id] || 0) + difference);
+  const existing = typeof state.cart[id] === "object" && state.cart[id] ? state.cart[id] : { quantity: state.cart[id] || 0, note: "" };
+  state.cart[id] = { ...existing, quantity: Math.max(0, Number(existing.quantity || 0) + difference) };
   if (!state.cart[id]) delete state.cart[id];
   state.paymentRequestId = "";
   persistCart();
@@ -713,6 +727,14 @@ function changeQuantity(id, difference) {
   syncProductQuantityControls(id);
   if (difference > 0 && wasEmpty) trackStoreEvent("cart_created", { productId: id });
   if (!$("#checkoutModal").classList.contains("hidden")) renderCheckout();
+}
+
+function updateCartNote(id, note) {
+  const existing = typeof state.cart[id] === "object" && state.cart[id] ? state.cart[id] : { quantity: state.cart[id] || 0 };
+  if (!Number(existing.quantity)) return;
+  state.cart[id] = { ...existing, note: String(note || "").replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 240) };
+  state.paymentRequestId = "";
+  persistCart();
 }
 
 function requestAddToCart(id) {
@@ -1022,6 +1044,7 @@ function completeLogin() {
   $("#authModal").classList.add("hidden");
   $("#authModal").setAttribute("aria-hidden", "true");
   updateAccountButton();
+  reportVisitorPresence();
   renderCartBar();
   syncAllProductQuantityControls();
   if (pendingCartProductId) {
@@ -1425,11 +1448,12 @@ function totalsHtml() {
 
 function renderReview() {
   $("#checkoutBody").innerHTML = `
-    <section class="checkout-review"><div class="cart-list">${cartItems().map(({ product: item, quantity }) => `
+    <section class="checkout-review"><div class="cart-list">${cartItems().map(({ product: item, quantity, note }) => `
       <div class="cart-row"><img src="${escapeHtml(productImages(item)[0] || "logo.png")}" alt="">
-        <div><h4>${escapeHtml(productName(item))}</h4><strong>${money(item.price * quantity)}</strong></div>
+        <div class="cart-copy"><h4>${escapeHtml(productName(item))}</h4><strong>${money(item.price * quantity)}</strong><label class="cart-note-label">${state.lang === "ar" ? "ملاحظات المنتج" : "Product note"}<textarea data-cart-note="${escapeHtml(item.id)}" maxlength="240" placeholder="${state.lang === "ar" ? "مثال: بدون سكر" : "e.g. no sugar"}">${escapeHtml(note)}</textarea></label></div>
         <div class="qty"><button data-plus="${escapeHtml(item.id)}">+</button><span>${quantity}</span><button data-minus="${escapeHtml(item.id)}">${quantity === 1 ? "×" : "−"}</button></div>
       </div>`).join("")}</div><div class="checkout-sticky-actions">${totalsHtml()}<button class="primary" id="next1">${tr("confirmContinue")}</button></div></section>`;
+  $$('[data-cart-note]').forEach(input => input.onchange = () => updateCartNote(input.dataset.cartNote, input.value));
   $("#next1").onclick = () => {
     if (!cartCount()) return toast(state.lang === "ar" ? "لا يمكن المتابعة وسلتك فارغة" : "You cannot continue with an empty cart");
     state.step = 2;
@@ -1777,6 +1801,9 @@ function isIphoneSafari() {
 }
 
 function beginPayment() {
+  if (state.paymentMethod === "knet" && total() < .100) {
+    return paymentError(state.lang === "ar" ? "الحد الأدنى للدفع عبر KNET هو 0.100 د.ك. زد كمية المنتج أو اختر Apple Pay." : "KNET requires a minimum order of 0.100 KWD. Increase the quantity or use Apple Pay.");
+  }
   return finishOrder();
 }
 
@@ -1797,7 +1824,7 @@ function paymentPayload(paymentMethod = state.paymentMethod) {
   return {
     idempotencyKey: state.paymentRequestId,
     customer: { name: state.user.name.trim(), phone: normalizePhone(state.user.phone) },
-    items: cartItems().map(({ product: item, quantity }) => ({ id: String(item.id), quantity })),
+    items: cartItems().map(({ product: item, quantity, note }) => ({ id: String(item.id), quantity, note })),
     delivery: { mode: state.mode, areaName: state.area?.name || "", branchId: state.branch || "", address: state.address || "" },
     paymentMethod,
     deliveryTime: {
@@ -2014,7 +2041,7 @@ function currentInvoiceModel() {
     scheduledAt: scheduled?.getTime() || null,
     expectedStart: asapWindow?.start.getTime() || null,
     expectedEnd: asapWindow?.end.getTime() || null,
-    items: cartItems().map(({ product: item, quantity }) => ({ id: String(item.id), nameAr: item.name, nameEn: item.nameEn || item.name, quantity, unitPrice: Number(item.price), total: Number(item.price) * quantity })),
+    items: cartItems().map(({ product: item, quantity, note }) => ({ id: String(item.id), nameAr: item.name, nameEn: item.nameEn || item.name, quantity, note, unitPrice: Number(item.price), total: Number(item.price) * quantity })),
     subtotal: subtotal(), deliveryFee: deliveryFee(), total: total(), status: "paid"
   };
 }
@@ -2067,8 +2094,8 @@ function buildInvoice(order) {
       <div><span>${order.mode === "delivery" ? tr("deliveryAddress") : tr("pickupBranch")}</span><h3>${escapeHtml(destination)}</h3><p>${escapeHtml(deliveryTimeSummary(order))}</p></div>
       <div class="invoice-payment"><span>${state.lang === "ar" ? "حالة وطريقة الدفع" : "Payment"}</span><h3>${tr("paid")} · ${tr("payOnline")}</h3><p>${createdAt.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}</p></div>
     </section>
-    <table class="invoice-items"><thead><tr><th>#</th><th>الصنف / ITEM</th><th>الكمية / QTY</th><th>سعر الوحدة / UNIT PRICE</th><th>الإجمالي / TOTAL</th></tr></thead>
-    <tbody>${order.items.map((item, index) => `<tr><td>${index + 1}</td><td><b>${escapeHtml(item.nameAr || item.nameEn || item.id)}</b><small dir="ltr">${escapeHtml(item.nameEn || item.nameAr || item.id)}</small></td><td>${item.quantity}</td><td>${money(item.unitPrice || (item.total / item.quantity))}</td><td><b>${money(item.total)}</b></td></tr>`).join("")}</tbody></table>
+    <table class="invoice-items"><thead><tr><th>#</th><th>الصنف / ITEM</th><th>ملاحظات / NOTES</th><th>الكمية / QTY</th><th>سعر الوحدة / UNIT PRICE</th><th>الإجمالي / TOTAL</th></tr></thead>
+    <tbody>${order.items.map((item, index) => `<tr><td>${index + 1}</td><td><b>${escapeHtml(item.nameAr || item.nameEn || item.id)}</b><small dir="ltr">${escapeHtml(item.nameEn || item.nameAr || item.id)}</small></td><td>${escapeHtml(item.note || "—")}</td><td>${item.quantity}</td><td>${money(item.unitPrice || (item.total / item.quantity))}</td><td><b>${money(item.total)}</b></td></tr>`).join("")}</tbody></table>
     <section class="invoice-bottom">
       <div class="invoice-note"><span>${state.lang === "ar" ? "ملاحظة" : "Note"}</span><p>${tr("healthPhrase")}</p><small>${state.lang === "ar" ? "تم إنشاء هذه الفاتورة إلكترونياً ولا تحتاج إلى توقيع." : "This invoice was generated electronically and requires no signature."}</small></div>
       <div class="invoice-totals"><span>${tr("productsTotal")} <b>${money(order.subtotal)}</b></span><span>${tr("deliveryFee")} <b>${money(order.deliveryFee)}</b></span><strong>${tr("total")} <b>${money(order.total)}</b></strong></div>
@@ -2266,6 +2293,9 @@ window.addEventListener("pageshow", () => {
   const pending = readPendingPayment();
   if (pending) showReturnedPaymentFailure(pending);
 });
+
+reportVisitorPresence();
+setInterval(reportVisitorPresence, 30000);
 
 applyLanguage();
 if (state.user) {
