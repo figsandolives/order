@@ -1450,7 +1450,7 @@ function renderReview() {
   $("#checkoutBody").innerHTML = `
     <section class="checkout-review"><div class="cart-list">${cartItems().map(({ product: item, quantity, note }) => `
       <div class="cart-row"><img src="${escapeHtml(productImages(item)[0] || "logo.png")}" alt="">
-        <div class="cart-copy"><h4>${escapeHtml(productName(item))}</h4><strong>${money(item.price * quantity)}</strong><label class="cart-note-label">${state.lang === "ar" ? "ملاحظات المنتج" : "Product note"}<textarea data-cart-note="${escapeHtml(item.id)}" maxlength="240" placeholder="${state.lang === "ar" ? "مثال: بدون سكر" : "e.g. no sugar"}">${escapeHtml(note)}</textarea></label></div>
+        <div class="cart-copy"><h4>${escapeHtml(productName(item))}</h4><strong>${money(item.price * quantity)}</strong></div><label class="cart-note-label"><textarea aria-label="${state.lang === "ar" ? "ملاحظة على المنتج" : "Product note"}" data-cart-note="${escapeHtml(item.id)}" maxlength="240" placeholder="${state.lang === "ar" ? "ملاحظة على المنتج" : "Product note"}">${escapeHtml(note)}</textarea></label>
         <div class="qty"><button data-plus="${escapeHtml(item.id)}">+</button><span>${quantity}</span><button data-minus="${escapeHtml(item.id)}">${quantity === 1 ? "×" : "−"}</button></div>
       </div>`).join("")}</div><div class="checkout-sticky-actions">${totalsHtml()}<button class="primary" id="next1">${tr("confirmContinue")}</button></div></section>`;
   $$('[data-cart-note]').forEach(input => input.onchange = () => updateCartNote(input.dataset.cartNote, input.value));
