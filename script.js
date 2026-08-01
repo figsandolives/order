@@ -2130,18 +2130,18 @@ async function createInvoiceFile(order) {
     const canvas = await html2canvas($("#invoice"), { scale: 2, backgroundColor: "#fff", useCORS: true, logging: false });
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF("p", "mm", "a4");
-    const pageWidth = 210;
-    const pageHeight = 297;
+    const pageWidth = 190;
+    const pageHeight = 277;
     const imageHeight = canvas.height * pageWidth / canvas.width;
     const image = canvas.toDataURL("image/jpeg", .94);
     let remaining = imageHeight;
-    let y = imageHeight <= pageHeight ? Math.max(0, (pageHeight - imageHeight) / 2) : 0;
-    pdf.addImage(image, "JPEG", 0, y, pageWidth, imageHeight, undefined, "FAST");
+    let y = 10;
+    pdf.addImage(image, "JPEG", 10, y, pageWidth, imageHeight, undefined, "FAST");
     remaining -= pageHeight;
     while (remaining > 0.5) {
       pdf.addPage();
-      y = -(imageHeight - remaining);
-      pdf.addImage(image, "JPEG", 0, y, pageWidth, imageHeight, undefined, "FAST");
+      y = 10 - (imageHeight - remaining);
+      pdf.addImage(image, "JPEG", 10, y, pageWidth, imageHeight, undefined, "FAST");
       remaining -= pageHeight;
     }
     const filename = `invoice-${order.orderId}.pdf`;
