@@ -2227,6 +2227,7 @@ async function downloadPdf(order = state.lastInvoice || currentInvoiceModel()) {
 $("#languageToggle").onclick = () => setLanguage(state.lang === "ar" ? "en" : "ar");
 const whatsappWidget = $("#whatsappWidget");
 const whatsappToggle = $("#whatsappToggle");
+if (matchMedia("(max-width: 760px)").matches) Object.assign(whatsappWidget.style, { position: "fixed", left: "auto", right: "0", insetInlineStart: "auto", insetInlineEnd: "0" });
 function setWhatsAppMenu(open) {
   whatsappWidget.classList.toggle("open", open);
   whatsappToggle.setAttribute("aria-expanded", String(open));
