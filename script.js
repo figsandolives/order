@@ -379,7 +379,7 @@ function productOptions(item) {
   const config = item?.options;
   if (!config || config.enabled === false || !Array.isArray(config.items)) return null;
   const items = config.items.filter(option => option && (option.nameAr || option.nameEn)).map(option => ({
-    id: String(option.id || option.nameAr || option.nameEn), nameAr: String(option.nameAr || option.nameEn || ""), nameEn: String(option.nameEn || option.nameAr || ""), price: Math.max(0, Number(option.price) || 0)
+    id: String(option.id || option.nameAr || option.nameEn), nameAr: String(option.nameAr || option.nameEn || ""), nameEn: String(option.nameEn || option.nameAr || ""), price: Math.max(0, Number(option.price) || 0), preparation: option.preparation || null
   }));
   return items.length ? { required: config.required === true, multiple: config.multiple === true, priceBased: config.priceBased === true, items } : null;
 }
@@ -400,7 +400,7 @@ function productPriceLabel(item) {
 }
 
 function preparationLabel(item) {
-  const prep = item?.preparation || {};
+  const prep = item?.preparation || item || {};
   const number = value => state.lang === "ar" ? new Intl.NumberFormat("ar-KW").format(value) : String(value);
   const time = (value, kind) => {
     if (state.lang === "ar") {
@@ -643,6 +643,8 @@ function productQuantityControl(id, quantity, detail = false) {
 function productCard(item, category) {
   const source = productImages(item)[0] || "logo.png";
   const quantity = cartQuantity(item.id);
+  const optionConfig = productOptions(item);
+  const hasOptionPreparation = optionConfig?.items.some(option => option.preparation);
   return `
     <article class="product-card" data-product="${escapeHtml(item.id)}" tabindex="0">
       <div class="product-image">
@@ -650,7 +652,7 @@ function productCard(item, category) {
         <b class="in-cart ${quantity ? "" : "hidden"}" data-cart-badge="${escapeHtml(item.id)}">${quantity ? `${tr("inCart")} × ${quantity}` : ""}</b>
       </div>
       <div class="product-info">
-        <span class="preparation-badge" aria-label="${escapeHtml(preparationLabel(item))}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/></svg>${escapeHtml(preparationLabel(item))}</span>
+        ${hasOptionPreparation ? "" : `<span class="preparation-badge" aria-label="${escapeHtml(preparationLabel(item))}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/></svg>${escapeHtml(preparationLabel(item))}</span>`}
         <h3>${escapeHtml(productName(item))}</h3>
         <p>${escapeHtml(productDescription(item) || item.nameEn || item.name)}</p>
         <div class="product-foot"><strong>${productPriceLabel(item)}</strong><div class="product-quantity-slot" data-product-quantity="${escapeHtml(item.id)}">${productQuantityControl(item.id, quantity)}</div></div>
@@ -844,7 +846,7 @@ function openProductOptions(id, anchor = null) {
   const type = config.multiple ? "checkbox" : "radio";
   productOptionsPopover = document.createElement("section");
   productOptionsPopover.className = "product-options-popover";
-  productOptionsPopover.innerHTML = `<header><div><small>${state.lang === "ar" ? "خيارات المنتج" : "Product options"}</small><strong>${escapeHtml(productName(item))}</strong></div><button type="button" data-close-options aria-label="${state.lang === "ar" ? "إغلاق" : "Close"}">×</button></header><p>${config.required ? tr("optionsRequired") : tr("optionOptional")}</p><div class="product-options-list">${config.items.map(option => `<label class="product-option-choice"><input type="${type}" name="product-option" value="${escapeHtml(option.id)}"><span><b>${escapeHtml(optionName(option))}</b><small>${escapeHtml(state.lang === "ar" ? option.nameEn : option.nameAr)}</small></span>${config.priceBased ? `<em>${money(option.price)}</em>` : ""}</label>`).join("")}</div><button type="button" class="primary" data-option-confirm disabled>${state.lang === "ar" ? "إضافة إلى السلة" : "Add to cart"}</button>`;
+  productOptionsPopover.innerHTML = `<header><div><small>${state.lang === "ar" ? "خيارات المنتج" : "Product options"}</small><strong>${escapeHtml(productName(item))}</strong></div><button type="button" data-close-options aria-label="${state.lang === "ar" ? "إغلاق" : "Close"}">×</button></header><p>${config.required ? tr("optionsRequired") : tr("optionOptional")}</p><div class="product-options-list">${config.items.map(option => `<label class="product-option-choice"><input type="${type}" name="product-option" value="${escapeHtml(option.id)}"><span><b>${escapeHtml(optionName(option))}</b><small>${escapeHtml(state.lang === "ar" ? option.nameEn : option.nameAr)}</small>${option.preparation ? `<i>◷ ${escapeHtml(preparationLabel(option.preparation))}</i>` : ""}</span>${config.priceBased ? `<em>${money(option.price)}</em>` : ""}</label>`).join("")}</div><button type="button" class="primary" data-option-confirm disabled>${state.lang === "ar" ? "إضافة إلى السلة" : "Add to cart"}</button>`;
   document.body.append(productOptionsPopover);
   const placePopover = () => {
     const rect = pendingOptionAnchor?.getBoundingClientRect();
