@@ -257,6 +257,8 @@ let paymentWatchVersion = 0;
 let resendTimer;
 let pendingCartProductId = "";
 let pendingOptionProductId = "";
+let pendingOptionAnchor = null;
+let productOptionsPopover = null;
 let authMode = "login";
 let authPhone = "";
 let accountReturnToCheckout = false;
@@ -626,7 +628,9 @@ function renderCategories() {
 function productQuantityControl(id, quantity, detail = false) {
   const escapedId = escapeHtml(id);
   if (!quantity) {
-    return `<button class="${detail ? "primary detail-add" : "product-add"}" data-product-add="${escapedId}">${detail ? tr("addToCart") : tr("add")}</button>`;
+    const hasOptions = Boolean(productOptions(product(id)));
+    const label = hasOptions ? (state.lang === "ar" ? "اختيار" : "Select") : (detail ? tr("addToCart") : tr("add"));
+    return `<button class="${detail ? "primary detail-add" : "product-add"}" data-product-add="${escapedId}">${label}</button>`;
   }
   const item = product(id);
   return `<div class="product-qty ${detail ? "detail-product-qty" : ""}" aria-label="${escapeHtml(item ? productName(item) : "")}">
@@ -643,10 +647,10 @@ function productCard(item, category) {
     <article class="product-card" data-product="${escapeHtml(item.id)}" tabindex="0">
       <div class="product-image">
         <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" data-src="${escapeHtml(source)}" width="640" height="580" alt="${escapeHtml(productName(item))}" decoding="async" fetchpriority="low">
-        <span class="preparation-badge" aria-label="${escapeHtml(preparationLabel(item))}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/></svg>${escapeHtml(preparationLabel(item))}</span>
         <b class="in-cart ${quantity ? "" : "hidden"}" data-cart-badge="${escapeHtml(item.id)}">${quantity ? `${tr("inCart")} × ${quantity}` : ""}</b>
       </div>
       <div class="product-info">
+        <span class="preparation-badge" aria-label="${escapeHtml(preparationLabel(item))}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/></svg>${escapeHtml(preparationLabel(item))}</span>
         <h3>${escapeHtml(productName(item))}</h3>
         <p>${escapeHtml(productDescription(item) || item.nameEn || item.name)}</p>
         <div class="product-foot"><strong>${productPriceLabel(item)}</strong><div class="product-quantity-slot" data-product-quantity="${escapeHtml(item.id)}">${productQuantityControl(item.id, quantity)}</div></div>
@@ -818,50 +822,59 @@ function updateCartNote(id, note) {
   persistCart();
 }
 
-function requestAddToCart(id) {
+function requestAddToCart(id, anchor = null) {
   if (!state.user?.name) {
     pendingCartProductId = id;
     openAuth("login");
     return;
   }
   const item = product(id);
-  if (productOptions(item)) return openProductOptions(id);
+  if (productOptions(item)) return openProductOptions(id, anchor);
   changeQuantity(id, 1);
   toast(tr("added"));
 }
 
-function openProductOptions(id) {
+function openProductOptions(id, anchor = null) {
   const item = product(id);
   const config = productOptions(item);
   if (!item || !config) return requestAddToCart(id);
-  if (!$("#productOptionsModal")) {
-    console.warn("Product options markup is unavailable; add the latest index.html deployment.");
-    return;
-  }
+  closeProductOptions();
   pendingOptionProductId = id;
-  $("#productOptionsTitle").textContent = productName(item);
-  $("#productOptionsHint").textContent = config.required ? `${tr("optionsRequired")} · ${config.multiple ? tr("optionMultiple") : tr("optionSingle")}` : `${tr("optionOptional")} · ${config.multiple ? tr("optionMultiple") : tr("optionSingle")}`;
+  pendingOptionAnchor = anchor || document.querySelector(`[data-product-add="${CSS.escape(String(id))}"]`);
   const type = config.multiple ? "checkbox" : "radio";
-  $("#productOptionsList").innerHTML = config.items.map(option => `<label class="product-option-choice"><input type="${type}" name="product-option" value="${escapeHtml(option.id)}"><span><b>${escapeHtml(optionName(option))}${config.priceBased ? ` — ${money(option.price)}` : ""}</b><small>${escapeHtml(state.lang === "ar" ? option.nameEn : option.nameAr)}</small></span></label>`).join("");
-  $("#productOptionsModal").classList.remove("hidden");
-  $("#productOptionsModal").setAttribute("aria-hidden", "false");
-  syncPageScrollLock();
+  productOptionsPopover = document.createElement("section");
+  productOptionsPopover.className = "product-options-popover";
+  productOptionsPopover.innerHTML = `<header><div><small>${state.lang === "ar" ? "خيارات المنتج" : "Product options"}</small><strong>${escapeHtml(productName(item))}</strong></div><button type="button" data-close-options aria-label="${state.lang === "ar" ? "إغلاق" : "Close"}">×</button></header><p>${config.required ? tr("optionsRequired") : tr("optionOptional")}</p><div class="product-options-list">${config.items.map(option => `<label class="product-option-choice"><input type="${type}" name="product-option" value="${escapeHtml(option.id)}"><span><b>${escapeHtml(optionName(option))}</b><small>${escapeHtml(state.lang === "ar" ? option.nameEn : option.nameAr)}</small></span>${config.priceBased ? `<em>${money(option.price)}</em>` : ""}</label>`).join("")}</div><button type="button" class="primary" data-option-confirm disabled>${state.lang === "ar" ? "إضافة إلى السلة" : "Add to cart"}</button>`;
+  document.body.append(productOptionsPopover);
+  const placePopover = () => {
+    const rect = pendingOptionAnchor?.getBoundingClientRect();
+    if (!rect) return;
+    const width = productOptionsPopover.offsetWidth;
+    const left = Math.max(8, Math.min(window.innerWidth - width - 8, rect.right - width));
+    let top = rect.top - productOptionsPopover.offsetHeight - 10;
+    if (top < 8) top = Math.min(window.innerHeight - productOptionsPopover.offsetHeight - 8, rect.bottom + 10);
+    Object.assign(productOptionsPopover.style, { left: `${left}px`, top: `${Math.max(8, top)}px` });
+  };
+  placePopover();
+  productOptionsPopover.querySelector("[data-close-options]").onclick = closeProductOptions;
+  productOptionsPopover.querySelectorAll('input[name="product-option"]').forEach(input => input.onchange = () => {
+    productOptionsPopover.querySelector("[data-option-confirm]").disabled = !productOptionsPopover.querySelector('input[name="product-option"]:checked');
+  });
+  productOptionsPopover.querySelector("[data-option-confirm]").onclick = confirmProductOptions;
 }
 
 function closeProductOptions() {
   pendingOptionProductId = "";
-  const modal = $("#productOptionsModal");
-  if (!modal) return;
-  modal.classList.add("hidden");
-  modal.setAttribute("aria-hidden", "true");
-  syncPageScrollLock();
+  pendingOptionAnchor = null;
+  productOptionsPopover?.remove();
+  productOptionsPopover = null;
 }
 
 function confirmProductOptions() {
   const id = pendingOptionProductId;
   const config = productOptions(product(id));
   if (!id || !config) return closeProductOptions();
-  const selectedIds = $$('input[name="product-option"]:checked', $("#productOptionsList")).map(input => input.value);
+  const selectedIds = $$('input[name="product-option"]:checked', productOptionsPopover || document).map(input => input.value);
   if (config.required && !selectedIds.length) return toast(tr("optionsRequired"), "error");
   const selected = config.items.filter(option => selectedIds.includes(option.id));
   const existing = typeof state.cart[id] === "object" && state.cart[id] ? state.cart[id] : { quantity: 0, note: "" };
@@ -2350,7 +2363,7 @@ $("#searchResults").onclick = event => {
   if (addButton) {
     event.preventDefault();
     event.stopPropagation();
-    requestAddToCart(addButton.dataset.searchAdd);
+    requestAddToCart(addButton.dataset.searchAdd, addButton);
     return;
   }
   const result = event.target.closest("[data-search-product]");
@@ -2386,7 +2399,7 @@ function handleProductQuantityEvent(event) {
   if (!control) return false;
   event.preventDefault();
   event.stopPropagation();
-  if (add) requestAddToCart(add.dataset.productAdd);
+  if (add) requestAddToCart(add.dataset.productAdd, add);
   if (plus) changeQuantity(plus.dataset.productPlus, 1);
   if (minus) changeQuantity(minus.dataset.productMinus, -1);
   return true;
@@ -2416,6 +2429,11 @@ const productOptionsModal = $("#productOptionsModal");
 if (closeProductOptionsButton) closeProductOptionsButton.onclick = closeProductOptions;
 if (confirmProductOptionsButton) confirmProductOptionsButton.onclick = confirmProductOptions;
 if (productOptionsModal) productOptionsModal.onclick = event => { if (event.target === productOptionsModal) closeProductOptions(); };
+document.addEventListener("click", event => {
+  if (!productOptionsPopover || productOptionsPopover.contains(event.target) || event.target === pendingOptionAnchor) return;
+  closeProductOptions();
+});
+window.addEventListener("resize", () => { if (productOptionsPopover) closeProductOptions(); });
 $("#checkoutBtn").onclick = openCheckout;
 $("#cartSummary").onclick = openCheckout;
 $("#headerCart").onclick = openCheckout;
