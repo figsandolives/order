@@ -379,7 +379,7 @@ function productOptions(item) {
   const config = item?.options;
   if (!config || config.enabled === false || !Array.isArray(config.items)) return null;
   const items = config.items.filter(option => option && (option.nameAr || option.nameEn)).map(option => ({
-    id: String(option.id || option.nameAr || option.nameEn), nameAr: String(option.nameAr || option.nameEn || ""), nameEn: String(option.nameEn || option.nameAr || ""), price: Math.max(0, Number(option.price) || 0), preparation: option.preparation || null
+    id: String(option.id || option.nameAr || option.nameEn), nameAr: String(option.nameAr || option.nameEn || ""), nameEn: String(option.nameEn || option.nameAr || ""), price: Math.max(0, Number(option.price) || 0), preparation: option.preparation || null, image: String(option.image || "")
   }));
   return items.length ? { required: config.required === true, multiple: config.multiple === true, priceBased: config.priceBased === true, items } : null;
 }
@@ -846,7 +846,7 @@ function openProductOptions(id, anchor = null) {
   const type = config.multiple ? "checkbox" : "radio";
   productOptionsPopover = document.createElement("section");
   productOptionsPopover.className = "product-options-popover";
-  productOptionsPopover.innerHTML = `<header><div><small>${state.lang === "ar" ? "خيارات المنتج" : "Product options"}</small><strong>${escapeHtml(productName(item))}</strong></div><button type="button" data-close-options aria-label="${state.lang === "ar" ? "إغلاق" : "Close"}">×</button></header><p>${config.required ? tr("optionsRequired") : tr("optionOptional")}</p><div class="product-options-list">${config.items.map(option => `<label class="product-option-choice"><input type="${type}" name="product-option" value="${escapeHtml(option.id)}"><span><b>${escapeHtml(optionName(option))}</b><small>${escapeHtml(state.lang === "ar" ? option.nameEn : option.nameAr)}</small>${option.preparation ? `<i>◷ ${escapeHtml(preparationLabel(option.preparation))}</i>` : ""}</span>${config.priceBased ? `<em>${money(option.price)}</em>` : ""}</label>`).join("")}</div><button type="button" class="primary" data-option-confirm disabled>${state.lang === "ar" ? "إضافة إلى السلة" : "Add to cart"}</button>`;
+  productOptionsPopover.innerHTML = `<header><div><small>${state.lang === "ar" ? "خيارات المنتج" : "Product options"}</small><strong>${escapeHtml(productName(item))}</strong></div><button type="button" data-close-options aria-label="${state.lang === "ar" ? "إغلاق" : "Close"}">×</button></header><p>${config.required ? tr("optionsRequired") : tr("optionOptional")}</p><div class="product-options-list">${config.items.map(option => `<label class="product-option-choice"><input type="${type}" name="product-option" value="${escapeHtml(option.id)}">${option.image ? `<img src="${escapeHtml(option.image)}" alt="">` : ""}<span><b>${escapeHtml(optionName(option))}</b><small>${escapeHtml(state.lang === "ar" ? option.nameEn : option.nameAr)}</small>${option.preparation ? `<i>◷ ${escapeHtml(preparationLabel(option.preparation))}</i>` : ""}</span>${config.priceBased ? `<em>${money(option.price)}</em>` : ""}</label>`).join("")}</div><button type="button" class="primary" data-option-confirm disabled>${state.lang === "ar" ? "إضافة إلى السلة" : "Add to cart"}</button>`;
   document.body.append(productOptionsPopover);
   const placePopover = () => {
     const rect = pendingOptionAnchor?.getBoundingClientRect();
