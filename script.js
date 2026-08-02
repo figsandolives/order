@@ -410,6 +410,25 @@ function preparationLabel(item) {
   return state.lang === "ar" ? `خلال ${single} أو ${secondLabel}` : `Within ${single} or ${secondLabel}`;
 }
 
+function preparationTakesMoreThanTwoHours(preparation) {
+  if (!preparation) return false;
+  const toHours = (value, unit) => Math.max(1, Number(value) || 0) * (unit === "day" ? 24 : 1);
+  const first = toHours(preparation.first, preparation.unit);
+  const second = preparation.hasSecond && Number(preparation.second)
+    ? toHours(preparation.second, preparation.secondUnit || preparation.unit)
+    : 0;
+  return Math.max(first, second) > 2;
+}
+
+function cartHasLongPreparationItems() {
+  return cartItems().some(({ product: item, options }) => {
+    const selectedOptionPreparations = options.map(option => option.preparation).filter(Boolean);
+    return selectedOptionPreparations.length
+      ? selectedOptionPreparations.some(preparationTakesMoreThanTwoHours)
+      : preparationTakesMoreThanTwoHours(item.preparation);
+  });
+}
+
 function cartItems() {
   return Object.entries(state.cart).map(([id, value]) => {
     const entry = typeof value === "object" && value ? value : { quantity: value };
@@ -1600,7 +1619,7 @@ function renderReview() {
       <div class="cart-row"><img src="${escapeHtml(productImages(item)[0] || "logo.png")}" alt="">
         <div class="cart-copy"><h4>${escapeHtml(productName(item))}</h4>${options.length ? `<small class="cart-options">${escapeHtml(options.map(optionName).join("، "))}</small>` : ""}<strong>${money(unitPrice(item, options) * quantity)}</strong></div><label class="cart-note-label"><textarea aria-label="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}" data-cart-note="${escapeHtml(item.id)}" maxlength="240" placeholder="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}">${escapeHtml(note)}</textarea></label>
         <div class="qty"><button data-plus="${escapeHtml(item.id)}">+</button><span>${quantity}</span><button data-minus="${escapeHtml(item.id)}">${quantity === 1 ? "×" : "−"}</button></div>
-      </div>`).join("")}</div><div class="checkout-sticky-actions">${totalsHtml()}<button class="primary" id="next1">${tr("confirmContinue")}</button></div></section>`;
+      </div>`).join("")}</div><div class="checkout-sticky-actions">${cartHasLongPreparationItems() ? `<p class="long-preparation-notice">${state.lang === "ar" ? "ملاحظة: يوجد في طلبك أصناف تأخذ وقت للتجهيز.. لذا يرجى العلم أنه قد يتأخر طلبك أو يتم تأجيله." : "Note: Your order includes items that need extra preparation time, so it may be delayed or rescheduled."}</p>` : ""}${totalsHtml()}<button class="primary" id="next1">${tr("confirmContinue")}</button></div></section>`;
   $$('[data-cart-note]').forEach(input => input.onchange = () => updateCartNote(input.dataset.cartNote, input.value));
   $("#next1").onclick = () => {
     if (!cartCount()) return toast(state.lang === "ar" ? "لا يمكن المتابعة وسلتك فارغة" : "You cannot continue with an empty cart");

@@ -222,6 +222,7 @@ body.page-scroll-locked{position:fixed;left:0;right:0;width:100%}
 .cart-row{grid-template-columns:58px minmax(110px,1fr) minmax(130px,1.25fr) auto;gap:9px}.cart-row img{width:58px;height:58px}.cart-copy{min-width:0;display:grid;gap:3px}.cart-copy h4{font-size:11px;line-height:1.45}.cart-copy strong{font-size:11px}.cart-note-label{display:block;margin:0}.cart-note-label textarea{width:100%;min-height:42px;height:42px;resize:none;border:1px solid #dce5df;border-radius:9px;padding:8px 9px;background:#fbfcfa;color:var(--ink);font-size:10px;line-height:1.4}.cart-note-label textarea:focus{outline:0;border-color:var(--green);box-shadow:0 0 0 3px #2d6a4f14}
 .checkout-sticky-actions,.confirmation-sticky-actions{position:sticky;bottom:-22px;z-index:8;padding:12px 0 calc(12px + env(safe-area-inset-bottom));background:linear-gradient(180deg,#fffefb00 0,#fffefb 22px 100%)}
 .checkout-sticky-actions .totals{margin:0 0 10px;box-shadow:0 10px 26px #153a2b12}
+.long-preparation-notice{margin:0 0 9px;padding:10px 12px;border:1px solid #f1b7b7;border-radius:12px;background:#fff2f2;color:#bd2727;font-size:10px;font-weight:800;line-height:1.85}
 .confirmation-sticky-actions .actions{margin-top:10px}
 .knet-mark{overflow:visible;background:#fff;padding:2px}
 .knet-mark img{object-fit:contain!important;border-radius:4px}
