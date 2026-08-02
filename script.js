@@ -253,6 +253,9 @@ let pendingOptionProductId = "";
 let pendingOptionAnchor = null;
 let productOptionsPopover = null;
 let pendingPrimaryOption = null;
+let pendingSelectionFlow = null;
+let pendingFlowSelections = {};
+let pendingFlowStep = 0;
 let authMode = "login";
 let authPhone = "";
 let accountReturnToCheckout = false;
@@ -383,18 +386,38 @@ function productOptions(item) {
   return items.length ? { required: nestedEnabled || config.required === true, multiple, maxSelections: multiple ? Math.min(items.length, Math.max(1, Number(config.maxSelections) || items.length)) : 1, titleAr: String(config.titleAr || ""), titleEn: String(config.titleEn || ""), priceBased: nestedEnabled || config.priceBased === true, nestedEnabled, items } : null;
 }
 
+function productSelectionFlow(item) {
+  const flow = item?.options?.selectionFlow;
+  if (!flow?.enabled || !Array.isArray(flow.steps) || !flow.steps.length) return null;
+  const steps = flow.steps.map((step, index) => ({
+    id: String(step.id || `step-${index + 1}`),
+    titleAr: String(step.titleAr || ""), titleEn: String(step.titleEn || ""),
+    multiple: step.multiple === true,
+    maxSelections: Math.max(1, Number(step.maxSelections) || 1),
+    limitFrom: String(step.limitFrom || ""), quantityEnabled: step.quantityEnabled === true,
+    items: (Array.isArray(step.items) ? step.items : []).filter(option => option && (option.nameAr || option.nameEn)).map(option => ({
+      id: String(option.id || option.nameAr || option.nameEn),
+      nameAr: String(option.nameAr || option.nameEn || ""), nameEn: String(option.nameEn || option.nameAr || ""),
+      price: Math.max(0, Number(option.price) || 0),
+      maxFillingSelections: option.maxFillingSelections ?? null,
+      quantity: Math.max(1, Number(option.quantity) || 1)
+    }))
+  })).filter(step => step.items.length);
+  return steps.length ? { steps } : null;
+}
+
 function optionName(option) {
   return state.lang === "ar" ? option.nameAr : (option.nameEn || option.nameAr);
 }
 
 function unitPrice(item, selectedOptions = []) {
   const config = productOptions(item);
-  return config?.priceBased ? selectedOptions.reduce((sum, option) => sum + Math.max(0, Number(option.price) || 0), 0) : Math.max(0, Number(item?.price) || 0);
+  return config?.priceBased || productSelectionFlow(item) ? selectedOptions.reduce((sum, option) => sum + Math.max(0, Number(option.price) || 0) * Math.max(1, Number(option.quantity) || 1), 0) : Math.max(0, Number(item?.price) || 0);
 }
 
 function productPriceLabel(item) {
   const config = productOptions(item);
-  if (!config?.priceBased) return money(item.price);
+  if (!config?.priceBased && !productSelectionFlow(item)) return money(item.price);
   return state.lang === "ar" ? "السعر عند الاختيار" : "Price on selection";
 }
 
@@ -849,9 +872,79 @@ function requestAddToCart(id, anchor = null) {
     return;
   }
   const item = product(id);
+  if (productSelectionFlow(item)) return openSelectionFlow(id, anchor);
   if (productOptions(item)) return openProductOptions(id, anchor);
   changeQuantity(id, 1);
   toast(tr("added"));
+}
+
+function openSelectionFlow(id, anchor = null) {
+  closeProductOptions();
+  pendingOptionProductId = id;
+  pendingOptionAnchor = anchor || document.querySelector(`[data-product-add="${CSS.escape(String(id))}"]`);
+  pendingSelectionFlow = productSelectionFlow(product(id));
+  pendingFlowSelections = {};
+  pendingFlowStep = 0;
+  productOptionsPopover = document.createElement("section");
+  productOptionsPopover.className = "product-options-popover selection-flow-popover";
+  document.body.append(productOptionsPopover);
+  productOptionsPopover.place = () => {
+    const rect = pendingOptionAnchor?.getBoundingClientRect();
+    if (!rect) return;
+    const width = productOptionsPopover.offsetWidth;
+    const left = Math.max(8, Math.min(window.innerWidth - width - 8, rect.right - width));
+    let top = rect.top - productOptionsPopover.offsetHeight - 10;
+    if (top < 8) top = Math.min(window.innerHeight - productOptionsPopover.offsetHeight - 8, rect.bottom + 10);
+    Object.assign(productOptionsPopover.style, { left: `${left}px`, top: `${Math.max(8, top)}px` });
+  };
+  renderSelectionFlowStep();
+}
+
+function flowLimit(step) {
+  if (!step.limitFrom) return Math.min(step.items.length, step.maxSelections);
+  const source = pendingFlowSelections[step.limitFrom]?.[0];
+  const limit = source?.maxFillingSelections;
+  if (limit === "quantity") return Math.max(1, Number(source.quantity) || 1);
+  return Math.min(step.items.length, Math.max(1, Number(limit) || step.maxSelections));
+}
+
+function renderSelectionFlowStep() {
+  const item = product(pendingOptionProductId);
+  const flow = pendingSelectionFlow;
+  const step = flow?.steps[pendingFlowStep];
+  if (!item || !step || !productOptionsPopover) return closeProductOptions();
+  const selected = pendingFlowSelections[step.id] || [];
+  const limit = flowLimit(step);
+  const type = step.multiple ? "checkbox" : "radio";
+  const title = state.lang === "ar" ? step.titleAr : step.titleEn;
+  const hint = step.multiple ? (state.lang === "ar" ? `يمكنك اختيار حتى ${new Intl.NumberFormat("ar-KW").format(limit)} خيارات` : `Choose up to ${limit} options`) : "";
+  const isLast = pendingFlowStep === flow.steps.length - 1;
+  const currentPrice = unitPrice(item, flow.steps.flatMap(flowStep => pendingFlowSelections[flowStep.id] || []));
+  productOptionsPopover.innerHTML = `<header><div><small>${state.lang === "ar" ? `الخطوة ${new Intl.NumberFormat("ar-KW").format(pendingFlowStep + 1)} من ${new Intl.NumberFormat("ar-KW").format(flow.steps.length)}` : `Step ${pendingFlowStep + 1} of ${flow.steps.length}`}</small><strong>${escapeHtml(productName(item))}</strong></div><button type="button" data-close-options aria-label="${state.lang === "ar" ? "إغلاق" : "Close"}">×</button></header><div class="option-group-title"><strong>${escapeHtml(title)}</strong>${hint ? `<small>${escapeHtml(hint)}</small>` : ""}</div><div class="product-options-list">${step.items.map(option => `<label class="product-option-choice"><input type="${type}" name="selection-flow-option" value="${escapeHtml(option.id)}" ${selected.some(selectedOption => selectedOption.id === option.id) ? "checked" : ""}><span><b>${escapeHtml(optionName(option))}</b><small>${escapeHtml(state.lang === "ar" ? option.nameEn : option.nameAr)}</small></span>${option.price ? `<em>+ ${money(option.price)}</em>` : ""}</label>`).join("")}</div>${step.quantityEnabled && selected[0] ? `<div class="flow-quantity"><span>${state.lang === "ar" ? "الكمية" : "Quantity"}</span><button type="button" data-flow-quantity="minus">−</button><b>${new Intl.NumberFormat(state.lang === "ar" ? "ar-KW" : "en").format(selected[0].quantity || 1)}</b><button type="button" data-flow-quantity="plus">+</button></div>` : ""}<div class="selection-price"><span>${state.lang === "ar" ? "السعر الحالي" : "Current price"}</span><b>${money(currentPrice)}</b></div><button type="button" class="primary" data-flow-next ${selected.length ? "" : "disabled"}>${isLast ? (state.lang === "ar" ? "إضافة إلى السلة" : "Add to cart") : (state.lang === "ar" ? "التالي" : "Next")}</button>`;
+  productOptionsPopover.place?.();
+  productOptionsPopover.querySelector("[data-close-options]").onclick = closeProductOptions;
+  productOptionsPopover.querySelectorAll('input[name="selection-flow-option"]').forEach(input => input.onchange = () => {
+    const choice = step.items.find(option => option.id === input.value);
+    if (!choice) return;
+    let next = step.multiple ? [...(pendingFlowSelections[step.id] || [])] : [];
+    if (input.checked && !next.some(option => option.id === choice.id)) next.push({ ...choice });
+    if (!input.checked) next = next.filter(option => option.id !== choice.id);
+    if (next.length > limit) return toast(state.lang === "ar" ? `الحد الأقصى ${new Intl.NumberFormat("ar-KW").format(limit)} خيارات` : `Maximum ${limit} options`, "error"), renderSelectionFlowStep();
+    pendingFlowSelections[step.id] = next;
+    renderSelectionFlowStep();
+  });
+  productOptionsPopover.querySelectorAll("[data-flow-quantity]").forEach(button => button.onclick = () => {
+    const current = pendingFlowSelections[step.id]?.[0];
+    if (!current) return;
+    current.quantity = Math.max(1, Number(current.quantity || 1) + (button.dataset.flowQuantity === "plus" ? 1 : -1));
+    renderSelectionFlowStep();
+  });
+  productOptionsPopover.querySelector("[data-flow-next]").onclick = () => {
+    if (!selected.length) return;
+    if (!isLast) { pendingFlowStep++; return renderSelectionFlowStep(); }
+    const chosen = flow.steps.flatMap(flowStep => pendingFlowSelections[flowStep.id] || []);
+    addSelectedOptionsToCart(pendingOptionProductId, chosen);
+  };
 }
 
 function openProductOptions(id, anchor = null) {
@@ -892,7 +985,8 @@ function renderProductOptionsStep() {
   const actionText = choosingSubOption ? (state.lang === "ar" ? "إضافة إلى السلة" : "Add to cart") : (config.nestedEnabled ? (state.lang === "ar" ? "التالي" : "Next") : (state.lang === "ar" ? "إضافة إلى السلة" : "Add to cart"));
   const optionsTitle = !choosingSubOption && config.multiple ? (state.lang === "ar" ? config.titleAr : config.titleEn) : "";
   const maxHint = !choosingSubOption && config.multiple ? (state.lang === "ar" ? `يمكنك اختيار حتى ${new Intl.NumberFormat("ar-KW").format(config.maxSelections)} خيارات` : `Choose up to ${config.maxSelections} options`) : "";
-  productOptionsPopover.innerHTML = `<header><div><small>${state.lang === "ar" ? (choosingSubOption ? "الخيار الثاني" : "خيارات المنتج") : (choosingSubOption ? "Second option" : "Product options")}</small><strong>${escapeHtml(productName(item))}</strong></div><button type="button" data-close-options aria-label="${state.lang === "ar" ? "إغلاق" : "Close"}">×</button></header><p>${escapeHtml(stepText)}</p>${optionsTitle ? `<div class="option-group-title"><strong>${escapeHtml(optionsTitle)}</strong><small>${escapeHtml(maxHint)}</small></div>` : ""}<div class="product-options-list">${choices.map(option => `<label class="product-option-choice"><input type="${type}" name="${choiceName}" value="${escapeHtml(option.id)}">${option.image ? `<img src="${escapeHtml(option.image)}" alt="">` : ""}<span><b>${escapeHtml(optionName(option))}</b><small>${escapeHtml(state.lang === "ar" ? option.nameEn : option.nameAr)}</small>${option.preparation ? `<i>◷ ${escapeHtml(preparationLabel(option.preparation))}</i>` : ""}</span>${config.priceBased ? `<em>${money(option.price)}</em>` : ""}</label>`).join("")}</div><button type="button" class="primary" data-option-confirm disabled>${actionText}</button>`;
+  const startingTotal = config.priceBased && pendingPrimaryOption ? unitPrice(item, [pendingPrimaryOption]) : 0;
+  productOptionsPopover.innerHTML = `<header><div><small>${state.lang === "ar" ? (choosingSubOption ? "الخيار الثاني" : "خيارات المنتج") : (choosingSubOption ? "Second option" : "Product options")}</small><strong>${escapeHtml(productName(item))}</strong></div><button type="button" data-close-options aria-label="${state.lang === "ar" ? "إغلاق" : "Close"}">×</button></header><p>${escapeHtml(stepText)}</p>${optionsTitle ? `<div class="option-group-title"><strong>${escapeHtml(optionsTitle)}</strong><small>${escapeHtml(maxHint)}</small></div>` : ""}<div class="product-options-list">${choices.map(option => `<label class="product-option-choice"><input type="${type}" name="${choiceName}" value="${escapeHtml(option.id)}">${option.image ? `<img src="${escapeHtml(option.image)}" alt="">` : ""}<span><b>${escapeHtml(optionName(option))}</b><small>${escapeHtml(state.lang === "ar" ? option.nameEn : option.nameAr)}</small>${option.preparation ? `<i>◷ ${escapeHtml(preparationLabel(option.preparation))}</i>` : ""}</span>${config.priceBased ? `<em>${money(option.price)}</em>` : ""}</label>`).join("")}</div>${config.priceBased ? `<div class="selection-price"><span>${state.lang === "ar" ? "السعر الحالي" : "Current price"}</span><b data-option-current-price>${money(startingTotal)}</b></div>` : ""}<button type="button" class="primary" data-option-confirm disabled>${actionText}</button>`;
   productOptionsPopover.place?.();
   productOptionsPopover.querySelector("[data-close-options]").onclick = closeProductOptions;
   productOptionsPopover.querySelectorAll(`input[name="${choiceName}"]`).forEach(input => input.onchange = () => {
@@ -901,6 +995,10 @@ function renderProductOptionsStep() {
       input.checked = false;
       return toast(state.lang === "ar" ? `الحد الأقصى ${new Intl.NumberFormat("ar-KW").format(config.maxSelections)} خيارات` : `Maximum ${config.maxSelections} options`, "error");
     }
+    const selectedIds = [...selected].map(element => element.value);
+    const selectedOptions = choices.filter(option => selectedIds.includes(option.id));
+    const currentPrice = productOptionsPopover.querySelector("[data-option-current-price]");
+    if (currentPrice) currentPrice.textContent = money(unitPrice(item, pendingPrimaryOption ? [pendingPrimaryOption, ...selectedOptions] : selectedOptions));
     productOptionsPopover.querySelector("[data-option-confirm]").disabled = config.required && !productOptionsPopover.querySelector(`input[name="${choiceName}"]:checked`);
   });
   productOptionsPopover.querySelector("[data-option-confirm]").onclick = confirmProductOptions;
@@ -910,6 +1008,9 @@ function closeProductOptions() {
   pendingOptionProductId = "";
   pendingOptionAnchor = null;
   pendingPrimaryOption = null;
+  pendingSelectionFlow = null;
+  pendingFlowSelections = {};
+  pendingFlowStep = 0;
   productOptionsPopover?.remove();
   productOptionsPopover = null;
 }
