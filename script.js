@@ -179,18 +179,11 @@ function loadCurrentUser() {
   const profiles = readJson(PROFILE_KEY, {});
   if (!session?.phone || !profiles[session.phone]) return null;
   const profile = profiles[session.phone];
-  let migrated = false;
-  profile.orders = (profile.orders || []).map(order => {
-    if (order?.orderId !== "W00020") return order;
-    migrated = true;
-    return { ...order, orderId: "W00001" };
-  });
-  if (migrated) localStorage.setItem(PROFILE_KEY, JSON.stringify(profiles));
   return { ...profile };
 }
 
 function normalizeLegacyOrder(order) {
-  return order?.orderId === "W00020" ? { ...order, orderId: "W00001" } : order;
+  return order;
 }
 
 // The order tracker and the customer's invoice must always use the same
@@ -1504,7 +1497,7 @@ function orderDestination(order) {
 }
 
 async function renderOrderDetails(orderId, fromSuccess = false) {
-  let order = (state.user?.orders || []).map(normalizeLegacyOrder).find(item => item.orderId === orderId || (orderId === "W00020" && item.orderId === "W00001")) ||
+  let order = (state.user?.orders || []).map(normalizeLegacyOrder).find(item => item.orderId === orderId) ||
     (state.lastInvoice?.orderId === orderId ? state.lastInvoice : null);
   if (!order) return renderOrders();
   order = await canonicalOnlineOrder(order);
@@ -2087,6 +2080,10 @@ async function watchPayment(pending) {
       if (!response.ok || !data.ok) throw new Error(data.error || "Verification failed");
       errors = 0;
       if (data.status === "paid") {
+        if (data.orderId) {
+          state.order = data.orderId;
+          pending.orderId = data.orderId;
+        }
         trackStoreEvent("checkout_complete", { orderId: pending.orderId });
         paymentWatchVersion++;
         sessionStorage.removeItem("pendingBedeOrder");
