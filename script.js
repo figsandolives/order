@@ -768,7 +768,7 @@ function visibleLayer(selector) {
 
 function syncPageScrollLock() {
   const shouldLock = visibleLayer("#productPage") || visibleLayer("#productOptionsModal") || visibleLayer("#checkoutModal")
-    || visibleLayer("#accountDrawer") || visibleLayer("#authModal") || visibleLayer("#searchPopover");
+    || visibleLayer("#accountDrawer") || visibleLayer("#authModal") || visibleLayer("#searchPopover") || Boolean(productOptionsPopover);
   if (shouldLock && !pageScrollLocked) {
     pageScrollLockY = window.scrollY || window.pageYOffset || 0;
     document.documentElement.classList.add("page-scroll-locked");
@@ -887,7 +887,11 @@ function openSelectionFlow(id, anchor = null) {
   pendingFlowStep = 0;
   productOptionsPopover = document.createElement("section");
   productOptionsPopover.className = "product-options-popover selection-flow-popover";
+  const optionsBackdrop = document.createElement("div");
+  optionsBackdrop.className = "product-options-backdrop";
+  document.body.append(optionsBackdrop);
   document.body.append(productOptionsPopover);
+  syncPageScrollLock();
   productOptionsPopover.place = () => {
     const rect = pendingOptionAnchor?.getBoundingClientRect();
     if (!rect) return;
@@ -961,7 +965,11 @@ function openProductOptions(id, anchor = null) {
   pendingOptionAnchor = anchor || document.querySelector(`[data-product-add="${CSS.escape(String(id))}"]`);
   productOptionsPopover = document.createElement("section");
   productOptionsPopover.className = "product-options-popover";
+  const optionsBackdrop = document.createElement("div");
+  optionsBackdrop.className = "product-options-backdrop";
+  document.body.append(optionsBackdrop);
   document.body.append(productOptionsPopover);
+  syncPageScrollLock();
   const placePopover = () => {
     const rect = pendingOptionAnchor?.getBoundingClientRect();
     if (!rect) return;
@@ -1015,7 +1023,9 @@ function closeProductOptions() {
   pendingFlowSelections = {};
   pendingFlowStep = 0;
   productOptionsPopover?.remove();
+  $$(".product-options-backdrop").forEach(backdrop => backdrop.remove());
   productOptionsPopover = null;
+  syncPageScrollLock();
 }
 
 function confirmProductOptions() {
@@ -2597,10 +2607,6 @@ const productOptionsModal = $("#productOptionsModal");
 if (closeProductOptionsButton) closeProductOptionsButton.onclick = closeProductOptions;
 if (confirmProductOptionsButton) confirmProductOptionsButton.onclick = confirmProductOptions;
 if (productOptionsModal) productOptionsModal.onclick = event => { if (event.target === productOptionsModal) closeProductOptions(); };
-document.addEventListener("click", event => {
-  if (!productOptionsPopover || productOptionsPopover.contains(event.target) || event.target === pendingOptionAnchor) return;
-  closeProductOptions();
-});
 window.addEventListener("resize", () => { if (productOptionsPopover) closeProductOptions(); });
 $("#checkoutBtn").onclick = openCheckout;
 $("#cartSummary").onclick = openCheckout;
