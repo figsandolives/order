@@ -381,7 +381,7 @@ function productOptions(item) {
   const items = config.items.filter(option => option && (option.nameAr || option.nameEn)).map(option => ({
     id: String(option.id || option.nameAr || option.nameEn), nameAr: String(option.nameAr || option.nameEn || ""), nameEn: String(option.nameEn || option.nameAr || ""), price: Math.max(0, Number(option.price) || 0)
   }));
-  return items.length ? { required: config.required === true, multiple: config.multiple === true, items } : null;
+  return items.length ? { required: config.required === true, multiple: config.multiple === true, priceBased: config.priceBased === true, items } : null;
 }
 
 function optionName(option) {
