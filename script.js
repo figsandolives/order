@@ -669,7 +669,7 @@ function renderCategories() {
 function productQuantityControl(id, quantity, detail = false) {
   const escapedId = escapeHtml(id);
   if (!quantity) {
-    const hasOptions = Boolean(productOptions(product(id)));
+    const hasOptions = Boolean(productOptions(product(id)) || productSelectionFlow(product(id)));
     const label = hasOptions ? (state.lang === "ar" ? "اختيار" : "Select") : (detail ? tr("addToCart") : tr("add"));
     return `<button class="${detail ? "primary detail-add" : "product-add"}" data-product-add="${escapedId}">${label}</button>`;
   }
