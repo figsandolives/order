@@ -394,8 +394,7 @@ function unitPrice(item, selectedOptions = []) {
 function productPriceLabel(item) {
   const config = productOptions(item);
   if (!config?.priceBased) return money(item.price);
-  const prices = config.items.map(option => Math.max(0, Number(option.price) || 0));
-  return money(Math.min(...prices));
+  return state.lang === "ar" ? "السعر عند الاختيار" : "Price on selection";
 }
 
 function preparationLabel(item) {
