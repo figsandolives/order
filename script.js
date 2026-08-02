@@ -933,13 +933,15 @@ function renderSelectionFlowStep() {
     pendingFlowSelections[step.id] = next;
     renderSelectionFlowStep();
   });
-  productOptionsPopover.querySelectorAll("[data-flow-quantity]").forEach(button => button.onclick = () => {
+  productOptionsPopover.querySelectorAll("[data-flow-quantity]").forEach(button => button.onclick = event => {
+    event.stopPropagation();
     const current = pendingFlowSelections[step.id]?.[0];
     if (!current) return;
     current.quantity = Math.max(1, Number(current.quantity || 1) + (button.dataset.flowQuantity === "plus" ? 1 : -1));
     renderSelectionFlowStep();
   });
-  productOptionsPopover.querySelector("[data-flow-next]").onclick = () => {
+  productOptionsPopover.querySelector("[data-flow-next]").onclick = event => {
+    event.stopPropagation();
     if (!selected.length) return;
     if (!isLast) { pendingFlowStep++; return renderSelectionFlowStep(); }
     const chosen = flow.steps.flatMap(flowStep => pendingFlowSelections[flowStep.id] || []);
@@ -1001,7 +1003,10 @@ function renderProductOptionsStep() {
     if (currentPrice) currentPrice.textContent = money(unitPrice(item, pendingPrimaryOption ? [pendingPrimaryOption, ...selectedOptions] : selectedOptions));
     productOptionsPopover.querySelector("[data-option-confirm]").disabled = config.required && !productOptionsPopover.querySelector(`input[name="${choiceName}"]:checked`);
   });
-  productOptionsPopover.querySelector("[data-option-confirm]").onclick = confirmProductOptions;
+  productOptionsPopover.querySelector("[data-option-confirm]").onclick = event => {
+    event.stopPropagation();
+    confirmProductOptions();
+  };
 }
 
 function closeProductOptions() {
