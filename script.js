@@ -67,7 +67,7 @@ const translations = {
     preparingInvoiceDownload: "جاري تجهيز الفاتورة…", customer: "العميل", payOnline: "الدفع: أونلاين",
     quantity: "الكمية", price: "السعر", item: "الصنف", thankYou: "شكراً لزيارتكم!",
     healthPhrase: "صحتك أغلى ما تملك، فتناول شيئاً صحياً.", loadingError: "تعذر تحميل البيانات. يجب رفع جميع الملفات مع index.html.",
-    details: "تفاصيل المنتج", addToCart: "إضافة إلى السلة", image: "صورة المنتج",
+    details: "تفاصيل المنتج", addToCart: "إضافة إلى السلة", image: "صورة المنتج", chooseOptions: "اختر الخيارات", optionsRequired: "يرجى اختيار خيار واحد على الأقل", optionOptional: "يمكنك اختيار ما يناسبك", optionSingle: "اختر خياراً واحداً", optionMultiple: "يمكنك اختيار أكثر من خيار",
     login: "تسجيل الدخول", myAccount: "حسابي", loginFirst: "يرجى تسجيل الدخول أولاً",
     phone: "رقم الهاتف", phoneHint: "اكتب رقم الهاتف من 8 أرقام", confirmPhone: "تأكيد الرقم",
     invalidPhone: "رقم الهاتف يجب أن يتكون من 8 أرقام", codeSent: "أرسلنا رمز الدخول إلى واتساب",
@@ -132,7 +132,7 @@ const translations = {
     preparingInvoiceDownload: "Preparing your invoice…", customer: "Customer", payOnline: "Payment: Online",
     quantity: "Qty", price: "Price", item: "Item", thankYou: "Thank you for visiting!",
     healthPhrase: "Your health is precious—choose something healthy.", loadingError: "Could not load data. Upload every file next to index.html.",
-    details: "Product details", addToCart: "Add to cart", image: "Product image",
+    details: "Product details", addToCart: "Add to cart", image: "Product image", chooseOptions: "Choose options", optionsRequired: "Please select at least one option", optionOptional: "You may choose what suits you", optionSingle: "Choose one option", optionMultiple: "You may choose more than one option",
     login: "Login", myAccount: "My account", loginFirst: "Please login first", phone: "Phone number",
     phoneHint: "Enter your 8-digit phone number", confirmPhone: "Confirm number", invalidPhone: "Phone number must be exactly 8 digits",
     codeSent: "We sent your login code on WhatsApp", enterCode: "Enter the 4-digit login code",
@@ -256,6 +256,7 @@ let toastTimer;
 let paymentWatchVersion = 0;
 let resendTimer;
 let pendingCartProductId = "";
+let pendingOptionProductId = "";
 let authMode = "login";
 let authPhone = "";
 let accountReturnToCheckout = false;
@@ -372,10 +373,53 @@ function product(id) {
   return state.products.find(item => String(item.id) === String(id));
 }
 
+function productOptions(item) {
+  const config = item?.options;
+  if (!config || config.enabled === false || !Array.isArray(config.items)) return null;
+  const items = config.items.filter(option => option && (option.nameAr || option.nameEn)).map(option => ({
+    id: String(option.id || option.nameAr || option.nameEn), nameAr: String(option.nameAr || option.nameEn || ""), nameEn: String(option.nameEn || option.nameAr || ""), price: Math.max(0, Number(option.price) || 0)
+  }));
+  return items.length ? { required: config.required === true, multiple: config.multiple === true, items } : null;
+}
+
+function optionName(option) {
+  return state.lang === "ar" ? option.nameAr : (option.nameEn || option.nameAr);
+}
+
+function unitPrice(item, selectedOptions = []) {
+  const config = productOptions(item);
+  return config?.priceBased ? selectedOptions.reduce((sum, option) => sum + Math.max(0, Number(option.price) || 0), 0) : Math.max(0, Number(item?.price) || 0);
+}
+
+function productPriceLabel(item) {
+  const config = productOptions(item);
+  if (!config?.priceBased) return money(item.price);
+  const prices = config.items.map(option => Math.max(0, Number(option.price) || 0));
+  return money(Math.min(...prices));
+}
+
+function preparationLabel(item) {
+  const prep = item?.preparation || {};
+  const number = value => state.lang === "ar" ? new Intl.NumberFormat("ar-KW").format(value) : String(value);
+  const time = (value, kind) => {
+    if (state.lang === "ar") {
+      if (kind === "day") return value === 1 ? "يوم" : value === 2 ? "يومين" : `${number(value)} أيام`;
+      return value === 1 ? "ساعة" : value === 2 ? "ساعتين" : `${number(value)} ساعات`;
+    }
+    return `${number(value)} ${kind === "day" ? (value === 1 ? "day" : "days") : (value === 1 ? "hour" : "hours")}`;
+  };
+  const first = Math.max(1, Number(prep.first) || 2);
+  const single = time(first, prep.unit);
+  if (!prep.hasSecond || !Number(prep.second)) return state.lang === "ar" ? `خلال ${single}` : `Within ${single}`;
+  const second = Math.max(1, Number(prep.second));
+  const secondLabel = time(second, prep.secondUnit || prep.unit);
+  return state.lang === "ar" ? `خلال ${single} أو ${secondLabel}` : `Within ${single} or ${secondLabel}`;
+}
+
 function cartItems() {
   return Object.entries(state.cart).map(([id, value]) => {
     const entry = typeof value === "object" && value ? value : { quantity: value };
-    return { product: product(id), quantity: Number(entry.quantity), note: String(entry.note || "").slice(0, 240) };
+    return { product: product(id), quantity: Number(entry.quantity), note: String(entry.note || "").slice(0, 240), options: Array.isArray(entry.options) ? entry.options : [] };
   }).filter(item => item.product && item.quantity > 0);
 }
 function cartQuantity(id) {
@@ -388,7 +432,7 @@ function cartCount() {
 }
 
 function subtotal() {
-  return cartItems().reduce((sum, item) => sum + Number(item.product.price) * item.quantity, 0);
+  return cartItems().reduce((sum, item) => sum + unitPrice(item.product, item.options) * item.quantity, 0);
 }
 
 function deliveryFee() {
@@ -600,12 +644,13 @@ function productCard(item, category) {
     <article class="product-card" data-product="${escapeHtml(item.id)}" tabindex="0">
       <div class="product-image">
         <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" data-src="${escapeHtml(source)}" width="640" height="580" alt="${escapeHtml(productName(item))}" decoding="async" fetchpriority="low">
+        <span class="preparation-badge" aria-label="${escapeHtml(preparationLabel(item))}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/></svg>${escapeHtml(preparationLabel(item))}</span>
         <b class="in-cart ${quantity ? "" : "hidden"}" data-cart-badge="${escapeHtml(item.id)}">${quantity ? `${tr("inCart")} × ${quantity}` : ""}</b>
       </div>
       <div class="product-info">
         <h3>${escapeHtml(productName(item))}</h3>
         <p>${escapeHtml(productDescription(item) || item.nameEn || item.name)}</p>
-        <div class="product-foot"><strong>${money(item.price)}</strong><div class="product-quantity-slot" data-product-quantity="${escapeHtml(item.id)}">${productQuantityControl(item.id, quantity)}</div></div>
+        <div class="product-foot"><strong>${productPriceLabel(item)}</strong><div class="product-quantity-slot" data-product-quantity="${escapeHtml(item.id)}">${productQuantityControl(item.id, quantity)}</div></div>
       </div>
     </article>`;
 }
@@ -650,7 +695,7 @@ function renderSearchResults() {
     const source = productImages(item)[0] || "logo.png";
     return `<article class="search-result" data-search-product="${escapeHtml(item.id)}">
       <img src="${escapeHtml(source)}" alt="${escapeHtml(productName(item))}" loading="lazy">
-      <div><strong>${escapeHtml(productName(item))}</strong><small>${money(item.price)}</small></div>
+      <div><strong>${escapeHtml(productName(item))}</strong><small>${productPriceLabel(item)}</small></div>
       <button type="button" data-search-add="${escapeHtml(item.id)}">${tr("add")}</button>
     </article>`;
   }).join("") : `<div class="search-empty">${tr("noResults")}</div>`;
@@ -676,7 +721,7 @@ function visibleLayer(selector) {
 }
 
 function syncPageScrollLock() {
-  const shouldLock = visibleLayer("#productPage") || visibleLayer("#checkoutModal")
+  const shouldLock = visibleLayer("#productPage") || visibleLayer("#productOptionsModal") || visibleLayer("#checkoutModal")
     || visibleLayer("#accountDrawer") || visibleLayer("#authModal") || visibleLayer("#searchPopover");
   if (shouldLock && !pageScrollLocked) {
     pageScrollLockY = window.scrollY || window.pageYOffset || 0;
@@ -780,7 +825,47 @@ function requestAddToCart(id) {
     openAuth("login");
     return;
   }
+  const item = product(id);
+  if (productOptions(item)) return openProductOptions(id);
   changeQuantity(id, 1);
+  toast(tr("added"));
+}
+
+function openProductOptions(id) {
+  const item = product(id);
+  const config = productOptions(item);
+  if (!item || !config) return requestAddToCart(id);
+  pendingOptionProductId = id;
+  $("#productOptionsTitle").textContent = productName(item);
+  $("#productOptionsHint").textContent = config.required ? `${tr("optionsRequired")} · ${config.multiple ? tr("optionMultiple") : tr("optionSingle")}` : `${tr("optionOptional")} · ${config.multiple ? tr("optionMultiple") : tr("optionSingle")}`;
+  const type = config.multiple ? "checkbox" : "radio";
+  $("#productOptionsList").innerHTML = config.items.map(option => `<label class="product-option-choice"><input type="${type}" name="product-option" value="${escapeHtml(option.id)}"><span><b>${escapeHtml(optionName(option))}${config.priceBased ? ` — ${money(option.price)}` : ""}</b><small>${escapeHtml(state.lang === "ar" ? option.nameEn : option.nameAr)}</small></span></label>`).join("");
+  $("#productOptionsModal").classList.remove("hidden");
+  $("#productOptionsModal").setAttribute("aria-hidden", "false");
+  syncPageScrollLock();
+}
+
+function closeProductOptions() {
+  pendingOptionProductId = "";
+  $("#productOptionsModal").classList.add("hidden");
+  $("#productOptionsModal").setAttribute("aria-hidden", "true");
+  syncPageScrollLock();
+}
+
+function confirmProductOptions() {
+  const id = pendingOptionProductId;
+  const config = productOptions(product(id));
+  if (!id || !config) return closeProductOptions();
+  const selectedIds = $$('input[name="product-option"]:checked', $("#productOptionsList")).map(input => input.value);
+  if (config.required && !selectedIds.length) return toast(tr("optionsRequired"), "error");
+  const selected = config.items.filter(option => selectedIds.includes(option.id));
+  const existing = typeof state.cart[id] === "object" && state.cart[id] ? state.cart[id] : { quantity: 0, note: "" };
+  state.cart[id] = { ...existing, options: selected, quantity: Number(existing.quantity || 0) + 1 };
+  state.paymentRequestId = "";
+  persistCart();
+  renderCartBar();
+  syncProductQuantityControls(id);
+  closeProductOptions();
   toast(tr("added"));
 }
 
@@ -834,7 +919,7 @@ function renderProductDetail(id) {
       </div>
     </div>
     <div class="detail-purchase-bar">
-      <div><small>${escapeHtml(productName(item))}</small><strong class="detail-price">${money(item.price)}</strong></div>
+      <div><small>${escapeHtml(productName(item))}</small><strong class="detail-price">${productPriceLabel(item)}</strong></div>
       <div class="product-quantity-slot" data-product-quantity="${escapeHtml(item.id)}" data-detail-quantity="true">${productQuantityControl(item.id, quantity, true)}</div>
     </div>`;
 }
@@ -1498,9 +1583,9 @@ function minimumOrderNotice() {
 
 function renderReview() {
   $("#checkoutBody").innerHTML = `
-    <section class="checkout-review"><div class="cart-list">${cartItems().map(({ product: item, quantity, note }) => `
+    <section class="checkout-review"><div class="cart-list">${cartItems().map(({ product: item, quantity, note, options }) => `
       <div class="cart-row"><img src="${escapeHtml(productImages(item)[0] || "logo.png")}" alt="">
-        <div class="cart-copy"><h4>${escapeHtml(productName(item))}</h4><strong>${money(item.price * quantity)}</strong></div><label class="cart-note-label"><textarea aria-label="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}" data-cart-note="${escapeHtml(item.id)}" maxlength="240" placeholder="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}">${escapeHtml(note)}</textarea></label>
+        <div class="cart-copy"><h4>${escapeHtml(productName(item))}</h4>${options.length ? `<small class="cart-options">${escapeHtml(options.map(optionName).join("، "))}</small>` : ""}<strong>${money(unitPrice(item, options) * quantity)}</strong></div><label class="cart-note-label"><textarea aria-label="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}" data-cart-note="${escapeHtml(item.id)}" maxlength="240" placeholder="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}">${escapeHtml(note)}</textarea></label>
         <div class="qty"><button data-plus="${escapeHtml(item.id)}">+</button><span>${quantity}</span><button data-minus="${escapeHtml(item.id)}">${quantity === 1 ? "×" : "−"}</button></div>
       </div>`).join("")}</div><div class="checkout-sticky-actions">${totalsHtml()}<button class="primary" id="next1">${tr("confirmContinue")}</button></div></section>`;
   $$('[data-cart-note]').forEach(input => input.onchange = () => updateCartNote(input.dataset.cartNote, input.value));
@@ -1816,8 +1901,8 @@ function renderConfirmation() {
       </div>
       <div class="price-summary">
         <button class="price-row products-toggle" id="productsToggle"><span><b class="arrow">‹</b> ${tr("productsTotal")}</span><strong>${money(subtotal())}</strong></button>
-        <div class="confirmation-products hidden" id="confirmationProducts">${cartItems().map(({ product: item, quantity }) => `
-          <div class="confirmation-product"><img src="${escapeHtml(productImages(item)[0] || "logo.png")}" alt=""><span>${escapeHtml(productName(item))} × ${quantity}</span><b>${money(Number(item.price) * quantity)}</b></div>`).join("")}</div>
+        <div class="confirmation-products hidden" id="confirmationProducts">${cartItems().map(({ product: item, quantity, options }) => `
+          <div class="confirmation-product"><img src="${escapeHtml(productImages(item)[0] || "logo.png")}" alt=""><span>${escapeHtml(productName(item))} × ${quantity}</span><b>${money(unitPrice(item, options) * quantity)}</b></div>`).join("")}</div>
         <div class="price-row"><span>${tr("deliveryFee")}</span><strong>${money(deliveryFee())}</strong></div>
         <div class="price-row total-row"><span>${tr("total")}</span><strong>${money(total())}</strong></div>
       </div>
@@ -1874,7 +1959,7 @@ function paymentPayload(paymentMethod = state.paymentMethod) {
   return {
     idempotencyKey: state.paymentRequestId,
     customer: { name: state.user.name.trim(), phone: normalizePhone(state.user.phone) },
-    items: cartItems().map(({ product: item, quantity, note }) => ({ id: String(item.id), quantity, note })),
+    items: cartItems().map(({ product: item, quantity, note, options }) => ({ id: String(item.id), quantity, note, options })),
     delivery: { mode: state.mode, areaName: state.area?.name || "", branchId: state.branch || "", address: state.address || "" },
     paymentMethod,
     deliveryTime: {
@@ -2091,7 +2176,7 @@ function currentInvoiceModel() {
     scheduledAt: scheduled?.getTime() || null,
     expectedStart: asapWindow?.start.getTime() || null,
     expectedEnd: asapWindow?.end.getTime() || null,
-    items: cartItems().map(({ product: item, quantity, note }) => ({ id: String(item.id), nameAr: item.name, nameEn: item.nameEn || item.name, quantity, note, unitPrice: Number(item.price), total: Number(item.price) * quantity })),
+    items: cartItems().map(({ product: item, quantity, note, options }) => ({ id: String(item.id), nameAr: item.name, nameEn: item.nameEn || item.name, quantity, note, options, unitPrice: unitPrice(item, options), total: unitPrice(item, options) * quantity })),
     subtotal: subtotal(), deliveryFee: deliveryFee(), total: total(), paymentMethod: state.paymentMethod || "knet", status: "paid"
   };
 }
@@ -2144,7 +2229,7 @@ function buildInvoice(order) {
   const destination = order.mode === "delivery" ? `${order.areaName || ""} - ${order.address || ""}` : `${tr("pickup")}: ${pickup ? branchField(pickup, "name") : ""}`;
   const locale = state.lang === "ar" ? "ar-KW" : "en-GB";
   const createdAt = new Date(order.createdAt);
-  $("#invoice").innerHTML = `<section class="a4-invoice"><header class="a4-head"><img src="logo.png" alt=""><div><h1>فاتورة شراء</h1><p>Purchase Invoice</p></div></header><section class="a4-meta"><div><b>رقم الفاتورة</b><strong>#${escapeHtml(order.orderId)}</strong><b>تاريخ الإصدار</b><strong>${createdAt.toLocaleDateString(locale)}</strong></div><div class="a4-company">شركة صحي ولذيذ للتجهيزات الغذائية<br>Healthy &amp; Delicious Foodstuff Co.<br>الكويت، حولي، شارع تونس، مجمع علي فهد الخالد، دور الميزانين<br><span dir="ltr">66906605 · 22085888</span></div></section><section class="a4-parties"><div><span>العميل</span><b>${escapeHtml(order.customerName || tr("customer"))}</b><small class="a4-phone" dir="ltr">☎ ${escapeHtml(order.phone || "—")}</small></div><div><span>${order.mode === "delivery" ? "عنوان التوصيل" : "فرع الاستلام"}</span><b>${escapeHtml(destination)}</b><small class="a4-time">${invoiceDeliveryTime(order)}</small></div></section><table class="a4-items"><thead><tr><th>#</th><th>الصنف</th><th>الملاحظات</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead><tbody>${order.items.map((item, index) => `<tr><td>${index + 1}</td><td><b>${escapeHtml(item.nameAr || item.nameEn || item.id)}</b><small dir="ltr">${escapeHtml(item.nameEn || item.nameAr || item.id)}</small></td><td>${escapeHtml(item.note || "—")}</td><td>${item.quantity}</td><td>${money(item.unitPrice || (item.total / item.quantity))}</td><td><b>${money(item.total)}</b></td></tr>`).join("")}</tbody></table><section class="a4-total"><span>الإجمالي</span><strong>${money(order.total)}</strong></section><div class="a4-paid">✓&nbsp; مدفوع: ${escapeHtml(String(order.paymentMethod || "KNET").toUpperCase())}</div></section>`;
+  $("#invoice").innerHTML = `<section class="a4-invoice"><header class="a4-head"><img src="logo.png" alt=""><div><h1>فاتورة شراء</h1><p>Purchase Invoice</p></div></header><section class="a4-meta"><div><b>رقم الفاتورة</b><strong>#${escapeHtml(order.orderId)}</strong><b>تاريخ الإصدار</b><strong>${createdAt.toLocaleDateString(locale)}</strong></div><div class="a4-company">شركة صحي ولذيذ للتجهيزات الغذائية<br>Healthy &amp; Delicious Foodstuff Co.<br>الكويت، حولي، شارع تونس، مجمع علي فهد الخالد، دور الميزانين<br><span dir="ltr">66906605 · 22085888</span></div></section><section class="a4-parties"><div><span>العميل</span><b>${escapeHtml(order.customerName || tr("customer"))}</b><small class="a4-phone" dir="ltr">☎ ${escapeHtml(order.phone || "—")}</small></div><div><span>${order.mode === "delivery" ? "عنوان التوصيل" : "فرع الاستلام"}</span><b>${escapeHtml(destination)}</b><small class="a4-time">${invoiceDeliveryTime(order)}</small></div></section><table class="a4-items"><thead><tr><th>#</th><th>الصنف</th><th>الملاحظات</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead><tbody>${order.items.map((item, index) => `<tr><td>${index + 1}</td><td><b>${escapeHtml(item.nameAr || item.nameEn || item.id)}</b><small dir="ltr">${escapeHtml(item.nameEn || item.nameAr || item.id)}</small>${item.options?.length ? `<small>${escapeHtml(item.options.map(option => option.nameAr || option.nameEn).join("، "))}</small>` : ""}</td><td>${escapeHtml(item.note || "—")}</td><td>${item.quantity}</td><td>${money(item.unitPrice || (item.total / item.quantity))}</td><td><b>${money(item.total)}</b></td></tr>`).join("")}</tbody></table><section class="a4-total"><span>الإجمالي</span><strong>${money(order.total)}</strong></section><div class="a4-paid">✓&nbsp; مدفوع: ${escapeHtml(String(order.paymentMethod || "KNET").toUpperCase())}</div></section>`;
   $("#invoice").setAttribute("dir", state.lang === "ar" ? "rtl" : "ltr");
   const phoneLabel = $("#invoice .a4-phone");
   if (phoneLabel) phoneLabel.textContent = `☎︎ ${order.phone || "—"}`;
@@ -2320,6 +2405,9 @@ $("#productDetail").onclick = event => {
   }
 };
 $("#productBack").onclick = () => closeProductPage();
+$("#closeProductOptions").onclick = closeProductOptions;
+$("#confirmProductOptions").onclick = confirmProductOptions;
+$("#productOptionsModal").onclick = event => { if (event.target === $("#productOptionsModal")) closeProductOptions(); };
 $("#checkoutBtn").onclick = openCheckout;
 $("#cartSummary").onclick = openCheckout;
 $("#headerCart").onclick = openCheckout;
@@ -2339,7 +2427,7 @@ window.addEventListener("popstate", syncProductRoute);
 document.addEventListener("gesturestart", event => event.preventDefault(), { passive: false });
 
 const overlayStateObserver = new MutationObserver(syncPageScrollLock);
-["#productPage", "#checkoutModal", "#accountDrawer", "#authModal", "#searchPopover"].forEach(selector => {
+["#productPage", "#productOptionsModal", "#checkoutModal", "#accountDrawer", "#authModal", "#searchPopover"].forEach(selector => {
   const element = $(selector);
   if (element) overlayStateObserver.observe(element, { attributes: true, attributeFilter: ["class"] });
 });
@@ -2368,7 +2456,7 @@ function applyCatalog(catalog, cache = true) {
     catalog.version || "", catalog.updatedAt || "",
     catalog.appearance || {},
     catalog.categories.map(category => [category.id, category.active !== false, category.order, category.nameAr, category.nameEn]),
-    catalog.products.map(item => [item.id, item.active !== false, item.category, item.order, item.price, item.name, item.nameEn, item.image]),
+    catalog.products.map(item => [item.id, item.active !== false, item.category, item.order, item.price, item.name, item.nameEn, item.image, item.options || null, item.preparation || null]),
     catalog.deliveryAreas.map(area => [area.id, area.nameAr || area.name, area.nameEn, area.price, area.order])
   ]);
   if (signature === catalogSignature) return true;
