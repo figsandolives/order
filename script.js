@@ -835,6 +835,10 @@ function openProductOptions(id) {
   const item = product(id);
   const config = productOptions(item);
   if (!item || !config) return requestAddToCart(id);
+  if (!$("#productOptionsModal")) {
+    console.warn("Product options markup is unavailable; add the latest index.html deployment.");
+    return;
+  }
   pendingOptionProductId = id;
   $("#productOptionsTitle").textContent = productName(item);
   $("#productOptionsHint").textContent = config.required ? `${tr("optionsRequired")} · ${config.multiple ? tr("optionMultiple") : tr("optionSingle")}` : `${tr("optionOptional")} · ${config.multiple ? tr("optionMultiple") : tr("optionSingle")}`;
@@ -847,8 +851,10 @@ function openProductOptions(id) {
 
 function closeProductOptions() {
   pendingOptionProductId = "";
-  $("#productOptionsModal").classList.add("hidden");
-  $("#productOptionsModal").setAttribute("aria-hidden", "true");
+  const modal = $("#productOptionsModal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+  modal.setAttribute("aria-hidden", "true");
   syncPageScrollLock();
 }
 
@@ -2405,9 +2411,12 @@ $("#productDetail").onclick = event => {
   }
 };
 $("#productBack").onclick = () => closeProductPage();
-$("#closeProductOptions").onclick = closeProductOptions;
-$("#confirmProductOptions").onclick = confirmProductOptions;
-$("#productOptionsModal").onclick = event => { if (event.target === $("#productOptionsModal")) closeProductOptions(); };
+const closeProductOptionsButton = $("#closeProductOptions");
+const confirmProductOptionsButton = $("#confirmProductOptions");
+const productOptionsModal = $("#productOptionsModal");
+if (closeProductOptionsButton) closeProductOptionsButton.onclick = closeProductOptions;
+if (confirmProductOptionsButton) confirmProductOptionsButton.onclick = confirmProductOptions;
+if (productOptionsModal) productOptionsModal.onclick = event => { if (event.target === productOptionsModal) closeProductOptions(); };
 $("#checkoutBtn").onclick = openCheckout;
 $("#cartSummary").onclick = openCheckout;
 $("#headerCart").onclick = openCheckout;

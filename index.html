@@ -30,7 +30,7 @@
   <link rel="preconnect" href="https://firebasestorage.googleapis.com" crossorigin>
   <link rel="preconnect" href="https://menassafigs-default-rtdb.firebaseio.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260801-11">
+  <link rel="stylesheet" href="style.css?v=20260802-1">
   <link rel="stylesheet" href="payment.css?v=20260729-3">
   <link rel="stylesheet" href="account.css?v=20260731-3">
   <script type="application/ld+json">
@@ -180,6 +180,15 @@
     </div>
   </section>
 
+  <div class="modal hidden options-modal" id="productOptionsModal" aria-hidden="true">
+    <section class="product-options-panel" role="dialog" aria-modal="true" aria-labelledby="productOptionsTitle">
+      <div class="checkout-head"><div><span class="kicker">خيارات المنتج</span><h2 id="productOptionsTitle">اختر الخيارات</h2></div><button type="button" id="closeProductOptions" aria-label="إغلاق">×</button></div>
+      <p id="productOptionsHint"></p>
+      <div id="productOptionsList" class="product-options-list"></div>
+      <button type="button" class="primary" id="confirmProductOptions">إضافة إلى السلة</button>
+    </section>
+  </div>
+
   <div class="modal hidden" id="checkoutModal">
     <section class="checkout-panel">
       <div class="checkout-head"><div><span class="kicker">طلبك</span><h2 id="checkoutTitle">إتمام الطلب</h2></div><button id="closeCheckout">×</button></div>
@@ -230,6 +239,6 @@
   <script src="https://www.gstatic.com/firebasejs/11.10.0/firebase-storage-compat.js"></script>
   <script src="firebase-config.js"></script>
   <script src="config.js?v=20260730-1"></script>
-  <script src="script.js?v=20260801-25"></script>
+  <script src="script.js?v=20260802-1"></script>
 </body>
 </html>
