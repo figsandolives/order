@@ -252,6 +252,7 @@ let pendingCartProductId = "";
 let pendingOptionProductId = "";
 let pendingOptionAnchor = null;
 let productOptionsPopover = null;
+let pendingPrimaryOption = null;
 let authMode = "login";
 let authPhone = "";
 let accountReturnToCheckout = false;
@@ -372,9 +373,14 @@ function productOptions(item) {
   const config = item?.options;
   if (!config || config.enabled === false || !Array.isArray(config.items)) return null;
   const items = config.items.filter(option => option && (option.nameAr || option.nameEn)).map(option => ({
-    id: String(option.id || option.nameAr || option.nameEn), nameAr: String(option.nameAr || option.nameEn || ""), nameEn: String(option.nameEn || option.nameAr || ""), price: Math.max(0, Number(option.price) || 0), preparation: option.preparation || null, image: String(option.image || "")
+    id: String(option.id || option.nameAr || option.nameEn), nameAr: String(option.nameAr || option.nameEn || ""), nameEn: String(option.nameEn || option.nameAr || ""), price: Math.max(0, Number(option.price) || 0), preparation: option.preparation || null, image: String(option.image || ""),
+    subOptions: (Array.isArray(option.subOptions) ? option.subOptions : []).filter(subOption => subOption && (subOption.nameAr || subOption.nameEn)).map(subOption => ({
+      id: String(subOption.id || subOption.nameAr || subOption.nameEn), nameAr: String(subOption.nameAr || subOption.nameEn || ""), nameEn: String(subOption.nameEn || subOption.nameAr || ""), price: Math.max(0, Number(subOption.price) || 0)
+    }))
   }));
-  return items.length ? { required: config.required === true, multiple: config.multiple === true, priceBased: config.priceBased === true, items } : null;
+  const nestedEnabled = config.nestedEnabled === true;
+  const multiple = nestedEnabled ? false : config.multiple === true;
+  return items.length ? { required: nestedEnabled || config.required === true, multiple, maxSelections: multiple ? Math.min(items.length, Math.max(1, Number(config.maxSelections) || items.length)) : 1, titleAr: String(config.titleAr || ""), titleEn: String(config.titleEn || ""), priceBased: nestedEnabled || config.priceBased === true, nestedEnabled, items } : null;
 }
 
 function optionName(option) {
@@ -855,10 +861,8 @@ function openProductOptions(id, anchor = null) {
   closeProductOptions();
   pendingOptionProductId = id;
   pendingOptionAnchor = anchor || document.querySelector(`[data-product-add="${CSS.escape(String(id))}"]`);
-  const type = config.multiple ? "checkbox" : "radio";
   productOptionsPopover = document.createElement("section");
   productOptionsPopover.className = "product-options-popover";
-  productOptionsPopover.innerHTML = `<header><div><small>${state.lang === "ar" ? "خيارات المنتج" : "Product options"}</small><strong>${escapeHtml(productName(item))}</strong></div><button type="button" data-close-options aria-label="${state.lang === "ar" ? "إغلاق" : "Close"}">×</button></header><p>${config.required ? tr("optionsRequired") : tr("optionOptional")}</p><div class="product-options-list">${config.items.map(option => `<label class="product-option-choice"><input type="${type}" name="product-option" value="${escapeHtml(option.id)}">${option.image ? `<img src="${escapeHtml(option.image)}" alt="">` : ""}<span><b>${escapeHtml(optionName(option))}</b><small>${escapeHtml(state.lang === "ar" ? option.nameEn : option.nameAr)}</small>${option.preparation ? `<i>◷ ${escapeHtml(preparationLabel(option.preparation))}</i>` : ""}</span>${config.priceBased ? `<em>${money(option.price)}</em>` : ""}</label>`).join("")}</div><button type="button" class="primary" data-option-confirm disabled>${state.lang === "ar" ? "إضافة إلى السلة" : "Add to cart"}</button>`;
   document.body.append(productOptionsPopover);
   const placePopover = () => {
     const rect = pendingOptionAnchor?.getBoundingClientRect();
@@ -869,10 +873,35 @@ function openProductOptions(id, anchor = null) {
     if (top < 8) top = Math.min(window.innerHeight - productOptionsPopover.offsetHeight - 8, rect.bottom + 10);
     Object.assign(productOptionsPopover.style, { left: `${left}px`, top: `${Math.max(8, top)}px` });
   };
-  placePopover();
+  productOptionsPopover.place = placePopover;
+  renderProductOptionsStep();
+}
+
+function renderProductOptionsStep() {
+  const id = pendingOptionProductId;
+  const item = product(id);
+  const config = productOptions(item);
+  if (!productOptionsPopover || !item || !config) return closeProductOptions();
+  const choosingSubOption = Boolean(pendingPrimaryOption);
+  const choices = choosingSubOption ? pendingPrimaryOption.subOptions : config.items;
+  const choiceName = choosingSubOption ? "product-sub-option" : "product-option";
+  const type = choosingSubOption ? "radio" : (config.multiple ? "checkbox" : "radio");
+  const stepText = choosingSubOption
+    ? (state.lang === "ar" ? `اختر الخيار المرتبط بـ «${optionName(pendingPrimaryOption)}»` : `Choose an option for ${optionName(pendingPrimaryOption)}`)
+    : (config.required ? tr("optionsRequired") : tr("optionOptional"));
+  const actionText = choosingSubOption ? (state.lang === "ar" ? "إضافة إلى السلة" : "Add to cart") : (config.nestedEnabled ? (state.lang === "ar" ? "التالي" : "Next") : (state.lang === "ar" ? "إضافة إلى السلة" : "Add to cart"));
+  const optionsTitle = !choosingSubOption && config.multiple ? (state.lang === "ar" ? config.titleAr : config.titleEn) : "";
+  const maxHint = !choosingSubOption && config.multiple ? (state.lang === "ar" ? `يمكنك اختيار حتى ${new Intl.NumberFormat("ar-KW").format(config.maxSelections)} خيارات` : `Choose up to ${config.maxSelections} options`) : "";
+  productOptionsPopover.innerHTML = `<header><div><small>${state.lang === "ar" ? (choosingSubOption ? "الخيار الثاني" : "خيارات المنتج") : (choosingSubOption ? "Second option" : "Product options")}</small><strong>${escapeHtml(productName(item))}</strong></div><button type="button" data-close-options aria-label="${state.lang === "ar" ? "إغلاق" : "Close"}">×</button></header><p>${escapeHtml(stepText)}</p>${optionsTitle ? `<div class="option-group-title"><strong>${escapeHtml(optionsTitle)}</strong><small>${escapeHtml(maxHint)}</small></div>` : ""}<div class="product-options-list">${choices.map(option => `<label class="product-option-choice"><input type="${type}" name="${choiceName}" value="${escapeHtml(option.id)}">${option.image ? `<img src="${escapeHtml(option.image)}" alt="">` : ""}<span><b>${escapeHtml(optionName(option))}</b><small>${escapeHtml(state.lang === "ar" ? option.nameEn : option.nameAr)}</small>${option.preparation ? `<i>◷ ${escapeHtml(preparationLabel(option.preparation))}</i>` : ""}</span>${config.priceBased ? `<em>${money(option.price)}</em>` : ""}</label>`).join("")}</div><button type="button" class="primary" data-option-confirm disabled>${actionText}</button>`;
+  productOptionsPopover.place?.();
   productOptionsPopover.querySelector("[data-close-options]").onclick = closeProductOptions;
-  productOptionsPopover.querySelectorAll('input[name="product-option"]').forEach(input => input.onchange = () => {
-    productOptionsPopover.querySelector("[data-option-confirm]").disabled = !productOptionsPopover.querySelector('input[name="product-option"]:checked');
+  productOptionsPopover.querySelectorAll(`input[name="${choiceName}"]`).forEach(input => input.onchange = () => {
+    const selected = productOptionsPopover.querySelectorAll(`input[name="${choiceName}"]:checked`);
+    if (!choosingSubOption && config.multiple && selected.length > config.maxSelections) {
+      input.checked = false;
+      return toast(state.lang === "ar" ? `الحد الأقصى ${new Intl.NumberFormat("ar-KW").format(config.maxSelections)} خيارات` : `Maximum ${config.maxSelections} options`, "error");
+    }
+    productOptionsPopover.querySelector("[data-option-confirm]").disabled = config.required && !productOptionsPopover.querySelector(`input[name="${choiceName}"]:checked`);
   });
   productOptionsPopover.querySelector("[data-option-confirm]").onclick = confirmProductOptions;
 }
@@ -880,6 +909,7 @@ function openProductOptions(id, anchor = null) {
 function closeProductOptions() {
   pendingOptionProductId = "";
   pendingOptionAnchor = null;
+  pendingPrimaryOption = null;
   productOptionsPopover?.remove();
   productOptionsPopover = null;
 }
@@ -888,9 +918,25 @@ function confirmProductOptions() {
   const id = pendingOptionProductId;
   const config = productOptions(product(id));
   if (!id || !config) return closeProductOptions();
+  if (pendingPrimaryOption) {
+    const selectedId = productOptionsPopover?.querySelector('input[name="product-sub-option"]:checked')?.value;
+    const selectedSubOption = pendingPrimaryOption.subOptions.find(option => option.id === selectedId);
+    if (!selectedSubOption) return toast(tr("optionsRequired"), "error");
+    return addSelectedOptionsToCart(id, [pendingPrimaryOption, selectedSubOption]);
+  }
   const selectedIds = $$('input[name="product-option"]:checked', productOptionsPopover || document).map(input => input.value);
   if (config.required && !selectedIds.length) return toast(tr("optionsRequired"), "error");
   const selected = config.items.filter(option => selectedIds.includes(option.id));
+  if (config.nestedEnabled) {
+    pendingPrimaryOption = selected[0] || null;
+    if (!pendingPrimaryOption) return toast(tr("optionsRequired"), "error");
+    if (!pendingPrimaryOption.subOptions.length) return toast(state.lang === "ar" ? "لا توجد خيارات مرتبطة بهذا الخيار بعد" : "No linked options are available yet", "error");
+    return renderProductOptionsStep();
+  }
+  addSelectedOptionsToCart(id, selected);
+}
+
+function addSelectedOptionsToCart(id, selected) {
   const existing = typeof state.cart[id] === "object" && state.cart[id] ? state.cart[id] : { quantity: 0, note: "" };
   state.cart[id] = { ...existing, options: selected, quantity: Number(existing.quantity || 0) + 1 };
   state.paymentRequestId = "";
