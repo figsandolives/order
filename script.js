@@ -245,6 +245,7 @@ const DEFAULT_APPEARANCE = Object.freeze({
 });
 const state = {
   products: [], categories: [], areas: [], cart: loadUserCart(initialUser), search: "", activeCategory: "all",
+  catalogType: localStorage.getItem("figsOlivesCatalogType") === "restaurant" ? "restaurant" : "bakery",
   lang: localStorage.getItem("storeLanguage") === "en" ? "en" : "ar",
   step: 1, mode: "delivery", area: null, branch: "", addressId: "", address: "",
   name: "", phone: "", order: "", paymentRequestId: "", detailProductId: "",
@@ -356,6 +357,14 @@ function trLocaleDate(date) {
 
 function categoryName(category) {
   return state.lang === "ar" ? category.nameAr : (category.nameEn || category.nameAr);
+}
+
+function catalogTypeOf(entry) {
+  return entry?.catalogType === "restaurant" ? "restaurant" : "bakery";
+}
+
+function isCurrentCatalog(entry) {
+  return catalogTypeOf(entry) === state.catalogType;
 }
 
 function productName(product) {
@@ -688,6 +697,7 @@ function applyLanguage() {
   $$("[data-i18n-html]").forEach(element => element.innerHTML = tr(element.dataset.i18nHtml));
   $$("[data-i18n-placeholder]").forEach(element => element.placeholder = tr(element.dataset.i18nPlaceholder));
   $("#languageLabel").textContent = state.lang === "ar" ? "English" : "العربية";
+  renderCatalogSwitch();
   $(".steps [data-step='1'] span").textContent = tr("review");
   $(".steps [data-step='2'] span").textContent = tr("deliveryDetails");
   $(".steps [data-step='3'] span").textContent = tr("deliveryTime");
@@ -709,15 +719,45 @@ function setLanguage(language) {
 }
 
 function sortedCategories() {
-  return state.categories.slice().sort((a, b) => Number(a.order) - Number(b.order));
+  return state.categories.filter(isCurrentCatalog).slice().sort((a, b) => Number(a.order) - Number(b.order));
 }
 
 function categoryProducts(categoryId) {
-  return state.products.filter(item => item.category === categoryId).sort((a, b) => Number(a.order) - Number(b.order));
+  return state.products.filter(item => item.category === categoryId && isCurrentCatalog(item)).sort((a, b) => Number(a.order) - Number(b.order));
+}
+
+function setCatalogType(type) {
+  const next = type === "restaurant" ? "restaurant" : "bakery";
+  if (next === state.catalogType) return;
+  state.catalogType = next;
+  state.activeCategory = "all";
+  localStorage.setItem("figsOlivesCatalogType", next);
+  const restaurant = next === "restaurant";
+  $("#catalogTransitionTitle").textContent = state.lang === "ar"
+    ? (restaurant ? "جاري الانتقال إلى أصناف المطعم" : "جاري الانتقال إلى أصناف المخبز")
+    : (restaurant ? "Moving to restaurant items" : "Moving to bakery items");
+  $("#catalogTransitionHint").textContent = state.lang === "ar" ? "لحظة من فضلك" : "One moment please";
+  $("#catalogTransition").classList.remove("hidden");
+  window.setTimeout(() => {
+    $("#catalogTransition").classList.add("hidden");
+    renderCatalogSwitch();
+    renderCategories();
+    renderProductSections();
+    window.scrollTo({ top: Math.max(0, ($(".catalog")?.offsetTop || 0) - 80), behavior: "smooth" });
+  }, 1000);
+}
+
+function renderCatalogSwitch() {
+  const button = $("#catalogSwitch");
+  if (!button) return;
+  const nextRestaurant = state.catalogType !== "restaurant";
+  button.textContent = state.lang === "ar" ? (nextRestaurant ? "أصناف المطعم" : "أصناف المخبز") : (nextRestaurant ? "Restaurant items" : "Bakery items");
+  button.dataset.catalogTarget = nextRestaurant ? "restaurant" : "bakery";
 }
 
 function renderCategories() {
-  const buttons = [`<button class="${state.activeCategory === "all" ? "active" : ""}" data-category-link="all">${tr("all")} <small>${state.products.length}</small></button>`];
+  const count = state.products.filter(isCurrentCatalog).length;
+  const buttons = [`<button class="${state.activeCategory === "all" ? "active" : ""}" data-category-link="all">${tr("all")} <small>${count}</small></button>`];
   for (const category of sortedCategories()) {
     const count = categoryProducts(category.id).length;
     if (count) buttons.push(`<button class="${state.activeCategory === category.id ? "active" : ""}" data-category-link="${escapeHtml(category.id)}">${escapeHtml(categoryName(category))} <small>${count}</small></button>`);
@@ -2658,6 +2698,7 @@ $("#categories").onclick = event => {
   const button = event.target.closest("[data-category-link]");
   if (button) scrollToCategory(button.dataset.categoryLink);
 };
+$("#catalogSwitch").onclick = event => setCatalogType(event.currentTarget.dataset.catalogTarget);
 function handleProductQuantityEvent(event) {
   const add = event.target.closest("[data-product-add]");
   const plus = event.target.closest("[data-product-plus]");
@@ -2744,8 +2785,8 @@ function applyCatalog(catalog, cache = true) {
   const signature = JSON.stringify([
     catalog.version || "", catalog.updatedAt || "",
     catalog.appearance || {},
-    catalog.categories.map(category => [category.id, category.active !== false, category.order, category.nameAr, category.nameEn]),
-    catalog.products.map(item => [item.id, item.active !== false, item.category, item.order, item.price, item.name, item.nameEn, item.image, item.options || null, item.preparation || null]),
+    catalog.categories.map(category => [category.id, category.catalogType || "bakery", category.active !== false, category.order, category.nameAr, category.nameEn]),
+    catalog.products.map(item => [item.id, item.catalogType || "bakery", item.active !== false, item.category, item.order, item.price, item.name, item.nameEn, item.image, item.options || null, item.preparation || null]),
     catalog.deliveryAreas.map(area => [area.id, area.nameAr || area.name, area.nameEn, area.price, area.order])
   ]);
   if (signature === catalogSignature) return true;
