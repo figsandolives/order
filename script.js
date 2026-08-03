@@ -3,6 +3,7 @@ const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const orderingConfig = window.ORDERING_CONFIG || {};
 const firebaseServices = window.ORDERING_FIREBASE;
 let firebaseAuthUser = null;
+let firebaseProfileHydrated = false;
 
 const firebaseIdentityReady = new Promise(resolve => {
   if (!firebaseServices) return resolve(null);
@@ -183,7 +184,16 @@ function loadCurrentUser() {
 }
 
 function normalizeLegacyOrder(order) {
-  return order;
+  if (!order || typeof order !== "object") return {};
+  const orderId = String(order.orderId || order.id || "");
+  return {
+    ...order,
+    orderId,
+    items: Array.isArray(order.items) ? order.items : [],
+    subtotal: Number(order.subtotal ?? order.total ?? 0),
+    deliveryFee: Number(order.deliveryFee || 0),
+    total: Number(order.total || 0)
+  };
 }
 
 // The order tracker and the customer's invoice must always use the same
@@ -578,14 +588,24 @@ async function syncUserToFirebase() {
   const identity = firebaseAuthUser || await firebaseIdentityReady;
   if (!identity || !state.user?.phone || !state.user?.name) return;
   const profile = state.user;
-  await firebaseServices.database.ref(`orderingPlatform/customers/${identity.uid}`).set({
-    phone: normalizePhone(profile.phone),
-    name: String(profile.name || "").slice(0, 80),
-    addresses: Array.isArray(profile.addresses) ? profile.addresses : [],
-    orders: Array.isArray(profile.orders) ? profile.orders : [],
-    cart: state.cart && typeof state.cart === "object" ? state.cart : {},
-    updatedAt: firebase.database.ServerValue.TIMESTAMP
+  const phone = normalizePhone(profile.phone);
+  // A browser can briefly restore an old local profile before its cloud copy
+  // finishes loading. Never let that empty copy erase saved orders/addresses.
+  await firebaseServices.database.ref(`orderingPlatform/customers/${identity.uid}`).transaction(current => {
+    const remote = current && typeof current === "object" ? current : {};
+    const localAddresses = Array.isArray(profile.addresses) ? profile.addresses : [];
+    const localOrders = Array.isArray(profile.orders) ? profile.orders : [];
+    return {
+      ...remote,
+      phone,
+      name: String(profile.name || remote.name || "").slice(0, 80),
+      addresses: !firebaseProfileHydrated && !localAddresses.length && Array.isArray(remote.addresses) ? remote.addresses : localAddresses,
+      orders: !firebaseProfileHydrated && !localOrders.length && Array.isArray(remote.orders) ? remote.orders : localOrders,
+      cart: state.cart && typeof state.cart === "object" ? state.cart : (remote.cart || {}),
+      updatedAt: firebase.database.ServerValue.TIMESTAMP
+    };
   });
+  firebaseProfileHydrated = true;
 }
 
 async function hydrateUserFromFirebase() {
@@ -616,6 +636,7 @@ async function hydrateUserFromFirebase() {
     localStorage.setItem(PROFILE_KEY, JSON.stringify(profiles));
     state.name = state.user.name;
     state.phone = state.user.phone;
+    firebaseProfileHydrated = true;
     updateAccountButton();
   } catch (error) {
     console.error("Firebase profile load failed", error);
