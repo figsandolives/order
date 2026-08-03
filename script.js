@@ -411,14 +411,23 @@ function productSelectionFlow(item) {
       price: Math.max(0, Number(option.price) || 0),
       priceGroup: String(option.priceGroup || ""),
       maxFillingSelections: option.maxFillingSelections ?? null,
+      pieces: Math.max(1, Number(option.pieces) || 1),
       quantity: Math.max(1, Number(option.quantity) || 1)
-    }))
+    })),
+    distributeQuantity: step.distributeQuantity === true
   })).filter(step => step.items.length);
   return steps.length ? { steps } : null;
 }
 
 function optionName(option) {
   return state.lang === "ar" ? option.nameAr : (option.nameEn || option.nameAr);
+}
+
+function optionSummary(option) {
+  const name = optionName(option);
+  return option?.isFilling || option?.flowStepId === "fillings"
+    ? `${new Intl.NumberFormat(state.lang === "ar" ? "ar-KW" : "en").format(Math.max(1, Number(option.quantity) || 1))} ${name}`
+    : name;
 }
 
 function unitPrice(item, selectedOptions = []) {
@@ -962,6 +971,16 @@ function flowLimit(step) {
   return Math.min(step.items.length, Math.max(1, Number(limit) || step.maxSelections));
 }
 
+function flowFillingRequirement(step) {
+  if (!step?.distributeQuantity || !step.limitFrom) return 0;
+  const source = pendingFlowSelections[step.limitFrom]?.[0];
+  return Math.max(1, Number(source?.pieces) || 1) * Math.max(1, Number(source?.quantity) || 1);
+}
+
+function flowSelectedQuantity(selected) {
+  return selected.reduce((total, option) => total + Math.max(1, Number(option.quantity) || 1), 0);
+}
+
 function renderSelectionFlowStep() {
   const item = product(pendingOptionProductId);
   const flow = pendingSelectionFlow;
@@ -969,15 +988,21 @@ function renderSelectionFlowStep() {
   if (!item || !step || !productOptionsPopover) return closeProductOptions();
   const selected = pendingFlowSelections[step.id] || [];
   const limit = flowLimit(step);
+  const fillingRequirement = flowFillingRequirement(step);
+  const selectedFillingQuantity = flowSelectedQuantity(selected);
   const type = step.multiple ? "checkbox" : "radio";
   const title = state.lang === "ar" ? step.titleAr : step.titleEn;
-  const hint = step.multiple ? (state.lang === "ar" ? `يمكنك اختيار حتى ${new Intl.NumberFormat("ar-KW").format(limit)} خيارات` : `Choose up to ${limit} options`) : "";
+  const hint = fillingRequirement
+    ? (state.lang === "ar" ? `وزّع ${new Intl.NumberFormat("ar-KW").format(fillingRequirement)} حبة على الحشوات` : `Distribute ${fillingRequirement} pieces across fillings`)
+    : (step.multiple ? (state.lang === "ar" ? `يمكنك اختيار حتى ${new Intl.NumberFormat("ar-KW").format(limit)} خيارات` : `Choose up to ${limit} options`) : "");
   const isLast = pendingFlowStep === flow.steps.length - 1;
   const currentPrice = unitPrice(item, flow.steps.flatMap(flowStep => pendingFlowSelections[flowStep.id] || [])) * selectedFlowQuantity(flow, pendingFlowSelections);
   const listScrollTop = productOptionsPopover.querySelector(".product-options-list")?.scrollTop || 0;
-  productOptionsPopover.innerHTML = `<header><div><small>${state.lang === "ar" ? `الخطوة ${new Intl.NumberFormat("ar-KW").format(pendingFlowStep + 1)} من ${new Intl.NumberFormat("ar-KW").format(flow.steps.length)}` : `Step ${pendingFlowStep + 1} of ${flow.steps.length}`}</small><strong>${escapeHtml(productName(item))}</strong></div><button type="button" data-close-options aria-label="${state.lang === "ar" ? "إغلاق" : "Close"}">×</button></header><div class="option-group-title"><strong>${escapeHtml(title)}</strong>${hint ? `<small>${escapeHtml(hint)}</small>` : ""}</div><div class="product-options-list">${step.items.map(option => {
+  const fillingStatus = fillingRequirement ? `<div class="filling-progress">${state.lang === "ar" ? "الحشوات المختارة" : "Selected fillings"}: <b class="${selectedFillingQuantity === fillingRequirement ? "complete" : ""}">${new Intl.NumberFormat(state.lang === "ar" ? "ar-KW" : "en").format(selectedFillingQuantity)} / ${new Intl.NumberFormat(state.lang === "ar" ? "ar-KW" : "en").format(fillingRequirement)}</b></div>` : "";
+  productOptionsPopover.innerHTML = `<header><div><small>${state.lang === "ar" ? `الخطوة ${new Intl.NumberFormat("ar-KW").format(pendingFlowStep + 1)} من ${new Intl.NumberFormat("ar-KW").format(flow.steps.length)}` : `Step ${pendingFlowStep + 1} of ${flow.steps.length}`}</small><strong>${escapeHtml(productName(item))}</strong></div><button type="button" data-close-options aria-label="${state.lang === "ar" ? "إغلاق" : "Close"}">×</button></header><div class="option-group-title"><strong>${escapeHtml(title)}</strong>${hint ? `<small>${escapeHtml(hint)}</small>` : ""}</div>${fillingStatus}<div class="product-options-list">${step.items.map(option => {
     const chosen = selected.find(selectedOption => selectedOption.id === option.id);
-    return `<div class="flow-option-row"><label class="product-option-choice"><input type="${type}" name="selection-flow-option" value="${escapeHtml(option.id)}" ${chosen ? "checked" : ""}><span><b>${escapeHtml(optionName(option))}</b><small>${escapeHtml(state.lang === "ar" ? option.nameEn : option.nameAr)}</small></span>${option.price ? `<em>+ ${money(option.price)}</em>` : ""}${step.quantityEnabled && chosen ? `<div class="qty flow-choice-quantity"><button type="button" data-flow-quantity="plus" data-flow-option-id="${escapeHtml(option.id)}">+</button><span>${new Intl.NumberFormat(state.lang === "ar" ? "ar-KW" : "en").format(chosen.quantity || 1)}</span><button type="button" data-flow-quantity="minus" data-flow-option-id="${escapeHtml(option.id)}">${chosen.quantity === 1 ? "×" : "−"}</button></div>` : ""}</label></div>`;
+    const perUnitHint = option.price && (step.id === "dough" || option.priceGroup) ? `<small class="per-unit-price">${state.lang === "ar" ? "* للكمية الواحدة" : "* per quantity"}</small>` : "";
+    return `<div class="flow-option-row"><label class="product-option-choice"><input type="${type}" name="selection-flow-option" value="${escapeHtml(option.id)}" ${chosen ? "checked" : ""}><span><b>${escapeHtml(optionName(option))}</b><small>${escapeHtml(state.lang === "ar" ? option.nameEn : option.nameAr)}</small></span>${option.price ? `<em>+ ${money(option.price)}${perUnitHint}</em>` : ""}</label>${step.quantityEnabled && chosen ? `<div class="qty flow-choice-quantity"><button type="button" data-flow-quantity="plus" data-flow-option-id="${escapeHtml(option.id)}">+</button><span>${new Intl.NumberFormat(state.lang === "ar" ? "ar-KW" : "en").format(chosen.quantity || 1)}</span><button type="button" data-flow-quantity="minus" data-flow-option-id="${escapeHtml(option.id)}">${chosen.quantity === 1 ? "×" : "−"}</button></div>` : ""}</div>`;
   }).join("")}</div><div class="selection-flow-footer"><div class="selection-price"><span>${state.lang === "ar" ? "السعر الحالي" : "Current price"}</span><b>${money(currentPrice)}</b></div><button type="button" class="primary" data-flow-next ${selected.length ? "" : "disabled"}>${isLast ? (state.lang === "ar" ? "إضافة إلى السلة" : "Add to cart") : (state.lang === "ar" ? "التالي" : "Next")}</button></div>`;
   productOptionsPopover.place?.();
   const optionsList = productOptionsPopover.querySelector(".product-options-list");
@@ -987,7 +1012,7 @@ function renderSelectionFlowStep() {
     const choice = step.items.find(option => option.id === input.value);
     if (!choice) return;
     let next = step.multiple ? [...(pendingFlowSelections[step.id] || [])] : [];
-    if (input.checked && !next.some(option => option.id === choice.id)) next.push({ ...choice });
+    if (input.checked && !next.some(option => option.id === choice.id)) next.push({ ...choice, quantity: 1, flowStepId: step.id, isFilling: step.distributeQuantity === true });
     if (!input.checked) next = next.filter(option => option.id !== choice.id);
     if (next.length > limit) return toast(state.lang === "ar" ? `الحد الأقصى ${new Intl.NumberFormat("ar-KW").format(limit)} خيارات` : `Maximum ${limit} options`, "error"), renderSelectionFlowStep();
     pendingFlowSelections[step.id] = next;
@@ -998,12 +1023,19 @@ function renderSelectionFlowStep() {
     event.stopPropagation();
     const current = pendingFlowSelections[step.id]?.find(option => option.id === button.dataset.flowOptionId);
     if (!current) return;
-    current.quantity = Math.max(1, Number(current.quantity || 1) + (button.dataset.flowQuantity === "plus" ? 1 : -1));
+    const amount = Number(current.quantity || 1);
+    if (button.dataset.flowQuantity === "plus" && fillingRequirement && flowSelectedQuantity(pendingFlowSelections[step.id] || []) >= fillingRequirement) {
+      return toast(state.lang === "ar" ? "لقد اكتمل عدد الحشوات المطلوب" : "The required fillings quantity is complete", "error");
+    }
+    current.quantity = Math.max(1, amount + (button.dataset.flowQuantity === "plus" ? 1 : -1));
     renderSelectionFlowStep();
   });
   productOptionsPopover.querySelector("[data-flow-next]").onclick = event => {
     event.stopPropagation();
     if (!selected.length) return;
+    if (isLast && fillingRequirement && selectedFillingQuantity !== fillingRequirement) {
+      return toast(state.lang === "ar" ? "ارجو اكمال اختيار الحشوات للكمية كاملة" : "Please complete filling selections for the full quantity", "error");
+    }
     if (!isLast) { pendingFlowStep++; return renderSelectionFlowStep(); }
     const chosen = flow.steps.flatMap(flowStep => pendingFlowSelections[flowStep.id] || []);
     addSelectedOptionsToCart(pendingOptionProductId, chosen, selectedFlowQuantity(flow, pendingFlowSelections));
@@ -1831,7 +1863,7 @@ function renderReview() {
   $("#checkoutBody").innerHTML = `
     <section class="checkout-review"><div class="cart-list">${cartItems().map(({ product: item, quantity, note, options }) => `
       <div class="cart-row"><img src="${escapeHtml(productImages(item)[0] || "logo.png")}" alt="">
-        <div class="cart-copy"><h4>${escapeHtml(productName(item))}</h4>${options.length ? `<small class="cart-options">${escapeHtml(options.map(optionName).join("، "))}</small>` : ""}<strong>${money(unitPrice(item, options) * quantity)}</strong></div><label class="cart-note-label"><textarea aria-label="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}" data-cart-note="${escapeHtml(item.id)}" maxlength="240" placeholder="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}">${escapeHtml(note)}</textarea></label>
+        <div class="cart-copy"><h4>${escapeHtml(productName(item))}</h4>${options.length ? `<small class="cart-options">${escapeHtml(options.map(optionSummary).join("، "))}</small>` : ""}<strong>${money(unitPrice(item, options) * quantity)}</strong></div><label class="cart-note-label"><textarea aria-label="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}" data-cart-note="${escapeHtml(item.id)}" maxlength="240" placeholder="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}">${escapeHtml(note)}</textarea></label>
         <div class="qty"><button data-plus="${escapeHtml(item.id)}">+</button><span>${quantity}</span><button data-minus="${escapeHtml(item.id)}">${quantity === 1 ? "×" : "−"}</button></div>
       </div>`).join("")}</div><div class="checkout-sticky-actions">${cartHasLongPreparationItems() ? `<p class="long-preparation-notice">${state.lang === "ar" ? "ملاحظة: يوجد في طلبك أصناف تأخذ وقت للتجهيز.. لذا يرجى العلم أنه قد يتأخر طلبك أو يتم تأجيله." : "Note: Your order includes items that need extra preparation time, so it may be delayed or rescheduled."}</p>` : ""}${totalsHtml()}<button class="primary" id="next1">${tr("confirmContinue")}</button></div></section>`;
   $$('[data-cart-note]').forEach(input => input.onchange = () => updateCartNote(input.dataset.cartNote, input.value));
@@ -2482,7 +2514,7 @@ function buildInvoice(order) {
   const customerLine = [order.customerName || tr("customer"), order.phone || "—", destination].filter(Boolean).map(escapeHtml).join("&nbsp; · &nbsp;");
   const deliveryTime = invoiceDeliveryTime(order);
   const productsValue = Number.isFinite(Number(order.subtotal)) ? Number(order.subtotal) : Math.max(0, Number(order.total || 0) - Number(order.deliveryFee || 0));
-  $("#invoice").innerHTML = `<section class="a4-invoice"><header class="a4-head"><img src="logo.png" alt=""><div><h1>فاتورة شراء</h1><p>Purchase Invoice</p></div></header><section class="a4-meta"><div><b>رقم الفاتورة</b><strong>#${escapeHtml(order.orderId)}</strong><b>تاريخ الإصدار</b><strong>${createdAt.toLocaleDateString(locale)}</strong></div><div class="a4-company">شركة صحي ولذيذ للتجهيزات الغذائية<br>حولي، شارع تونس، مجمع علي فهد الخالد، دور الميزانين<br><span dir="ltr">66906605 · 22085888</span></div></section><p class="a4-customer-line">${customerLine}</p><table class="a4-items"><thead><tr><th>#</th><th>الصنف</th><th>الملاحظات</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead><tbody>${order.items.map((item, index) => `<tr><td>${index + 1}</td><td><b>${escapeHtml(item.nameAr || item.nameEn || item.id)}</b><small dir="ltr">${escapeHtml(item.nameEn || item.nameAr || item.id)}</small>${item.options?.length ? `<small>${escapeHtml(item.options.map(option => option.nameAr || option.nameEn).join("، "))}</small>` : ""}</td><td>${escapeHtml(item.note || "—")}</td><td>${item.quantity}</td><td>${money(item.unitPrice || (item.total / item.quantity))}</td><td><b>${money(item.total)}</b></td></tr>`).join("")}</tbody></table>${invoicePreparationNotice(order)}<section class="a4-summary-row"><section class="a4-delivery-time"><small>${order.mode === "pickup" ? tr("pickupTime") : tr("deliveryTime")}</small><strong>${deliveryTime}</strong></section><section class="a4-total"><span><b>${tr("productsTotal")}</b><strong>${money(productsValue)}</strong></span><span><b>${tr("deliveryFee")}</b><strong>${money(order.deliveryFee)}</strong></span><span class="a4-grand-total"><b>${tr("total")}</b><strong>${money(order.total)}</strong></span></section></section><div class="a4-paid">✓&nbsp; مدفوع: ${escapeHtml(String(order.paymentMethod || "KNET").toUpperCase())}</div></section>`;
+  $("#invoice").innerHTML = `<section class="a4-invoice"><header class="a4-head"><img src="logo.png" alt=""><div><h1>فاتورة شراء</h1><p>Purchase Invoice</p></div></header><section class="a4-meta"><div><b>رقم الفاتورة</b><strong>#${escapeHtml(order.orderId)}</strong><b>تاريخ الإصدار</b><strong>${createdAt.toLocaleDateString(locale)}</strong></div><div class="a4-company">شركة صحي ولذيذ للتجهيزات الغذائية<br>حولي، شارع تونس، مجمع علي فهد الخالد، دور الميزانين<br><span dir="ltr">66906605 · 22085888</span></div></section><p class="a4-customer-line">${customerLine}</p><table class="a4-items"><thead><tr><th>#</th><th>الصنف</th><th>الملاحظات</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead><tbody>${order.items.map((item, index) => `<tr><td>${index + 1}</td><td><b>${escapeHtml(item.nameAr || item.nameEn || item.id)}</b><small dir="ltr">${escapeHtml(item.nameEn || item.nameAr || item.id)}</small>${item.options?.length ? `<small>${escapeHtml(item.options.map(optionSummary).join("، "))}</small>` : ""}</td><td>${escapeHtml(item.note || "—")}</td><td>${item.quantity}</td><td>${money(item.unitPrice || (item.total / item.quantity))}</td><td><b>${money(item.total)}</b></td></tr>`).join("")}</tbody></table>${invoicePreparationNotice(order)}<section class="a4-summary-row"><section class="a4-delivery-time"><small>${order.mode === "pickup" ? tr("pickupTime") : tr("deliveryTime")}</small><strong>${deliveryTime}</strong></section><section class="a4-total"><span><b>${tr("productsTotal")}</b><strong>${money(productsValue)}</strong></span><span><b>${tr("deliveryFee")}</b><strong>${money(order.deliveryFee)}</strong></span><span class="a4-grand-total"><b>${tr("total")}</b><strong>${money(order.total)}</strong></span></section></section><div class="a4-paid">✓&nbsp; مدفوع: ${escapeHtml(String(order.paymentMethod || "KNET").toUpperCase())}</div></section>`;
   $("#invoice").setAttribute("dir", state.lang === "ar" ? "rtl" : "ltr");
   const phoneLabel = $("#invoice .a4-phone");
   if (phoneLabel) phoneLabel.textContent = `☎︎ ${order.phone || "—"}`;
