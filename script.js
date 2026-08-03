@@ -414,13 +414,20 @@ function optionName(option) {
 function unitPrice(item, selectedOptions = []) {
   const config = productOptions(item);
   if (!config?.priceBased && !productSelectionFlow(item)) return Math.max(0, Number(item?.price) || 0);
+  const isSelectionFlow = Boolean(productSelectionFlow(item));
   const groupedPrices = new Map();
   return selectedOptions.reduce((sum, option) => {
     const price = Math.max(0, Number(option.price) || 0);
-    if (!option.priceGroup) return sum + price * Math.max(1, Number(option.quantity) || 1);
+    if (!option.priceGroup) return sum + price * (isSelectionFlow ? 1 : Math.max(1, Number(option.quantity) || 1));
     groupedPrices.set(option.priceGroup, Math.max(groupedPrices.get(option.priceGroup) || 0, price));
     return sum;
   }, 0) + [...groupedPrices.values()].reduce((sum, price) => sum + price, 0);
+}
+
+function selectedFlowQuantity(flow, selections) {
+  const quantityStep = flow?.steps.find(step => step.quantityEnabled);
+  const selected = quantityStep ? (selections?.[quantityStep.id] || [])[0] : null;
+  return Math.max(1, Number(selected?.quantity) || 1);
 }
 
 function productPriceLabel(item) {
@@ -931,11 +938,11 @@ function renderSelectionFlowStep() {
   const title = state.lang === "ar" ? step.titleAr : step.titleEn;
   const hint = step.multiple ? (state.lang === "ar" ? `يمكنك اختيار حتى ${new Intl.NumberFormat("ar-KW").format(limit)} خيارات` : `Choose up to ${limit} options`) : "";
   const isLast = pendingFlowStep === flow.steps.length - 1;
-  const currentPrice = unitPrice(item, flow.steps.flatMap(flowStep => pendingFlowSelections[flowStep.id] || []));
+  const currentPrice = unitPrice(item, flow.steps.flatMap(flowStep => pendingFlowSelections[flowStep.id] || [])) * selectedFlowQuantity(flow, pendingFlowSelections);
   const listScrollTop = productOptionsPopover.querySelector(".product-options-list")?.scrollTop || 0;
   productOptionsPopover.innerHTML = `<header><div><small>${state.lang === "ar" ? `الخطوة ${new Intl.NumberFormat("ar-KW").format(pendingFlowStep + 1)} من ${new Intl.NumberFormat("ar-KW").format(flow.steps.length)}` : `Step ${pendingFlowStep + 1} of ${flow.steps.length}`}</small><strong>${escapeHtml(productName(item))}</strong></div><button type="button" data-close-options aria-label="${state.lang === "ar" ? "إغلاق" : "Close"}">×</button></header><div class="option-group-title"><strong>${escapeHtml(title)}</strong>${hint ? `<small>${escapeHtml(hint)}</small>` : ""}</div><div class="product-options-list">${step.items.map(option => {
     const chosen = selected.find(selectedOption => selectedOption.id === option.id);
-    return `<div class="flow-option-row"><label class="product-option-choice"><input type="${type}" name="selection-flow-option" value="${escapeHtml(option.id)}" ${chosen ? "checked" : ""}><span><b>${escapeHtml(optionName(option))}</b><small>${escapeHtml(state.lang === "ar" ? option.nameEn : option.nameAr)}</small></span>${option.price ? `<em>+ ${money(option.price)}</em>` : ""}</label>${step.quantityEnabled && chosen ? `<div class="flow-quantity flow-choice-quantity"><span>${state.lang === "ar" ? "الكمية" : "Quantity"}</span><button type="button" data-flow-quantity="minus" data-flow-option-id="${escapeHtml(option.id)}">−</button><b>${new Intl.NumberFormat(state.lang === "ar" ? "ar-KW" : "en").format(chosen.quantity || 1)}</b><button type="button" data-flow-quantity="plus" data-flow-option-id="${escapeHtml(option.id)}">+</button></div>` : ""}</div>`;
+    return `<div class="flow-option-row"><label class="product-option-choice"><input type="${type}" name="selection-flow-option" value="${escapeHtml(option.id)}" ${chosen ? "checked" : ""}><span><b>${escapeHtml(optionName(option))}</b><small>${escapeHtml(state.lang === "ar" ? option.nameEn : option.nameAr)}</small></span>${option.price ? `<em>+ ${money(option.price)}</em>` : ""}${step.quantityEnabled && chosen ? `<div class="qty flow-choice-quantity"><button type="button" data-flow-quantity="plus" data-flow-option-id="${escapeHtml(option.id)}">+</button><span>${new Intl.NumberFormat(state.lang === "ar" ? "ar-KW" : "en").format(chosen.quantity || 1)}</span><button type="button" data-flow-quantity="minus" data-flow-option-id="${escapeHtml(option.id)}">${chosen.quantity === 1 ? "×" : "−"}</button></div>` : ""}</label></div>`;
   }).join("")}</div><div class="selection-flow-footer"><div class="selection-price"><span>${state.lang === "ar" ? "السعر الحالي" : "Current price"}</span><b>${money(currentPrice)}</b></div><button type="button" class="primary" data-flow-next ${selected.length ? "" : "disabled"}>${isLast ? (state.lang === "ar" ? "إضافة إلى السلة" : "Add to cart") : (state.lang === "ar" ? "التالي" : "Next")}</button></div>`;
   productOptionsPopover.place?.();
   const optionsList = productOptionsPopover.querySelector(".product-options-list");
@@ -952,6 +959,7 @@ function renderSelectionFlowStep() {
     renderSelectionFlowStep();
   });
   productOptionsPopover.querySelectorAll("[data-flow-quantity]").forEach(button => button.onclick = event => {
+    event.preventDefault();
     event.stopPropagation();
     const current = pendingFlowSelections[step.id]?.find(option => option.id === button.dataset.flowOptionId);
     if (!current) return;
@@ -963,7 +971,7 @@ function renderSelectionFlowStep() {
     if (!selected.length) return;
     if (!isLast) { pendingFlowStep++; return renderSelectionFlowStep(); }
     const chosen = flow.steps.flatMap(flowStep => pendingFlowSelections[flowStep.id] || []);
-    addSelectedOptionsToCart(pendingOptionProductId, chosen);
+    addSelectedOptionsToCart(pendingOptionProductId, chosen, selectedFlowQuantity(flow, pendingFlowSelections));
   };
 }
 
@@ -1061,9 +1069,9 @@ function confirmProductOptions() {
   addSelectedOptionsToCart(id, selected);
 }
 
-function addSelectedOptionsToCart(id, selected) {
+function addSelectedOptionsToCart(id, selected, quantity = 1) {
   const existing = typeof state.cart[id] === "object" && state.cart[id] ? state.cart[id] : { quantity: 0, note: "" };
-  state.cart[id] = { ...existing, options: selected, quantity: Number(existing.quantity || 0) + 1 };
+  state.cart[id] = { ...existing, options: selected, quantity: Number(existing.quantity || 0) + Math.max(1, Number(quantity) || 1) };
   state.paymentRequestId = "";
   persistCart();
   renderCartBar();
