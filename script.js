@@ -2246,7 +2246,7 @@ function restorePending(pending) {
   state.scheduledHour = saved.scheduledHour || state.scheduledHour;
   state.scheduledMinute = saved.scheduledMinute || state.scheduledMinute;
   state.scheduledPeriod = saved.scheduledPeriod || state.scheduledPeriod;
-  state.order = pending.orderId || state.order;
+  state.order = pending.orderId || "";
   if (saved.lang && saved.lang !== state.lang) setLanguage(saved.lang);
   persistCart();
   renderCartBar();
@@ -2274,9 +2274,9 @@ async function finishOrder() {
     if (!response.ok || !data.ok) throw new Error(data.error || tr("createFailed"));
     const target = new URL(data.paymentUrl);
     if (!isAllowedPaymentGatewayUrl(target)) throw new Error(tr("invalidSecureLink"));
-    state.order = data.orderId || state.order;
+    state.order = data.orderId || "";
     const pending = pendingSnapshot({
-      orderId: state.order, statusToken: data.statusToken || "", paymentUrl: target.href,
+      orderId: state.order, paymentReference: data.paymentReference || data.orderId || "", statusToken: data.statusToken || "", paymentUrl: target.href,
       paymentMethod: state.paymentMethod, paymentGateway: data.paymentGateway || "", createdAt: Date.now()
     });
     sessionStorage.setItem("pendingBedeOrder", JSON.stringify(pending));
@@ -2307,7 +2307,7 @@ async function watchPayment(pending) {
     try {
       const response = await fetch(orderingConfig.paymentStatusWebhookUrl, {
         method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/json" },
-        body: JSON.stringify({ orderId: pending.orderId, statusToken: pending.statusToken }), cache: "no-store"
+        body: JSON.stringify({ paymentReference: pending.paymentReference || pending.orderId, statusToken: pending.statusToken }), cache: "no-store"
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.ok) throw new Error(data.error || "Verification failed");
@@ -2380,7 +2380,7 @@ function readPendingPayment() {
   if (!raw) return null;
   try {
     const pending = JSON.parse(raw);
-    if (!pending.orderId || !pending.statusToken || !pending.paymentUrl) throw new Error("Invalid payment state");
+    if (!(pending.paymentReference || pending.orderId) || !pending.statusToken || !pending.paymentUrl) throw new Error("Invalid payment state");
     return pending;
   } catch {
     sessionStorage.removeItem("pendingBedeOrder");
