@@ -483,6 +483,20 @@ function cartHasLongPreparationItems() {
   });
 }
 
+function orderHasLongPreparationItems(order) {
+  return (order?.items || []).some(item => {
+    const selectedOptionPreparations = (item.options || []).map(option => option.preparation).filter(Boolean);
+    if (selectedOptionPreparations.length) return selectedOptionPreparations.some(preparationTakesMoreThanTwoHours);
+    const catalogProduct = product(item.id);
+    return preparationTakesMoreThanTwoHours(item.preparation || catalogProduct?.preparation);
+  });
+}
+
+function invoicePreparationNotice(order) {
+  if (!orderHasLongPreparationItems(order)) return "";
+  return `<p class="a4-preparation-notice">ملاحظة: يوجد في طلبك أصناف تأخذ وقت للتجهيز.. لذا يرجى العلم أنه قد يتأخر طلبك أو يتم تأجيله.</p>`;
+}
+
 function cartItems() {
   return Object.entries(state.cart).map(([id, value]) => {
     const entry = typeof value === "object" && value ? value : { quantity: value };
@@ -2412,7 +2426,7 @@ function currentInvoiceModel() {
     scheduledAt: scheduled?.getTime() || null,
     expectedStart: asapWindow?.start.getTime() || null,
     expectedEnd: asapWindow?.end.getTime() || null,
-    items: cartItems().map(({ product: item, quantity, note, options }) => ({ id: String(item.id), nameAr: item.name, nameEn: item.nameEn || item.name, quantity, note, options, unitPrice: unitPrice(item, options), total: unitPrice(item, options) * quantity })),
+    items: cartItems().map(({ product: item, quantity, note, options }) => ({ id: String(item.id), nameAr: item.name, nameEn: item.nameEn || item.name, preparation: item.preparation || null, quantity, note, options, unitPrice: unitPrice(item, options), total: unitPrice(item, options) * quantity })),
     subtotal: subtotal(), deliveryFee: deliveryFee(), total: total(), paymentMethod: state.paymentMethod || "knet", status: "paid"
   };
 }
@@ -2467,7 +2481,8 @@ function buildInvoice(order) {
   const createdAt = new Date(order.createdAt);
   const customerLine = [order.customerName || tr("customer"), order.phone || "—", destination].filter(Boolean).map(escapeHtml).join("&nbsp; · &nbsp;");
   const deliveryTime = invoiceDeliveryTime(order);
-  $("#invoice").innerHTML = `<section class="a4-invoice"><header class="a4-head"><img src="logo.png" alt=""><div><h1>فاتورة شراء</h1><p>Purchase Invoice</p></div></header><section class="a4-meta"><div><b>رقم الفاتورة</b><strong>#${escapeHtml(order.orderId)}</strong><b>تاريخ الإصدار</b><strong>${createdAt.toLocaleDateString(locale)}</strong></div></section><p class="a4-customer-line">${customerLine}</p><table class="a4-items"><thead><tr><th>#</th><th>الصنف</th><th>الملاحظات</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead><tbody>${order.items.map((item, index) => `<tr><td>${index + 1}</td><td><b>${escapeHtml(item.nameAr || item.nameEn || item.id)}</b><small dir="ltr">${escapeHtml(item.nameEn || item.nameAr || item.id)}</small>${item.options?.length ? `<small>${escapeHtml(item.options.map(option => option.nameAr || option.nameEn).join("، "))}</small>` : ""}</td><td>${escapeHtml(item.note || "—")}</td><td>${item.quantity}</td><td>${money(item.unitPrice || (item.total / item.quantity))}</td><td><b>${money(item.total)}</b></td></tr>`).join("")}</tbody></table><section class="a4-summary-row"><section class="a4-total"><span><b>${tr("productsTotal")}</b><strong>${money(order.subtotal)}</strong></span><span><b>${tr("deliveryFee")}</b><strong>${money(order.deliveryFee)}</strong></span><span class="a4-grand-total"><b>${tr("total")}</b><strong>${money(order.total)}</strong></span></section><section class="a4-delivery-time"><small>${order.mode === "pickup" ? tr("pickupTime") : tr("deliveryTime")}</small><strong>${deliveryTime}</strong></section></section><div class="a4-paid">✓&nbsp; مدفوع: ${escapeHtml(String(order.paymentMethod || "KNET").toUpperCase())}</div></section>`;
+  const productsValue = Number.isFinite(Number(order.subtotal)) ? Number(order.subtotal) : Math.max(0, Number(order.total || 0) - Number(order.deliveryFee || 0));
+  $("#invoice").innerHTML = `<section class="a4-invoice"><header class="a4-head"><img src="logo.png" alt=""><div><h1>فاتورة شراء</h1><p>Purchase Invoice</p></div></header><section class="a4-meta"><div><b>رقم الفاتورة</b><strong>#${escapeHtml(order.orderId)}</strong><b>تاريخ الإصدار</b><strong>${createdAt.toLocaleDateString(locale)}</strong></div><div class="a4-company">شركة صحي ولذيذ للتجهيزات الغذائية<br>حولي، شارع تونس، مجمع علي فهد الخالد، دور الميزانين<br><span dir="ltr">66906605 · 22085888</span></div></section><p class="a4-customer-line">${customerLine}</p><table class="a4-items"><thead><tr><th>#</th><th>الصنف</th><th>الملاحظات</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead><tbody>${order.items.map((item, index) => `<tr><td>${index + 1}</td><td><b>${escapeHtml(item.nameAr || item.nameEn || item.id)}</b><small dir="ltr">${escapeHtml(item.nameEn || item.nameAr || item.id)}</small>${item.options?.length ? `<small>${escapeHtml(item.options.map(option => option.nameAr || option.nameEn).join("، "))}</small>` : ""}</td><td>${escapeHtml(item.note || "—")}</td><td>${item.quantity}</td><td>${money(item.unitPrice || (item.total / item.quantity))}</td><td><b>${money(item.total)}</b></td></tr>`).join("")}</tbody></table>${invoicePreparationNotice(order)}<section class="a4-summary-row"><section class="a4-total"><span><b>${tr("productsTotal")}</b><strong>${money(productsValue)}</strong></span><span><b>${tr("deliveryFee")}</b><strong>${money(order.deliveryFee)}</strong></span><span class="a4-grand-total"><b>${tr("total")}</b><strong>${money(order.total)}</strong></span></section><section class="a4-delivery-time"><small>${order.mode === "pickup" ? tr("pickupTime") : tr("deliveryTime")}</small><strong>${deliveryTime}</strong></section></section><div class="a4-paid">✓&nbsp; مدفوع: ${escapeHtml(String(order.paymentMethod || "KNET").toUpperCase())}</div></section>`;
   $("#invoice").setAttribute("dir", state.lang === "ar" ? "rtl" : "ltr");
   const phoneLabel = $("#invoice .a4-phone");
   if (phoneLabel) phoneLabel.textContent = `☎︎ ${order.phone || "—"}`;
