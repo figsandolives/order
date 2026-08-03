@@ -30,7 +30,7 @@
   <link rel="preconnect" href="https://firebasestorage.googleapis.com" crossorigin>
   <link rel="preconnect" href="https://menassafigs-default-rtdb.firebaseio.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260803-8">
+  <link rel="stylesheet" href="style.css?v=20260803-11">
   <link rel="stylesheet" href="payment.css?v=20260729-3">
   <link rel="stylesheet" href="account.css?v=20260731-3">
   <script type="application/ld+json">
@@ -124,6 +124,7 @@
 
     <section class="catalog">
       <div class="catalog-heading">
+        <div class="catalog-switch-wrap"><button type="button" class="catalog-switch" id="catalogSwitch" aria-live="polite"></button></div>
         <div><span class="kicker" data-i18n="ourMenu">قائمتنا</span><h2 data-i18n="whatToday">ماذا تشتهي اليوم؟</h2></div>
       </div>
       <div class="categories" id="categories"></div>
@@ -133,6 +134,10 @@
         </div>
       </div>
     </section>
+
+    <div class="catalog-transition hidden" id="catalogTransition" role="status" aria-live="assertive">
+      <div><i></i><strong id="catalogTransitionTitle">جاري الانتقال…</strong><small id="catalogTransitionHint">لحظة من فضلك</small></div>
+    </div>
 
     <section class="seo-content" aria-labelledby="seoTitle">
       <div class="seo-intro">
@@ -239,6 +244,6 @@
   <script src="https://www.gstatic.com/firebasejs/11.10.0/firebase-storage-compat.js"></script>
   <script src="firebase-config.js"></script>
   <script src="config.js?v=20260730-1"></script>
-  <script src="script.js?v=20260803-10"></script>
+  <script src="script.js?v=20260803-12"></script>
 </body>
 </html>
