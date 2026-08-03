@@ -521,6 +521,28 @@ function cartItems() {
     return { product: product(id), quantity: Number(entry.quantity), note: String(entry.note || "").slice(0, 240), options: Array.isArray(entry.options) ? entry.options : [] };
   }).filter(item => item.product && item.quantity > 0);
 }
+
+function cartItemMissingRequiredChoice(entry) {
+  const options = Array.isArray(entry?.options) ? entry.options : [];
+  const flow = productSelectionFlow(entry?.product);
+  if (flow) return flow.steps.some(step => !(options || []).some(option => option?.flowStepId === step.id));
+  const config = productOptions(entry?.product);
+  return Boolean(config?.required && !options.length);
+}
+
+function resolveMissingCartChoice(entry) {
+  if (!entry?.product) return;
+  // هذه سلة محفوظة من نسخة سابقة قبل اختيار المنتج؛ نحذف السطر غير المكتمل
+  // ثم نفتح الاختيارات مباشرة حتى لا يصل العميل إلى صفحة فشل الدفع.
+  delete state.cart[entry.product.id];
+  state.paymentRequestId = "";
+  persistCart();
+  renderCartBar();
+  syncProductQuantityControls(entry.product.id);
+  if (productSelectionFlow(entry.product)) openSelectionFlow(entry.product.id);
+  else openProductOptions(entry.product.id);
+  toast(state.lang === "ar" ? "يرجى اختيار تفاصيل المنتج ثم إكمال الدفع" : "Choose the product details, then complete payment", "error");
+}
 function cartQuantity(id) {
   const value = state.cart[id];
   return Number(typeof value === "object" && value ? value.quantity : value || 0);
@@ -2327,6 +2349,8 @@ function restorePending(pending) {
 async function finishOrder() {
   if (!cartCount()) return paymentError(state.lang === "ar" ? "لا يمكن إنشاء طلب من سلة فارغة" : "Cannot create an order from an empty cart");
   if (!state.user?.name || normalizePhone(state.user.phone).length !== 8) return openAuth("login");
+  const incompleteItem = cartItems().find(cartItemMissingRequiredChoice);
+  if (incompleteItem) return resolveMissingCartChoice(incompleteItem);
   if (!orderingConfig.paymentWebhookUrl || !orderingConfig.paymentStatusWebhookUrl) return paymentError(tr("paymentUnavailable"));
   if (!state.paymentMethod) return toast(tr("choosePaymentMethod"));
   clearProductRoute();
