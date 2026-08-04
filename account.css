@@ -4,7 +4,7 @@ input,textarea,select{font-size:16px!important}
 .account-trigger,.header-cart{min-height:48px}
 .account-trigger{border:1px solid var(--line);border-radius:999px;padding:9px 13px;background:#fff;color:var(--dark);display:flex;align-items:center;gap:7px;font-weight:900}
 .account-trigger svg,.header-cart svg,.bag svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
-.account-trigger.logged-in{background:#edf4ef;border-color:#d6e4db}
+.account-trigger.logged-in{background:#edf4ef;border-color:#d6e4db} 
 .header-cart{gap:7px}.header-cart>svg{width:20px}
 .bag svg{width:25px;height:25px}
 .steps i svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
