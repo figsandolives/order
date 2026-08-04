@@ -274,6 +274,7 @@ let catalogScrollPosition = 0;
 let userSyncTimer;
 let pendingPaymentResumed = false;
 let catalogSignature = "";
+let restaurantProductImages = {};
 let pageScrollLocked = false;
 let pageScrollLockY = 0;
 const invoiceFileCache = new Map();
@@ -316,10 +317,19 @@ function normalizeAppearance(value = {}) {
   };
 }
 
+function appearanceForCatalog(value, catalogType = state.catalogType) {
+  return normalizeAppearance(value?.catalogs?.[catalogType] || value);
+}
+
 function applyStoreAppearance(value) {
-  state.appearance = normalizeAppearance(value);
+  state.catalogAppearance = value || {};
+  state.appearance = appearanceForCatalog(state.catalogAppearance);
   const hero = $("#storeHero");
   if (!hero) return;
+  const storeName = $("#heroStoreName", hero);
+  if (storeName) storeName.textContent = state.lang === "ar"
+    ? (state.catalogType === "restaurant" ? "مطعم التين الطبيعي" : "مخبز التين والزيتون")
+    : (state.catalogType === "restaurant" ? "Natural Figs Restaurant" : "Figs & Olives Bakery");
   hero.style.setProperty("--hero-title-color", state.appearance.heroTextColor);
   hero.style.setProperty("--hero-badge-background", state.appearance.badgeBackgroundColor);
   hero.style.setProperty("--hero-badge-text", state.appearance.badgeTextColor);
@@ -335,6 +345,16 @@ function applyStoreAppearance(value) {
   hero.style.backgroundImage = state.appearance.heroImage
     ? `linear-gradient(rgba(8, 28, 20, .38), rgba(8, 28, 20, .38)), url(${JSON.stringify(state.appearance.heroImage)})`
     : "";
+}
+
+function applyRestaurantProductImages(items) {
+  return items.map(item => {
+    const importedImage = restaurantProductImages[String(item.id || "")];
+    const currentImage = String(item.image || "");
+    return catalogTypeOf(item) === "restaurant" && importedImage && (!currentImage || currentImage === "logo.png")
+      ? { ...item, image: importedImage, images: [importedImage] }
+      : item;
+  });
 }
 
 function normalizeDigits(value) {
@@ -752,6 +772,7 @@ function setCatalogType(type) {
   const next = type === "restaurant" ? "restaurant" : "bakery";
   if (next === state.catalogType) return;
   state.catalogType = next;
+  applyStoreAppearance(state.catalogAppearance);
   state.activeCategory = "all";
   localStorage.setItem("figsOlivesCatalogType", next);
   const restaurant = next === "restaurant";
@@ -773,7 +794,11 @@ function renderCatalogSwitch() {
   const button = $("#catalogSwitch");
   if (!button) return;
   const nextRestaurant = state.catalogType !== "restaurant";
-  button.textContent = state.lang === "ar" ? (nextRestaurant ? "أصناف المطعم" : "أصناف المخبز") : (nextRestaurant ? "Restaurant items" : "Bakery items");
+  const label = state.lang === "ar" ? (nextRestaurant ? "أصناف المطعم" : "أصناف المخبز") : (nextRestaurant ? "Restaurant items" : "Bakery items");
+  const icon = nextRestaurant
+    ? `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v8m3-8v8m-5-5h7M16 3v18m0-9c2.8 0 4-2.1 4-4.8V3"/></svg>`
+    : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16M6 20v-6.2a6 6 0 0 1 12 0V20M9 9.5V7a3 3 0 0 1 6 0v2.5M4 16h16"/></svg>`;
+  button.innerHTML = `<span class="catalog-switch-icon">${icon}</span><span>${label}</span><i>‹</i>`;
   button.dataset.catalogTarget = nextRestaurant ? "restaurant" : "bakery";
 }
 
@@ -2821,7 +2846,7 @@ function applyCatalog(catalog, cache = true) {
     item.active !== false && visibleCategoryIds.has(String(item.category || ""))
   );
   state.categories = visibleCategories;
-  state.products = visibleProducts;
+  state.products = applyRestaurantProductImages(visibleProducts);
   state.areas = Array.isArray(catalog?.deliveryAreas) ? catalog.deliveryAreas : [];
   if (state.area) {
     const currentAreaName = state.area.name || state.area.nameAr;
@@ -2848,7 +2873,7 @@ function applyCatalog(catalog, cache = true) {
 }
 
 async function loadLocalCatalog() {
-  const [products, categories, deliveryAreas] = await Promise.all([
+  const [products, categories, deliveryAreas, imageMap] = await Promise.all([
     fetch("products.json", { cache: "force-cache" }).then(response => {
       if (!response.ok) throw new Error("products.json");
       return response.json();
@@ -2860,8 +2885,10 @@ async function loadLocalCatalog() {
     fetch("delivery-areas.json", { cache: "force-cache" }).then(response => {
       if (!response.ok) throw new Error("delivery-areas.json");
       return response.json();
-    })
+    }),
+    fetch("restaurant-product-images.json", { cache: "force-cache" }).then(response => response.ok ? response.json() : {})
   ]);
+  restaurantProductImages = imageMap || {};
   return { products, categories, deliveryAreas };
 }
 
