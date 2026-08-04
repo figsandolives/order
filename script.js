@@ -241,7 +241,9 @@ const DEFAULT_APPEARANCE = Object.freeze({
   heroPositionY: 50,
   heroTextColor: "#18352a",
   badgeBackgroundColor: "#ffffff",
-  badgeTextColor: "#18352a"
+  badgeTextColor: "#18352a",
+  heroTitle: "",
+  heroBadges: []
 });
 const state = {
   products: [], categories: [], areas: [], cart: loadUserCart(initialUser), search: "", activeCategory: "all",
@@ -313,7 +315,9 @@ function normalizeAppearance(value = {}) {
     heroPositionY: validPercent(value.heroPositionY, DEFAULT_APPEARANCE.heroPositionY),
     heroTextColor: validHexColor(value.heroTextColor, DEFAULT_APPEARANCE.heroTextColor),
     badgeBackgroundColor: validHexColor(value.badgeBackgroundColor, DEFAULT_APPEARANCE.badgeBackgroundColor),
-    badgeTextColor: validHexColor(value.badgeTextColor, DEFAULT_APPEARANCE.badgeTextColor)
+    badgeTextColor: validHexColor(value.badgeTextColor, DEFAULT_APPEARANCE.badgeTextColor),
+    heroTitle: String(value.heroTitle || "").trim().slice(0, 120),
+    heroBadges: Array.isArray(value.heroBadges) ? value.heroBadges.map(text => String(text || "").trim().slice(0, 45)) : []
   };
 }
 
@@ -336,10 +340,14 @@ function applyStoreAppearance(value) {
   hero.style.setProperty("--hero-position-x", `${state.appearance.heroPositionX}%`);
   hero.style.setProperty("--hero-position-y", `${state.appearance.heroPositionY}%`);
   const title = $("h1", hero);
-  if (title) title.style.color = state.appearance.heroTextColor;
-  $$(".hero-badges span", hero).forEach(badge => {
+  if (title) {
+    title.style.color = state.appearance.heroTextColor;
+    if (state.appearance.heroTitle) title.innerHTML = escapeHtml(state.appearance.heroTitle).replace(/\n/g, "<br>");
+  }
+  $$(".hero-badges span", hero).forEach((badge, index) => {
     badge.style.backgroundColor = state.appearance.badgeBackgroundColor;
     badge.style.color = state.appearance.badgeTextColor;
+    if (state.appearance.heroBadges[index]) badge.textContent = state.appearance.heroBadges[index];
   });
   hero.classList.toggle("has-hero-image", Boolean(state.appearance.heroImage));
   hero.style.backgroundImage = state.appearance.heroImage
