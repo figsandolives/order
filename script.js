@@ -2876,6 +2876,7 @@ function applyCatalog(catalog, cache = true) {
   if (!Array.isArray(catalog?.products) || !Array.isArray(catalog?.categories) || !Array.isArray(catalog?.deliveryAreas)) return false;
   const signature = JSON.stringify([
     catalog.version || "", catalog.updatedAt || "",
+    catalog.restaurantEnabled !== false,
     catalog.appearance || {},
     catalog.headings || [],
     catalog.categories.map(category => [category.id, category.catalogType || "bakery", category.active !== false, category.order, category.nameAr, category.nameEn]),
