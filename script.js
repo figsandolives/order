@@ -347,6 +347,14 @@ function applyStoreAppearance(value) {
     : "";
 }
 
+// The selected catalogue is deliberately view-only: a full page load always
+// starts at the bakery and never touches the user's saved cart.
+function resetCatalogToBakery() {
+  state.catalogType = "bakery";
+  state.activeCategory = "all";
+  applyStoreAppearance(state.catalogAppearance);
+}
+
 function applyRestaurantProductImages(items) {
   return items.map(item => {
     const importedImage = restaurantProductImages[String(item.id || "")];
@@ -739,6 +747,7 @@ function applyLanguage() {
   $$("[data-i18n-html]").forEach(element => element.innerHTML = tr(element.dataset.i18nHtml));
   $$("[data-i18n-placeholder]").forEach(element => element.placeholder = tr(element.dataset.i18nPlaceholder));
   $("#languageLabel").textContent = state.lang === "ar" ? "English" : "العربية";
+  applyStoreAppearance(state.catalogAppearance);
   renderCatalogSwitch();
   $(".steps [data-step='1'] span").textContent = tr("review");
   $(".steps [data-step='2'] span").textContent = tr("deliveryDetails");
@@ -795,8 +804,8 @@ function renderCatalogSwitch() {
   const nextRestaurant = state.catalogType !== "restaurant";
   const label = state.lang === "ar" ? (nextRestaurant ? "أصناف المطعم" : "أصناف المخبز") : (nextRestaurant ? "Restaurant items" : "Bakery items");
   const icon = nextRestaurant
-    ? `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v7m3-7v7M4 3v5a3.5 3.5 0 0 0 7 0V3m-3.5 7v11M18 3v18m0-18c2.2 1.2 2.2 5.8 0 7"/></svg>`
-    : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18M5 20V9.5A7 7 0 0 1 19 9.5V20M8 20v-5.5a4 4 0 0 1 8 0V20M10 16h4M8 7h8"/></svg>`;
+    ? `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 3v6.2a3.2 3.2 0 0 0 6.4 0V3M7.6 3v5.2M9.8 3v5.2M8.7 12.4V21M17.2 3v18M17.2 3c2.3 1.5 2.3 6.3 0 7.8h-2.1"/></svg>`
+    : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 20.5h17M5.5 20.5v-8.2a6.5 6.5 0 0 1 13 0v8.2M8 20.5v-5.2a4 4 0 0 1 8 0v5.2M9 9.7h6M12 5.7c.9 1.1 1.4 2 1.4 2.8a1.4 1.4 0 1 1-2.8 0c0-.8.5-1.7 1.4-2.8Z"/></svg>`;
   button.innerHTML = `<span class="catalog-switch-icon">${icon}</span><span>${label}</span><i>‹</i>`;
   button.dataset.catalogTarget = nextRestaurant ? "restaurant" : "bakery";
 }
@@ -2892,6 +2901,9 @@ async function loadLocalCatalog() {
 }
 
 async function initializeStoreData() {
+  // Do not restore the previously viewed catalogue after a refresh. Cart data
+  // lives in its own local-storage key and is intentionally left unchanged.
+  resetCatalogToBakery();
   const cachedCatalog = readJson(CATALOG_CACHE_KEY, null);
   let hasCatalog = applyCatalog(cachedCatalog, false);
   if (!hasCatalog) {
