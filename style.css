@@ -106,6 +106,8 @@ body.detail-open .categories{display:none}
 .catalog-heading-group{padding:22px 0 6px}.catalog-heading-group>h2{margin:0 0 20px;padding:12px 16px;border-radius:14px;background:#edf5ef;color:var(--dark);font-size:clamp(22px,3vw,34px)}
 .catalog-subheading-group>h3{position:sticky;top:calc(var(--site-header-height) + 58px);z-index:25;margin:0 0 14px;padding:9px 13px;border-inline-start:4px solid var(--gold);background:var(--paper);color:var(--green);font-size:18px}
 .subheading-nav{position:sticky;top:var(--site-header-height);z-index:28;display:flex;gap:7px;overflow:auto;margin:-8px 0 16px;padding:9px 0;background:var(--paper)}.subheading-nav button{flex:0 0 auto;border:1px solid #d7e5dc;border-radius:999px;background:#fff;color:var(--green);padding:8px 12px;font-size:10px;font-weight:900}
+.subheading-nav button.active,.linked-category-nav button.active{background:var(--green);border-color:var(--green);color:#fff}.linked-category-nav{display:flex;gap:7px;overflow:auto;margin:-7px 0 16px;padding:8px 0;background:var(--paper)}.linked-category-nav button{flex:0 0 auto;border:1px solid #d7e5dc;border-radius:999px;background:#fff;color:var(--green);padding:7px 11px;font-size:9px;font-weight:900}
+.categories .heading-category-link{border-color:#dca83e;background:#fff8e7;color:var(--dark)}
 .section-heading h2{margin:0}
 
 /* التنقل بين كتالوج المخبز وكتالوج المطعم */

@@ -829,7 +829,11 @@ function renderCatalogSwitch() {
 function renderCategories() {
   const count = state.products.filter(isCurrentCatalog).length;
   const buttons = [`<button class="${state.activeCategory === "all" ? "active" : ""}" data-category-link="all">${tr("all")} <small>${count}</small></button>`];
+  const linkedCategoryIds = new Set((state.headings || []).filter(item => catalogTypeOf(item) === state.catalogType).flatMap(item => [...(item.categoryIds || []), ...(item.subheadings || []).flatMap(group => group.categoryIds || [])]));
+  const headingButtons = (state.headings || []).filter(item => catalogTypeOf(item) === state.catalogType).sort((a, b) => Number(a.order) - Number(b.order)).map(item => `<button class="heading-category-link" data-heading-link="${escapeHtml(item.id)}">${escapeHtml(state.lang === "ar" ? item.nameAr : (item.nameEn || item.nameAr))}</button>`);
+  buttons.push(...headingButtons);
   for (const category of sortedCategories()) {
+    if (linkedCategoryIds.has(category.id)) continue;
     const count = categoryProducts(category.id).length;
     if (count) buttons.push(`<button class="${state.activeCategory === category.id ? "active" : ""}" data-category-link="${escapeHtml(category.id)}">${escapeHtml(categoryName(category))} <small>${count}</small></button>`);
   }
@@ -888,12 +892,13 @@ function renderProductSections() {
   for (const heading of headings) {
     const subheadings = Array.isArray(heading.subheadings) ? heading.subheadings : [];
     const groups = subheadings.length ? subheadings : [{ nameAr: "", nameEn: "", categoryIds: heading.categoryIds || [] }];
-    const groupMarkup = groups.map(group => { const linked = (group.categoryIds || []).map(id => ordered.find(category => category.id === id)).filter(Boolean); linked.forEach(category => used.add(category.id)); if (!linked.length) return ""; const title = group.nameAr ? `<h3>${escapeHtml(state.lang === "ar" ? group.nameAr : (group.nameEn || group.nameAr))}</h3>` : ""; return `<section class="catalog-subheading-group">${title}${linked.map(renderCategory).join("")}</section>`; }).join("");
-    if (groupMarkup) sections.push(`<section class="catalog-heading-group" id="heading-${encodeURIComponent(heading.id)}"><h2>${escapeHtml(state.lang === "ar" ? heading.nameAr : (heading.nameEn || heading.nameAr))}</h2>${subheadings.length ? `<nav class="subheading-nav">${subheadings.map(group => `<button data-scroll-heading="${escapeHtml(heading.id)}" data-scroll-subheading="${escapeHtml(group.id)}">${escapeHtml(state.lang === "ar" ? group.nameAr : (group.nameEn || group.nameAr))}</button>`).join("")}</nav>` : ""}${groupMarkup}</section>`);
+    const groupMarkup = groups.map(group => { const linked = (group.categoryIds || []).map(id => ordered.find(category => category.id === id)).filter(Boolean); linked.forEach(category => used.add(category.id)); if (!linked.length) return ""; const title = group.nameAr ? `<h3>${escapeHtml(state.lang === "ar" ? group.nameAr : (group.nameEn || group.nameAr))}</h3>` : ""; const categoryNav = `<nav class="linked-category-nav">${linked.map((category, index) => `<button class="${index === 0 ? "active" : ""}" data-linked-category="${escapeHtml(category.id)}">${escapeHtml(categoryName(category))}</button>`).join("")}</nav>`; return `<section class="catalog-subheading-group">${title}${categoryNav}${linked.map(renderCategory).join("")}</section>`; }).join("");
+    if (groupMarkup) sections.push(`<section class="catalog-heading-group" id="heading-${encodeURIComponent(heading.id)}"><h2>${escapeHtml(state.lang === "ar" ? heading.nameAr : (heading.nameEn || heading.nameAr))}</h2>${subheadings.length ? `<nav class="subheading-nav">${subheadings.map((group, index) => `<button class="${index === 0 ? "active" : ""}" data-scroll-heading="${escapeHtml(heading.id)}" data-scroll-subheading="${escapeHtml(group.id)}">${escapeHtml(state.lang === "ar" ? group.nameAr : (group.nameEn || group.nameAr))}</button>`).join("")}</nav>` : ""}${groupMarkup}</section>`);
   }
   ordered.filter(category => !used.has(category.id)).forEach(category => { const markup = renderCategory(category); if (markup) sections.push(markup); });
   $("#productSections").innerHTML = sections.length ? sections.join("") : `<div class="loading">${tr("noResults")}</div>`;
-  $$("[data-scroll-heading]").forEach(button => button.onclick = () => { const heading = state.headings.find(item => item.id === button.dataset.scrollHeading); const group = heading?.subheadings?.find(item => item.id === button.dataset.scrollSubheading); const category = group?.categoryIds?.[0]; const target = document.querySelector(`[data-category-section="${CSS.escape(String(category || ""))}"]`); if (target) target.scrollIntoView({ behavior: "smooth", block: "start" }); });
+  $$("[data-scroll-heading]").forEach(button => button.onclick = () => { const heading = state.headings.find(item => item.id === button.dataset.scrollHeading); const group = heading?.subheadings?.find(item => item.id === button.dataset.scrollSubheading); const category = group?.categoryIds?.[0]; $$("[data-scroll-heading]").forEach(item => item.classList.toggle("active", item === button)); const target = document.querySelector(`[data-category-section="${CSS.escape(String(category || ""))}"]`); if (target) target.scrollIntoView({ behavior: "smooth", block: "start" }); });
+  $$("[data-linked-category]").forEach(button => button.onclick = () => { $$("[data-linked-category]").forEach(item => item.classList.toggle("active", item === button)); const target = document.querySelector(`[data-category-section="${CSS.escape(button.dataset.linkedCategory)}"]`); if (target) target.scrollIntoView({ behavior: "smooth", block: "start" }); });
   observeImages();
 }
 
@@ -2787,6 +2792,8 @@ $("#authModal").onclick = event => { if (event.target === $("#authModal")) close
 $("#drawerClose").onclick = () => closeAccountDrawer(true);
 $("#drawerBackdrop").onclick = () => closeAccountDrawer(true);
 $("#categories").onclick = event => {
+  const headingButton = event.target.closest("[data-heading-link]");
+  if (headingButton) { const target = document.getElementById(`heading-${encodeURIComponent(headingButton.dataset.headingLink)}`); if (target) target.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
   const button = event.target.closest("[data-category-link]");
   if (button) scrollToCategory(button.dataset.categoryLink);
 };
