@@ -246,8 +246,9 @@ const DEFAULT_APPEARANCE = Object.freeze({
   heroBadges: []
 });
 const state = {
-  products: [], categories: [], areas: [], cart: loadUserCart(initialUser), search: "", activeCategory: "all",
+  products: [], categories: [], headings: [], areas: [], cart: loadUserCart(initialUser), search: "", activeCategory: "all",
   catalogType: "bakery",
+  restaurantEnabled: true,
   lang: localStorage.getItem("storeLanguage") === "en" ? "en" : "ar",
   step: 1, mode: "delivery", area: null, branch: "", addressId: "", address: "",
   name: "", phone: "", order: "", paymentRequestId: "", detailProductId: "",
@@ -785,6 +786,10 @@ function categoryProducts(categoryId) {
   return state.products.filter(item => item.category === categoryId && isCurrentCatalog(item)).sort((a, b) => Number(a.order) - Number(b.order));
 }
 
+function cartHasRestaurantItems() {
+  return cartItems().some(({ product }) => catalogTypeOf(product) === "restaurant");
+}
+
 function setCatalogType(type) {
   const next = type === "restaurant" ? "restaurant" : "bakery";
   if (next === state.catalogType) return;
@@ -810,6 +815,8 @@ function setCatalogType(type) {
 function renderCatalogSwitch() {
   const button = $("#catalogSwitch");
   if (!button) return;
+  if (!state.restaurantEnabled && state.catalogType === "bakery") { button.classList.add("hidden"); return; }
+  button.classList.remove("hidden");
   const nextRestaurant = state.catalogType !== "restaurant";
   const label = state.lang === "ar" ? (nextRestaurant ? "أصناف المطعم" : "أصناف المخبز") : (nextRestaurant ? "Restaurant items" : "Bakery items");
   const icon = nextRestaurant
@@ -866,16 +873,27 @@ function productCard(item, category) {
 
 function renderProductSections() {
   const sections = [];
-  for (const category of sortedCategories()) {
+  const ordered = sortedCategories();
+  const used = new Set();
+  const headings = (state.headings || []).filter(item => catalogTypeOf(item) === state.catalogType).sort((a, b) => Number(a.order) - Number(b.order));
+  const renderCategory = category => {
     const matches = categoryProducts(category.id);
-    if (!matches.length) continue;
-    sections.push(`
+    if (!matches.length) return "";
+    return `
       <section class="category-section" id="category-${encodeURIComponent(category.id)}" data-category-section="${escapeHtml(category.id)}">
         <div class="section-heading"><h2>${escapeHtml(categoryName(category))}</h2></div>
         <div class="product-grid">${matches.map(item => productCard(item, category)).join("")}</div>
-      </section>`);
+      </section>`;
+  };
+  for (const heading of headings) {
+    const subheadings = Array.isArray(heading.subheadings) ? heading.subheadings : [];
+    const groups = subheadings.length ? subheadings : [{ nameAr: "", nameEn: "", categoryIds: heading.categoryIds || [] }];
+    const groupMarkup = groups.map(group => { const linked = (group.categoryIds || []).map(id => ordered.find(category => category.id === id)).filter(Boolean); linked.forEach(category => used.add(category.id)); if (!linked.length) return ""; const title = group.nameAr ? `<h3>${escapeHtml(state.lang === "ar" ? group.nameAr : (group.nameEn || group.nameAr))}</h3>` : ""; return `<section class="catalog-subheading-group">${title}${linked.map(renderCategory).join("")}</section>`; }).join("");
+    if (groupMarkup) sections.push(`<section class="catalog-heading-group" id="heading-${encodeURIComponent(heading.id)}"><h2>${escapeHtml(state.lang === "ar" ? heading.nameAr : (heading.nameEn || heading.nameAr))}</h2>${subheadings.length ? `<nav class="subheading-nav">${subheadings.map(group => `<button data-scroll-heading="${escapeHtml(heading.id)}" data-scroll-subheading="${escapeHtml(group.id)}">${escapeHtml(state.lang === "ar" ? group.nameAr : (group.nameEn || group.nameAr))}</button>`).join("")}</nav>` : ""}${groupMarkup}</section>`);
   }
+  ordered.filter(category => !used.has(category.id)).forEach(category => { const markup = renderCategory(category); if (markup) sections.push(markup); });
   $("#productSections").innerHTML = sections.length ? sections.join("") : `<div class="loading">${tr("noResults")}</div>`;
+  $$("[data-scroll-heading]").forEach(button => button.onclick = () => { const heading = state.headings.find(item => item.id === button.dataset.scrollHeading); const group = heading?.subheadings?.find(item => item.id === button.dataset.scrollSubheading); const category = group?.categoryIds?.[0]; const target = document.querySelector(`[data-category-section="${CSS.escape(String(category || ""))}"]`); if (target) target.scrollIntoView({ behavior: "smooth", block: "start" }); });
   observeImages();
 }
 
@@ -1991,6 +2009,8 @@ function selectSavedAddress(addressId) {
 
 function renderDelivery() {
   if (state.mode === "pickup" && !branches.some(branch => branch.id === state.branch)) state.branch = "";
+  const restaurantPickup = state.mode === "pickup" && cartHasRestaurantItems();
+  if (restaurantPickup && state.branch !== "abu") state.branch = "";
   const addresses = state.user.addresses || [];
   const deliveryForm = addresses.length ? `
     <h3>${tr("selectAddress")}</h3><div class="checkout-addresses">${addresses.map(address => `
@@ -1998,12 +2018,15 @@ function renderDelivery() {
         <span class="radio">${state.addressId === address.id ? "✓" : ""}</span><div><strong>${escapeHtml(address.areaName)} — ${money(address.price)}</strong><small>${escapeHtml(address.details)}</small></div>
       </button>`).join("")}</div><button class="add-address-button" id="checkoutAddAddress">＋ ${tr("addAddress")}</button>` :
     `<div class="empty-state">${accountIcons.address}<h3>${tr("noAddedAddresses")}</h3><button class="primary" id="checkoutAddAddress">＋ ${tr("addAddress")}</button></div>`;
-  const pickupForm = `<div class="branches">${branches.map(branch => `
-    <button class="option branch-option ${state.branch === branch.id ? "selected" : ""}" data-branch="${branch.id}">
+  const pickupForm = `${restaurantPickup ? `<p class="pickup-restaurant-notice" role="alert">أصناف المطعم يتم استلامها من فرع أبو الحصانية فقط</p>` : ""}<div class="branches">${branches.map(branch => {
+    const unavailable = restaurantPickup && branch.id !== "abu";
+    return `
+    <button class="option branch-option ${state.branch === branch.id ? "selected" : ""} ${unavailable ? "unavailable" : ""}" data-branch="${branch.id}" aria-disabled="${unavailable}">
       <span class="radio"></span>
       <div class="branch-main"><strong>${escapeHtml(branchField(branch, "name"))}</strong><b>${escapeHtml(branchField(branch, "brand"))}</b></div>
       <div class="branch-meta"><small>${escapeHtml(branchField(branch, "address"))}</small><small class="branch-phone">${escapeHtml(branch.phone)}</small></div>
-    </button>`).join("")}</div>`;
+    </button>`;
+  }).join("")}</div>`;
   $("#checkoutBody").innerHTML = `
     <div class="tabs"><button class="${state.mode === "delivery" ? "active" : ""}" id="deliveryTab">🚚 ${tr("delivery")}</button><button class="${state.mode === "pickup" ? "active" : ""}" id="pickupTab">⌂ ${tr("pickup")}</button></div>
     ${state.mode === "delivery" ? deliveryForm : pickupForm}
@@ -2023,7 +2046,10 @@ function renderDelivery() {
   $("#back1").onclick = () => { state.step = 1; renderCheckout(); };
   $("#checkoutAddAddress")?.addEventListener("click", () => openAccountDrawer("addressForm", { returnToCheckout: true }));
   $$("[data-checkout-address]").forEach(button => button.onclick = () => selectSavedAddress(button.dataset.checkoutAddress));
-  $$("[data-branch]").forEach(button => button.onclick = () => { state.branch = button.dataset.branch; state.paymentRequestId = ""; renderDelivery(); });
+  $$("[data-branch]").forEach(button => button.onclick = () => {
+    if (button.getAttribute("aria-disabled") === "true") return toast(state.lang === "ar" ? "أصناف المطعم يتم استلامها من فرع أبو الحصانية فقط" : "Restaurant items can only be picked up from Abu Al Hasaniya branch", "error");
+    state.branch = button.dataset.branch; state.paymentRequestId = ""; renderDelivery();
+  });
   $("#next2").onclick = () => {
     if (!cartCount()) return toast(state.lang === "ar" ? "لا يمكن المتابعة وسلتك فارغة" : "You cannot continue with an empty cart");
     if (state.mode === "delivery" && !state.addressId) return toast(tr("completeDelivery"));
@@ -2557,7 +2583,7 @@ function currentInvoiceModel() {
     ? asapDeliveryWindow(new Date(approvedAt))
     : null;
   return {
-    orderId: state.order, createdAt: approvedAt, customerName: state.user?.name || state.name,
+    orderId: state.order, catalogType: cartHasRestaurantItems() ? "restaurant" : "bakery", createdAt: approvedAt, customerName: state.user?.name || state.name,
     phone: state.user?.phone || state.phone, mode: state.mode, areaName: state.area?.name || "",
     address: state.address, branchId: state.branch,
     deliveryTiming: state.deliveryTiming,
@@ -2614,13 +2640,13 @@ function invoiceDeliveryTime(order) {
 
 function buildInvoice(order) {
   const pickup = branches.find(branch => branch.id === order.branchId);
-  const destination = order.mode === "delivery" ? `${order.areaName || ""} - ${order.address || ""}` : `${tr("pickup")}: ${pickup ? branchField(pickup, "name") : ""}`;
+  const destination = order.mode === "delivery" ? `${order.areaName || ""} - ${order.address || ""}` : `${state.lang === "ar" ? "استلام من" : "Pickup from"} ${pickup ? branchField(pickup, "name") : ""}`;
   const locale = state.lang === "ar" ? "ar-KW" : "en-GB";
   const createdAt = new Date(order.createdAt);
   const customerLine = [order.customerName || tr("customer"), order.phone || "—", destination].filter(Boolean).map(escapeHtml).join("&nbsp; · &nbsp;");
   const deliveryTime = invoiceDeliveryTime(order);
   const productsValue = Number.isFinite(Number(order.subtotal)) ? Number(order.subtotal) : Math.max(0, Number(order.total || 0) - Number(order.deliveryFee || 0));
-  $("#invoice").innerHTML = `<section class="a4-invoice"><header class="a4-head"><img src="logo.png" alt=""><div><h1>فاتورة شراء</h1><p>Purchase Invoice</p></div></header><section class="a4-meta"><div><b>رقم الفاتورة</b><strong>#${escapeHtml(order.orderId)}</strong><b>تاريخ الإصدار</b><strong>${createdAt.toLocaleDateString(locale)}</strong></div><div class="a4-company">شركة صحي ولذيذ للتجهيزات الغذائية<br>حولي، شارع تونس، مجمع علي فهد الخالد، دور الميزانين<br><span dir="ltr">66906605 · 22085888</span></div></section><p class="a4-customer-line">${customerLine}</p><table class="a4-items"><thead><tr><th>#</th><th>الصنف</th><th>الملاحظات</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead><tbody>${order.items.map((item, index) => `<tr><td>${index + 1}</td><td><b>${escapeHtml(item.nameAr || item.nameEn || item.id)}</b><small dir="ltr">${escapeHtml(item.nameEn || item.nameAr || item.id)}</small>${item.options?.length ? `<small>${escapeHtml(item.options.map(optionSummary).join("، "))}</small>` : ""}</td><td>${escapeHtml(item.note || "—")}</td><td>${item.quantity}</td><td>${money(item.unitPrice || (item.total / item.quantity))}</td><td><b>${money(item.total)}</b></td></tr>`).join("")}</tbody></table>${invoicePreparationNotice(order)}<section class="a4-summary-row"><section class="a4-delivery-time"><small>${order.mode === "pickup" ? tr("pickupTime") : tr("deliveryTime")}</small><strong>${deliveryTime}</strong></section><section class="a4-total"><span><b>${tr("productsTotal")}</b><strong>${money(productsValue)}</strong></span><span><b>${tr("deliveryFee")}</b><strong>${money(order.deliveryFee)}</strong></span><span class="a4-grand-total"><b>${tr("total")}</b><strong>${money(order.total)}</strong></span></section></section><div class="a4-paid">✓&nbsp; مدفوع: ${escapeHtml(String(order.paymentMethod || "KNET").toUpperCase())}</div></section>`;
+  $("#invoice").innerHTML = `<section class="a4-invoice"><header class="a4-head"><img src="logo.png" alt=""><div><h1>فاتورة شراء</h1><p>Purchase Invoice</p></div></header><section class="a4-meta"><div><b>رقم الفاتورة</b><strong>#${escapeHtml(order.orderId)}</strong><b>تاريخ الإصدار</b><strong>${createdAt.toLocaleDateString(locale)}</strong></div><div class="a4-company">شركة صحي ولذيذ للتجهيزات الغذائية<br>حولي، شارع تونس، مجمع علي فهد الخالد، دور الميزانين<br><span dir="ltr">66906605 · 22085888</span></div></section><p class="a4-customer-line">${customerLine}</p><table class="a4-items"><thead><tr><th>#</th><th>الصنف</th><th>الملاحظات</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead><tbody>${order.items.map((item, index) => `<tr><td>${index + 1}</td><td><b>${escapeHtml(item.nameAr || item.nameEn || item.id)}</b><small dir="ltr">${escapeHtml(item.nameEn || item.nameAr || item.id)}</small>${item.options?.length ? `<small>${escapeHtml(item.options.map(optionSummary).join("، "))}</small>` : ""}</td><td>${escapeHtml(item.note || "—")}</td><td>${item.quantity}</td><td>${money(item.unitPrice || (item.total / item.quantity))}</td><td><b>${money(item.total)}</b></td></tr>`).join("")}</tbody></table>${invoicePreparationNotice(order)}<section class="a4-summary-row"><section class="a4-delivery-time"><small>${order.mode === "pickup" ? tr("pickup") : tr("deliveryTime")}</small><strong>${order.mode === "pickup" ? destination : deliveryTime}</strong></section><section class="a4-total"><span><b>${tr("productsTotal")}</b><strong>${money(productsValue)}</strong></span><span><b>${tr("deliveryFee")}</b><strong>${money(order.deliveryFee)}</strong></span><span class="a4-grand-total"><b>${tr("total")}</b><strong>${money(order.total)}</strong></span></section></section><div class="a4-paid">✓&nbsp; مدفوع: ${escapeHtml(String(order.paymentMethod || "KNET").toUpperCase())}</div></section>`;
   $("#invoice").setAttribute("dir", state.lang === "ar" ? "rtl" : "ltr");
   const phoneLabel = $("#invoice .a4-phone");
   if (phoneLabel) phoneLabel.textContent = `☎︎ ${order.phone || "—"}`;
@@ -2851,6 +2877,7 @@ function applyCatalog(catalog, cache = true) {
   const signature = JSON.stringify([
     catalog.version || "", catalog.updatedAt || "",
     catalog.appearance || {},
+    catalog.headings || [],
     catalog.categories.map(category => [category.id, category.catalogType || "bakery", category.active !== false, category.order, category.nameAr, category.nameEn]),
     catalog.products.map(item => [item.id, item.catalogType || "bakery", item.active !== false, item.category, item.order, item.price, item.name, item.nameEn, item.image, item.options || null, item.preparation || null]),
     catalog.deliveryAreas.map(area => [area.id, area.nameAr || area.name, area.nameEn, area.price, area.order])
@@ -2863,6 +2890,9 @@ function applyCatalog(catalog, cache = true) {
     item.active !== false && visibleCategoryIds.has(String(item.category || ""))
   );
   state.categories = visibleCategories;
+  state.restaurantEnabled = catalog.restaurantEnabled !== false;
+  if (!state.restaurantEnabled && state.catalogType === "restaurant") state.catalogType = "bakery";
+  state.headings = Array.isArray(catalog.headings) ? catalog.headings : [];
   state.products = applyRestaurantProductImages(visibleProducts);
   state.areas = Array.isArray(catalog?.deliveryAreas) ? catalog.deliveryAreas : [];
   if (state.area) {
