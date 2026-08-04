@@ -103,12 +103,13 @@ body.detail-open .categories{display:none}
 .hero.has-hero-image h1{line-height:1.4}
 .hero .hero-content h1{color:var(--hero-title-color)!important}
 .section-heading{display:block;margin-bottom:20px}
-.catalog-heading-group{padding:0 0 6px}.catalog-heading-group>h2{margin:0 0 20px;padding:12px 16px;border-radius:14px;background:#edf5ef;color:var(--dark);font-size:clamp(22px,3vw,34px)}
-.catalog-subheading-group>h3{position:sticky;top:calc(var(--site-header-height) + 58px);z-index:25;margin:0 0 8px;padding:9px 13px;border-inline-start:4px solid var(--gold);background:var(--paper);color:var(--green);font-size:18px}
-.subheading-nav{position:sticky;top:var(--site-header-height);z-index:28;display:flex;gap:7px;overflow:auto;margin:-8px 0 16px;padding:9px 0;background:var(--paper)}.subheading-nav button{flex:0 0 auto;border:1px solid #d7e5dc;border-radius:999px;background:#fff;color:var(--green);padding:8px 12px;font-size:10px;font-weight:900}
-.subheading-nav button.active,.linked-category-nav button.active{background:var(--green);border-color:var(--green);color:#fff}.linked-category-nav{display:flex;gap:7px;overflow:auto;margin:-7px 0 16px;padding:8px 0;background:var(--paper)}.linked-category-nav button{flex:0 0 auto;border:1px solid #d7e5dc;border-radius:999px;background:#fff;color:var(--green);padding:7px 11px;font-size:9px;font-weight:900}
-.categories .heading-category-link{border-color:var(--line);background:#fff;color:#52645b}
-.categories .heading-category-link.active{background:var(--green);border-color:var(--green);color:#fff}
+.catalog-heading-group{padding:0}
+/* شريطان مستقلان لا يظهران إلا عند القسم الرئيسي المرتبط */
+.heading-navigation{position:fixed;inset-inline:0;top:calc(var(--site-header-height) + var(--categories-height,58px));z-index:89;width:100%;margin:0;background:var(--paper);border-top:1px solid #dce6df;border-bottom:1px solid #dce6df;box-shadow:0 10px 18px rgba(20,53,41,.08)}
+.heading-navigation-row{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:6px max(16px,calc((100vw - min(1320px,calc(100vw - 32px)))/2));background:#f3f7f3;border-bottom:1px solid #dce6df}.heading-navigation-row::-webkit-scrollbar{display:none}.heading-navigation-row+ .heading-navigation-row{background:#fff;border-bottom:0}
+.heading-navigation-row button{flex:0 0 auto;border:1px solid #d7e5dc;border-radius:999px;background:#fff;color:#52645b;padding:6px 11px;font-size:10px;font-weight:900;line-height:1.25}.heading-navigation-row button.active{background:var(--dark);border-color:var(--dark);color:#fff}
+.categories .heading-category-link{border-color:var(--line);background:#fff;color:#52645b}.categories .heading-category-link.active{background:var(--dark);border-color:var(--dark);color:#fff}
+@media(max-width:760px){.heading-navigation-row{padding-inline:12px}}
 .section-heading h2{margin:0}
 
 /* التنقل بين كتالوج المخبز وكتالوج المطعم */
