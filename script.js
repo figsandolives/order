@@ -259,6 +259,8 @@ const state = {
 
 let imageObserver;
 let scrollFrame;
+let pendingScrollCategoryId = "";
+let pendingScrollUntil = 0;
 let toastTimer;
 let paymentWatchVersion = 0;
 let resendTimer;
@@ -829,16 +831,16 @@ function renderCatalogSwitch() {
 }
 
 function renderCategories() {
-  const count = state.products.filter(isCurrentCatalog).length;
-  const buttons = [`<button class="${state.activeCategory === "all" ? "active" : ""}" data-category-link="all">${tr("all")} <small>${count}</small></button>`];
+  const buttons = [];
   const linkedCategoryIds = new Set((state.headings || []).filter(item => catalogTypeOf(item) === state.catalogType).flatMap(item => [...(item.categoryIds || []), ...(item.subheadings || []).flatMap(group => group.categoryIds || [])]));
-  const headingButtons = (state.headings || []).filter(item => catalogTypeOf(item) === state.catalogType).sort((a, b) => Number(a.order) - Number(b.order)).map(item => `<button class="heading-category-link ${state.activeHeadingId === item.id ? "active" : ""}" data-heading-link="${escapeHtml(item.id)}">${escapeHtml(state.lang === "ar" ? item.nameAr : (item.nameEn || item.nameAr))}</button>`);
-  buttons.push(...headingButtons);
-  for (const category of sortedCategories()) {
-    if (linkedCategoryIds.has(category.id)) continue;
-    const count = categoryProducts(category.id).length;
-    if (count) buttons.push(`<button class="${state.activeCategory === category.id ? "active" : ""}" data-category-link="${escapeHtml(category.id)}">${escapeHtml(categoryName(category))} <small>${count}</small></button>`);
-  }
+  const entries = [
+    ...(state.headings || []).filter(item => catalogTypeOf(item) === state.catalogType).map(item => ({ type: "heading", item })),
+    ...sortedCategories().filter(category => !linkedCategoryIds.has(category.id) && categoryProducts(category.id).length).map(item => ({ type: "category", item }))
+  ].sort((a, b) => Number(a.item.order) - Number(b.item.order) || (a.type === "heading" ? -1 : 1));
+  entries.forEach(({ type, item }) => {
+    if (type === "heading") buttons.push(`<button class="heading-category-link ${state.activeHeadingId === item.id ? "active" : ""}" data-heading-link="${escapeHtml(item.id)}">${escapeHtml(state.lang === "ar" ? item.nameAr : (item.nameEn || item.nameAr))}</button>`);
+    else buttons.push(`<button class="${state.activeCategory === item.id ? "active" : ""}" data-category-link="${escapeHtml(item.id)}">${escapeHtml(categoryName(item))} <small>${categoryProducts(item.id).length}</small></button>`);
+  });
   $("#categories").innerHTML = buttons.join("");
   updateHeadingNavigation();
   syncHeadingNavigationOffset();
@@ -875,8 +877,11 @@ function updateHeadingNavigation() {
 
 function syncHeadingNavigationOffset() {
   const categories = $("#categories");
-  if (!categories) return;
+  const navigation = $("#headingNavigation");
+  if (!categories || !navigation) return;
+  const bottom = Math.ceil(categories.getBoundingClientRect().bottom);
   document.documentElement.style.setProperty("--categories-height", `${Math.ceil(categories.offsetHeight)}px`);
+  navigation.style.top = `${Math.max(0, bottom)}px`;
 }
 
 function productQuantityControl(id, quantity, detail = false) {
@@ -1039,7 +1044,14 @@ function scrollToCategory(categoryId) {
   const categoriesHeight = $("#categories")?.offsetHeight || 0;
   const headingNavigationHeight = $("#headingNavigation")?.classList.contains("hidden") ? 0 : ($("#headingNavigation")?.offsetHeight || 0);
   const top = window.scrollY + section.getBoundingClientRect().top - headerHeight - categoriesHeight - headingNavigationHeight - 10;
+  pendingScrollCategoryId = categoryId;
+  pendingScrollUntil = Date.now() + 5000;
   window.scrollTo({ top: Math.max(0, top), left: 0, behavior: "smooth" });
+  window.setTimeout(() => {
+    if (pendingScrollCategoryId !== categoryId) return;
+    pendingScrollCategoryId = "";
+    updateCategoryFromScroll();
+  }, 5200);
 }
 
 function centerCategoryButton(categoryId) {
@@ -1067,12 +1079,23 @@ function syncActiveNavigation() {
 
 function updateCategoryFromScroll() {
   scrollFrame = null;
+  syncHeadingNavigationOffset();
+  if (pendingScrollCategoryId && Date.now() < pendingScrollUntil) {
+    if (state.activeCategory !== pendingScrollCategoryId) {
+      state.activeCategory = pendingScrollCategoryId;
+      syncActiveNavigation();
+    }
+    return;
+  }
+  pendingScrollCategoryId = "";
   const sections = $$("[data-category-section]");
   if (!sections.length) return;
   let active = "all";
-  const threshold = Math.min(190, window.innerHeight * .32);
+  const fixedNavigationHeight = ($(".site-header")?.offsetHeight || 0)
+    + ($("#categories")?.offsetHeight || 0)
+    + ($("#headingNavigation")?.classList.contains("hidden") ? 0 : ($("#headingNavigation")?.offsetHeight || 0));
+  const threshold = fixedNavigationHeight + 38;
   for (const section of sections) if (section.getBoundingClientRect().top <= threshold) active = section.dataset.categorySection;
-  if (window.scrollY < 300) active = "all";
   if (active === state.activeCategory && active !== "all") return;
   state.activeCategory = active;
   syncActiveNavigation();
@@ -2843,7 +2866,7 @@ $("#categories").onclick = event => {
   const headingButton = event.target.closest("[data-heading-link]");
   if (headingButton) { const heading = (state.headings || []).find(item => item.id === headingButton.dataset.headingLink); const group = Array.isArray(heading?.subheadings) && heading.subheadings.length ? heading.subheadings[0] : { id: "", categoryIds: heading?.categoryIds || [] }; const category = group?.categoryIds?.[0]; state.activeHeadingId = headingButton.dataset.headingLink; state.activeSubheadingId = group?.id || ""; state.activeCategory = category || "all"; syncActiveNavigation(); if (category) scrollToCategory(category); return; }
   const button = event.target.closest("[data-category-link]");
-  if (button) scrollToCategory(button.dataset.categoryLink);
+  if (button) { state.activeCategory = button.dataset.categoryLink; syncActiveNavigation(); scrollToCategory(button.dataset.categoryLink); }
 };
 $("#headingNavigation").onclick = event => {
   const subheadingButton = event.target.closest("[data-subheading-nav]");
@@ -2904,6 +2927,12 @@ $("#checkoutBody").onclick = event => {
 window.addEventListener("scroll", () => {
   if (scrollFrame) return;
   scrollFrame = requestAnimationFrame(updateCategoryFromScroll);
+}, { passive: true });
+window.addEventListener("scrollend", () => {
+  if (!pendingScrollCategoryId) return;
+  pendingScrollCategoryId = "";
+  pendingScrollUntil = 0;
+  updateCategoryFromScroll();
 }, { passive: true });
 window.addEventListener("hashchange", syncProductRoute);
 window.addEventListener("popstate", syncProductRoute);
