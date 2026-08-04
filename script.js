@@ -893,7 +893,7 @@ function renderProductSections() {
     const subheadings = Array.isArray(heading.subheadings) ? heading.subheadings : [];
     const groups = subheadings.length ? subheadings : [{ nameAr: "", nameEn: "", categoryIds: heading.categoryIds || [] }];
     const groupMarkup = groups.map(group => { const linked = (group.categoryIds || []).map(id => ordered.find(category => category.id === id)).filter(Boolean); linked.forEach(category => used.add(category.id)); if (!linked.length) return ""; const title = group.nameAr ? `<h3>${escapeHtml(state.lang === "ar" ? group.nameAr : (group.nameEn || group.nameAr))}</h3>` : ""; const categoryNav = `<nav class="linked-category-nav">${linked.map((category, index) => `<button class="${index === 0 ? "active" : ""}" data-linked-category="${escapeHtml(category.id)}">${escapeHtml(categoryName(category))}</button>`).join("")}</nav>`; return `<section class="catalog-subheading-group">${title}${categoryNav}${linked.map(renderCategory).join("")}</section>`; }).join("");
-    if (groupMarkup) sections.push(`<section class="catalog-heading-group" id="heading-${encodeURIComponent(heading.id)}"><h2>${escapeHtml(state.lang === "ar" ? heading.nameAr : (heading.nameEn || heading.nameAr))}</h2>${subheadings.length ? `<nav class="subheading-nav">${subheadings.map((group, index) => `<button class="${index === 0 ? "active" : ""}" data-scroll-heading="${escapeHtml(heading.id)}" data-scroll-subheading="${escapeHtml(group.id)}">${escapeHtml(state.lang === "ar" ? group.nameAr : (group.nameEn || group.nameAr))}</button>`).join("")}</nav>` : ""}${groupMarkup}</section>`);
+    if (groupMarkup) sections.push(`<section class="catalog-heading-group" id="heading-${encodeURIComponent(heading.id)}">${subheadings.length ? `<nav class="subheading-nav">${subheadings.map((group, index) => `<button class="${index === 0 ? "active" : ""}" data-scroll-heading="${escapeHtml(heading.id)}" data-scroll-subheading="${escapeHtml(group.id)}">${escapeHtml(state.lang === "ar" ? group.nameAr : (group.nameEn || group.nameAr))}</button>`).join("")}</nav>` : ""}${groupMarkup}</section>`);
   }
   ordered.filter(category => !used.has(category.id)).forEach(category => { const markup = renderCategory(category); if (markup) sections.push(markup); });
   $("#productSections").innerHTML = sections.length ? sections.join("") : `<div class="loading">${tr("noResults")}</div>`;
@@ -2793,7 +2793,7 @@ $("#drawerClose").onclick = () => closeAccountDrawer(true);
 $("#drawerBackdrop").onclick = () => closeAccountDrawer(true);
 $("#categories").onclick = event => {
   const headingButton = event.target.closest("[data-heading-link]");
-  if (headingButton) { const target = document.getElementById(`heading-${encodeURIComponent(headingButton.dataset.headingLink)}`); if (target) target.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+  if (headingButton) { $$("[data-heading-link]").forEach(item => item.classList.toggle("active", item === headingButton)); const target = document.getElementById(`heading-${encodeURIComponent(headingButton.dataset.headingLink)}`); if (target) target.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
   const button = event.target.closest("[data-category-link]");
   if (button) scrollToCategory(button.dataset.categoryLink);
 };
