@@ -245,7 +245,7 @@ const DEFAULT_APPEARANCE = Object.freeze({
 });
 const state = {
   products: [], categories: [], areas: [], cart: loadUserCart(initialUser), search: "", activeCategory: "all",
-  catalogType: localStorage.getItem("figsOlivesCatalogType") === "restaurant" ? "restaurant" : "bakery",
+  catalogType: "bakery",
   lang: localStorage.getItem("storeLanguage") === "en" ? "en" : "ar",
   step: 1, mode: "delivery", area: null, branch: "", addressId: "", address: "",
   name: "", phone: "", order: "", paymentRequestId: "", detailProductId: "",
@@ -326,7 +326,7 @@ function applyStoreAppearance(value) {
   state.appearance = appearanceForCatalog(state.catalogAppearance);
   const hero = $("#storeHero");
   if (!hero) return;
-  const storeName = $("#heroStoreName", hero);
+  const storeName = $("#brandName");
   if (storeName) storeName.textContent = state.lang === "ar"
     ? (state.catalogType === "restaurant" ? "مطعم التين الطبيعي" : "مخبز التين والزيتون")
     : (state.catalogType === "restaurant" ? "Natural Figs Restaurant" : "Figs & Olives Bakery");
@@ -774,7 +774,6 @@ function setCatalogType(type) {
   state.catalogType = next;
   applyStoreAppearance(state.catalogAppearance);
   state.activeCategory = "all";
-  localStorage.setItem("figsOlivesCatalogType", next);
   const restaurant = next === "restaurant";
   $("#catalogTransitionTitle").textContent = state.lang === "ar"
     ? (restaurant ? "جاري الانتقال إلى أصناف المطعم" : "جاري الانتقال إلى أصناف المخبز")
@@ -796,8 +795,8 @@ function renderCatalogSwitch() {
   const nextRestaurant = state.catalogType !== "restaurant";
   const label = state.lang === "ar" ? (nextRestaurant ? "أصناف المطعم" : "أصناف المخبز") : (nextRestaurant ? "Restaurant items" : "Bakery items");
   const icon = nextRestaurant
-    ? `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v8m3-8v8m-5-5h7M16 3v18m0-9c2.8 0 4-2.1 4-4.8V3"/></svg>`
-    : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16M6 20v-6.2a6 6 0 0 1 12 0V20M9 9.5V7a3 3 0 0 1 6 0v2.5M4 16h16"/></svg>`;
+    ? `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v7m3-7v7M4 3v5a3.5 3.5 0 0 0 7 0V3m-3.5 7v11M18 3v18m0-18c2.2 1.2 2.2 5.8 0 7"/></svg>`
+    : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18M5 20V9.5A7 7 0 0 1 19 9.5V20M8 20v-5.5a4 4 0 0 1 8 0V20M10 16h4M8 7h8"/></svg>`;
   button.innerHTML = `<span class="catalog-switch-icon">${icon}</span><span>${label}</span><i>‹</i>`;
   button.dataset.catalogTarget = nextRestaurant ? "restaurant" : "bakery";
 }
