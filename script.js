@@ -2893,6 +2893,7 @@ function applyCatalog(catalog, cache = true) {
   state.categories = visibleCategories;
   state.restaurantEnabled = catalog.restaurantEnabled !== false;
   if (!state.restaurantEnabled && state.catalogType === "restaurant") state.catalogType = "bakery";
+  renderCatalogSwitch();
   state.headings = Array.isArray(catalog.headings) ? catalog.headings : [];
   state.products = applyRestaurantProductImages(visibleProducts);
   state.areas = Array.isArray(catalog?.deliveryAreas) ? catalog.deliveryAreas : [];
