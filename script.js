@@ -802,7 +802,8 @@ function setCatalogType(type) {
     renderCatalogSwitch();
     renderCategories();
     renderProductSections();
-    window.scrollTo({ top: Math.max(0, ($(".catalog")?.offsetTop || 0) - 80), behavior: "smooth" });
+    // Each catalogue has its own banner, so return to the top to show it.
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }, 1000);
 }
 
