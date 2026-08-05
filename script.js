@@ -2683,6 +2683,8 @@ function showSuccess() {
   state.lastInvoice = order;
   saveCompletedOrder(order);
   buildInvoice(order);
+  // لا ننتظر الإرسال حتى لا تتأخر صفحة نجاح الطلب؛ الفاتورة نفسها تُولّد من قالب A4 الحالي.
+  sendInvoiceToWhatsApp(order);
   state.cart = {};
   persistCart();
   renderCartBar();
@@ -2766,6 +2768,35 @@ async function createInvoiceFile(order) {
   } catch (error) {
     invoiceFileCache.delete(cacheKey);
     throw error;
+  }
+}
+
+async function sendInvoiceToWhatsApp(order) {
+  const endpoint = String(orderingConfig.invoiceWhatsappWebhookUrl || "").trim();
+  if (!endpoint || !order?.orderId || !normalizePhone(order.phone)) return;
+  try {
+    const file = await createInvoiceFile(order);
+    const pdfBase64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || "").split(",")[1] || "");
+      reader.onerror = () => reject(reader.error || new Error("Could not read invoice PDF"));
+      reader.readAsDataURL(file);
+    });
+    if (!pdfBase64) throw new Error("Invoice PDF is empty");
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orderId: String(order.orderId),
+        phone: `965${normalizePhone(order.phone)}`,
+        pdfBase64
+      }),
+      keepalive: true
+    });
+    if (!response.ok) throw new Error(`Invoice WhatsApp webhook failed (${response.status})`);
+  } catch (error) {
+    // يبقى إتمام الطلب مستقلاً عن الإشعار؛ الفشل هنا لا يوقف دفع العميل أو حفظ طلبه.
+    console.warn("Could not send invoice through WhatsApp workflow", error);
   }
 }
 
