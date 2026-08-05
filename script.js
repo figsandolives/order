@@ -642,6 +642,16 @@ function trackStoreEvent(type, details = {}) {
   }).catch(() => undefined);
 }
 
+function analyticsCartSnapshot() {
+  return {
+    cartItems: cartItems().map(({ product: item, quantity, options }) => ({
+      id: String(item.id), name: productName(item), quantity,
+      total: Number((unitPrice(item, options) * quantity).toFixed(3))
+    })),
+    cartValue: Number(subtotal().toFixed(3))
+  };
+}
+
 function queueUserSync() {
   clearTimeout(userSyncTimer);
   userSyncTimer = setTimeout(() => {
@@ -1110,7 +1120,8 @@ function changeQuantity(id, difference) {
   persistCart();
   renderCartBar();
   syncProductQuantityControls(id);
-  if (difference > 0 && wasEmpty) trackStoreEvent("cart_created", { productId: id });
+  if (difference > 0 && wasEmpty) trackStoreEvent("cart_created", { productId: id, ...analyticsCartSnapshot() });
+  else trackStoreEvent("cart_updated", { productId: id, ...analyticsCartSnapshot() });
   if (!$("#checkoutModal").classList.contains("hidden")) renderCheckout();
 }
 
