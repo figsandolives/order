@@ -265,6 +265,7 @@ let toastTimer;
 let paymentWatchVersion = 0;
 let resendTimer;
 let pendingCartProductId = "";
+let pendingCartAnchor = null;
 let pendingOptionProductId = "";
 let pendingOptionAnchor = null;
 let productOptionsPopover = null;
@@ -1170,6 +1171,7 @@ function updateCartNote(id, note) {
 function requestAddToCart(id, anchor = null) {
   if (!state.user?.name) {
     pendingCartProductId = id;
+    pendingCartAnchor = anchor;
     openAuth("login");
     return;
   }
@@ -1526,7 +1528,7 @@ function openAuth(mode = "login") {
 function closeAuth() {
   if ($("#authModal .auth-panel").classList.contains("no-close")) return;
   clearInterval(resendTimer);
-  if (authMode === "login") pendingCartProductId = "";
+  if (authMode === "login") { pendingCartProductId = ""; pendingCartAnchor = null; }
   $("#authModal").classList.add("hidden");
   $("#authModal").setAttribute("aria-hidden", "true");
 }
@@ -1702,9 +1704,10 @@ function completeLogin() {
   syncAllProductQuantityControls();
   if (pendingCartProductId) {
     const id = pendingCartProductId;
+    const anchor = pendingCartAnchor;
     pendingCartProductId = "";
-    changeQuantity(id, 1);
-    toast(tr("added"));
+    pendingCartAnchor = null;
+    requestAddToCart(id, anchor);
   }
 }
 
