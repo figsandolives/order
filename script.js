@@ -426,6 +426,23 @@ function money(value) {
   return state.lang === "ar" ? `${Number(value).toFixed(3)} د.ك` : `${Number(value).toFixed(3)} KWD`;
 }
 
+const minimumOrderUnitLabels = {
+  dozen: { ar: "درزن", en: "dozen" }, piece: { ar: "حبة", en: "piece" }, bowl: { ar: "ماعون", en: "bowl" },
+  bag: { ar: "كيس", en: "bag" }, kilo: { ar: "كيلو", en: "kilo" }, bottle: { ar: "بطل", en: "bottle" }
+};
+function minimumOrderConfig(value) {
+  if (!value || value.enabled === false) return null;
+  const quantity = Math.max(1, Math.min(99, Math.floor(Number(value.quantity) || 1)));
+  const unit = minimumOrderUnitLabels[value.unit] ? value.unit : "piece";
+  return { quantity, unit };
+}
+function minimumOrderText(value) {
+  const minimum = minimumOrderConfig(value);
+  if (!minimum) return "";
+  const amount = new Intl.NumberFormat(state.lang === "ar" ? "ar-KW" : "en").format(minimum.quantity);
+  return state.lang === "ar" ? `أقل كمية للطلب هي ${amount} ${minimumOrderUnitLabels[minimum.unit].ar}` : `Minimum order: ${amount} ${minimumOrderUnitLabels[minimum.unit].en}`;
+}
+
 function product(id) {
   return state.products.find(item => String(item.id) === String(id));
 }
@@ -434,14 +451,14 @@ function productOptions(item) {
   const config = item?.options;
   if (!config || config.enabled === false || !Array.isArray(config.items)) return null;
   const items = config.items.filter(option => option && (option.nameAr || option.nameEn)).map(option => ({
-    id: String(option.id || option.nameAr || option.nameEn), nameAr: String(option.nameAr || option.nameEn || ""), nameEn: String(option.nameEn || option.nameAr || ""), price: Math.max(0, Number(option.price) || 0), preparation: option.preparation || null, image: String(option.image || ""),
+    id: String(option.id || option.nameAr || option.nameEn), nameAr: String(option.nameAr || option.nameEn || ""), nameEn: String(option.nameEn || option.nameAr || ""), price: Math.max(0, Number(option.price) || 0), preparation: option.preparation || null, image: String(option.image || ""), minimumOrder: minimumOrderConfig(option.minimumOrder),
     subOptions: (Array.isArray(option.subOptions) ? option.subOptions : []).filter(subOption => subOption && (subOption.nameAr || subOption.nameEn)).map(subOption => ({
       id: String(subOption.id || subOption.nameAr || subOption.nameEn), nameAr: String(subOption.nameAr || subOption.nameEn || ""), nameEn: String(subOption.nameEn || subOption.nameAr || ""), price: Math.max(0, Number(subOption.price) || 0)
     }))
   }));
   const nestedEnabled = config.nestedEnabled === true;
   const multiple = nestedEnabled ? false : config.multiple === true;
-  return items.length ? { required: nestedEnabled || config.required === true, multiple, maxSelections: multiple ? Math.min(items.length, Math.max(1, Number(config.maxSelections) || items.length)) : 1, titleAr: String(config.titleAr || ""), titleEn: String(config.titleEn || ""), priceBased: nestedEnabled || config.priceBased === true, nestedEnabled, items } : null;
+  return items.length ? { required: nestedEnabled || config.required === true, multiple, maxSelections: multiple ? Math.min(items.length, Math.max(1, Number(config.maxSelections) || items.length)) : 1, titleAr: String(config.titleAr || ""), titleEn: String(config.titleEn || ""), priceBased: nestedEnabled || config.priceBased === true, nestedEnabled, minimumPerOptionEnabled: config.minimumPerOptionEnabled === true, optionQuantityEnabled: config.optionQuantityEnabled === true, items } : null;
 }
 
 function productSelectionFlow(item) {
@@ -568,6 +585,21 @@ function cartItemMissingRequiredChoice(entry) {
   if (flow) return flow.steps.some(step => !(options || []).some(option => option?.flowStepId === step.id));
   const config = productOptions(entry?.product);
   return Boolean(config?.required && !options.length);
+}
+
+function cartItemMinimumIssue(entry) {
+  const productMinimum = minimumOrderConfig(entry?.product?.minimumOrder);
+  if (productMinimum && Number(entry.quantity) < productMinimum.quantity) return { product: entry.product, minimum: productMinimum };
+  const config = productOptions(entry?.product);
+  if (config?.minimumPerOptionEnabled) {
+    const selected = Array.isArray(entry?.options) ? entry.options : [];
+    const invalid = selected.find(option => {
+      const minimum = minimumOrderConfig(option.minimumOrder);
+      return minimum && Number(option.quantity || 1) < minimum.quantity;
+    });
+    if (invalid) return { product: entry.product, option: invalid, minimum: minimumOrderConfig(invalid.minimumOrder) };
+  }
+  return null;
 }
 
 function resolveMissingCartChoice(entry) {
@@ -922,6 +954,7 @@ function productCard(item, category) {
         <b class="in-cart ${quantity ? "" : "hidden"}" data-cart-badge="${escapeHtml(item.id)}">${quantity ? `${tr("inCart")} × ${quantity}` : ""}</b>
       </div>
       <div class="product-info">
+        ${minimumOrderConfig(item.minimumOrder) ? `<div class="minimum-order-badge">${escapeHtml(minimumOrderText(item.minimumOrder))}</div>` : ""}
         ${hasOptionPreparation ? "" : `<span class="preparation-badge" aria-label="${escapeHtml(preparationLabel(item))}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/></svg>${escapeHtml(preparationLabel(item))}</span>`}
         <h3>${escapeHtml(productName(item))}</h3>
         <p>${escapeHtml(productDescription(item) || item.nameEn || item.name)}</p>
@@ -1294,7 +1327,7 @@ function renderProductOptionsStep() {
   const actionText = choosingSubOption ? (state.lang === "ar" ? "إضافة إلى السلة" : "Add to cart") : (config.nestedEnabled ? (state.lang === "ar" ? "التالي" : "Next") : (state.lang === "ar" ? "إضافة إلى السلة" : "Add to cart"));
   const optionsTitle = !choosingSubOption && config.multiple ? (state.lang === "ar" ? config.titleAr : config.titleEn) : "";
   const maxHint = !choosingSubOption && config.multiple ? (state.lang === "ar" ? `يمكنك اختيار حتى ${new Intl.NumberFormat("ar-KW").format(config.maxSelections)} خيارات` : `Choose up to ${config.maxSelections} options`) : "";
-  productOptionsPopover.innerHTML = `<header><div><small>${state.lang === "ar" ? (choosingSubOption ? "الخيار الثاني" : "خيارات المنتج") : (choosingSubOption ? "Second option" : "Product options")}</small><strong>${escapeHtml(productName(item))}</strong></div><button type="button" data-close-options aria-label="${state.lang === "ar" ? "إغلاق" : "Close"}">×</button></header><p>${escapeHtml(stepText)}</p>${optionsTitle ? `<div class="option-group-title"><strong>${escapeHtml(optionsTitle)}</strong><small>${escapeHtml(maxHint)}</small></div>` : ""}<div class="product-options-list">${choices.map(option => `<label class="product-option-choice"><input type="${type}" name="${choiceName}" value="${escapeHtml(option.id)}">${option.image ? `<img src="${escapeHtml(option.image)}" alt="">` : ""}<span><b>${escapeHtml(optionName(option))}</b><small>${escapeHtml(state.lang === "ar" ? option.nameEn : option.nameAr)}</small>${option.preparation ? `<i>◷ ${escapeHtml(preparationLabel(option.preparation))}</i>` : ""}</span>${config.priceBased ? `<em>${money(option.price)}</em>` : ""}</label>`).join("")}</div><button type="button" class="primary" data-option-confirm disabled>${actionText}</button>`;
+  productOptionsPopover.innerHTML = `<header><div><small>${state.lang === "ar" ? (choosingSubOption ? "الخيار الثاني" : "خيارات المنتج") : (choosingSubOption ? "Second option" : "Product options")}</small><strong>${escapeHtml(productName(item))}</strong></div><button type="button" data-close-options aria-label="${state.lang === "ar" ? "إغلاق" : "Close"}">×</button></header><p>${escapeHtml(stepText)}</p>${optionsTitle ? `<div class="option-group-title"><strong>${escapeHtml(optionsTitle)}</strong><small>${escapeHtml(maxHint)}</small></div>` : ""}<div class="product-options-list">${choices.map(option => `<label class="product-option-choice"><input type="${type}" name="${choiceName}" value="${escapeHtml(option.id)}">${option.image ? `<img src="${escapeHtml(option.image)}" alt="">` : ""}<span><b>${escapeHtml(optionName(option))}</b><small>${escapeHtml(state.lang === "ar" ? option.nameEn : option.nameAr)}</small>${option.preparation ? `<i>◷ ${escapeHtml(preparationLabel(option.preparation))}</i>` : ""}${config.minimumPerOptionEnabled && option.minimumOrder ? `<i class="option-minimum-note">${escapeHtml(minimumOrderText(option.minimumOrder))}</i>` : ""}</span>${config.priceBased ? `<em>${money(option.price)}</em>` : ""}${!choosingSubOption && config.optionQuantityEnabled ? `<input class="option-quantity-input" data-option-quantity="${escapeHtml(option.id)}" type="number" min="1" max="99" value="1" inputmode="numeric" aria-label="${state.lang === "ar" ? "كمية الخيار" : "Option quantity"}">` : ""}</label>`).join("")}</div><button type="button" class="primary" data-option-confirm disabled>${actionText}</button>`;
   productOptionsPopover.place?.();
   productOptionsPopover.querySelector("[data-close-options]").onclick = closeProductOptions;
   productOptionsPopover.querySelectorAll(`input[name="${choiceName}"]`).forEach(input => input.onchange = () => {
@@ -1304,6 +1337,14 @@ function renderProductOptionsStep() {
       return toast(state.lang === "ar" ? `الحد الأقصى ${new Intl.NumberFormat("ar-KW").format(config.maxSelections)} خيارات` : `Maximum ${config.maxSelections} options`, "error");
     }
     productOptionsPopover.querySelector("[data-option-confirm]").disabled = config.required && !productOptionsPopover.querySelector(`input[name="${choiceName}"]:checked`);
+  });
+  productOptionsPopover.querySelectorAll("[data-option-quantity]").forEach(input => {
+    input.oninput = () => { input.value = String(Math.max(1, Math.min(99, Math.floor(Number(input.value) || 1)))); };
+    input.onclick = event => {
+      event.stopPropagation();
+      const choice = input.closest("label")?.querySelector(`input[name="${choiceName}"]`);
+      if (choice) { choice.checked = true; productOptionsPopover.querySelector("[data-option-confirm]").disabled = false; }
+    };
   });
   productOptionsPopover.querySelector("[data-option-confirm]").onclick = event => {
     event.stopPropagation();
@@ -1336,7 +1377,7 @@ function confirmProductOptions() {
   }
   const selectedIds = $$('input[name="product-option"]:checked', productOptionsPopover || document).map(input => input.value);
   if (config.required && !selectedIds.length) return toast(tr("optionsRequired"), "error");
-  const selected = config.items.filter(option => selectedIds.includes(option.id));
+  const selected = config.items.filter(option => selectedIds.includes(option.id)).map(option => ({ ...option, quantity: Math.max(1, Number(productOptionsPopover?.querySelector(`[data-option-quantity="${CSS.escape(option.id)}"]`)?.value) || 1) }));
   if (config.nestedEnabled) {
     pendingPrimaryOption = selected[0] || null;
     if (!pendingPrimaryOption) return toast(tr("optionsRequired"), "error");
@@ -2071,14 +2112,15 @@ function minimumOrderNotice() {
 
 function renderReview() {
   $("#checkoutBody").innerHTML = `
-    <section class="checkout-review"><div class="cart-list">${cartItems().map(({ product: item, quantity, note, options }) => `
-      <div class="cart-row"><img src="${escapeHtml(productImages(item)[0] || "logo.png")}" alt="">
-        <div class="cart-copy"><h4>${escapeHtml(productName(item))}</h4>${options.length ? `<small class="cart-options">${escapeHtml(options.map(optionSummary).join("، "))}</small>` : ""}<strong>${money(unitPrice(item, options) * quantity)}</strong></div><label class="cart-note-label"><textarea aria-label="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}" data-cart-note="${escapeHtml(item.id)}" maxlength="240" placeholder="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}">${escapeHtml(note)}</textarea></label>
+    <section class="checkout-review"><div class="cart-list">${cartItems().map(({ product: item, quantity, note, options }) => { const minimumIssue = cartItemMinimumIssue({ product: item, quantity, options }); return `
+      <div class="cart-row ${minimumIssue ? "minimum-order-warning" : ""}"><img src="${escapeHtml(productImages(item)[0] || "logo.png")}" alt="">
+        <div class="cart-copy"><h4>${escapeHtml(productName(item))}</h4>${options.length ? `<small class="cart-options">${escapeHtml(options.map(optionSummary).join("، "))}</small>` : ""}${minimumIssue ? `<small class="minimum-order-warning-note">${escapeHtml(minimumOrderText(minimumIssue.minimum))}</small>` : ""}<strong>${money(unitPrice(item, options) * quantity)}</strong></div><label class="cart-note-label"><textarea aria-label="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}" data-cart-note="${escapeHtml(item.id)}" maxlength="240" placeholder="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}">${escapeHtml(note)}</textarea></label>
         <div class="qty"><button data-plus="${escapeHtml(item.id)}">+</button><span>${quantity}</span><button data-minus="${escapeHtml(item.id)}">${quantity === 1 ? "×" : "−"}</button></div>
-      </div>`).join("")}</div><div class="checkout-sticky-actions">${cartHasLongPreparationItems() ? `<p class="long-preparation-notice">${state.lang === "ar" ? "ملاحظة: يوجد في طلبك أصناف تأخذ وقت للتجهيز.. لذا يرجى العلم أنه قد يتأخر طلبك أو يتم تأجيله." : "Note: Your order includes items that need extra preparation time, so it may be delayed or rescheduled."}</p>` : ""}${totalsHtml()}<button class="primary" id="next1">${tr("confirmContinue")}</button></div></section>`;
+      </div>`; }).join("")}</div><div class="checkout-sticky-actions">${cartHasLongPreparationItems() ? `<p class="long-preparation-notice">${state.lang === "ar" ? "ملاحظة: يوجد في طلبك أصناف تأخذ وقت للتجهيز.. لذا يرجى العلم أنه قد يتأخر طلبك أو يتم تأجيله." : "Note: Your order includes items that need extra preparation time, so it may be delayed or rescheduled."}</p>` : ""}${totalsHtml()}<button class="primary" id="next1">${tr("confirmContinue")}</button></div></section>`;
   $$('[data-cart-note]').forEach(input => input.onchange = () => updateCartNote(input.dataset.cartNote, input.value));
   $("#next1").onclick = () => {
     if (!cartCount()) return toast(state.lang === "ar" ? "لا يمكن المتابعة وسلتك فارغة" : "You cannot continue with an empty cart");
+    if (cartItems().some(cartItemMinimumIssue)) return toast(state.lang === "ar" ? "ارجو إكمال كمية المنتج المطلوبة" : "Please complete the required product quantity", "error");
     if (!hasMinimumOrderValue()) return toast(minimumOrderNotice(), "error");
     state.step = 2;
     renderCheckout();
@@ -2507,6 +2549,7 @@ async function finishOrder() {
   if (!state.user?.name || normalizePhone(state.user.phone).length !== 8) return openAuth("login");
   const incompleteItem = cartItems().find(cartItemMissingRequiredChoice);
   if (incompleteItem) return resolveMissingCartChoice(incompleteItem);
+  if (cartItems().some(cartItemMinimumIssue)) return paymentError(state.lang === "ar" ? "ارجو إكمال كمية المنتج المطلوبة" : "Please complete the required product quantity");
   if (!orderingConfig.paymentWebhookUrl || !orderingConfig.paymentStatusWebhookUrl) return paymentError(tr("paymentUnavailable"));
   if (!state.paymentMethod) return toast(tr("choosePaymentMethod"));
   clearProductRoute();
