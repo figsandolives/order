@@ -2819,7 +2819,9 @@ async function createInvoiceFile(order) {
     remaining -= pageHeight;
     while (remaining > 0.5) {
       pdf.addPage();
-      y = 10 - (imageHeight - remaining);
+      // The first page starts at 10mm. Subsequent pages start at the exact
+      // next image position, otherwise the last 10mm is duplicated.
+      y = -(imageHeight - remaining);
       pdf.addImage(image, "JPEG", 10, y, pageWidth, imageHeight, undefined, "FAST");
       remaining -= pageHeight;
     }
