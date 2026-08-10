@@ -414,6 +414,9 @@ function productName(product) {
 function productDescription(product) {
   return state.lang === "ar" ? (product.description || product.descriptionEn || "") : (product.descriptionEn || product.description || "");
 }
+function productBadge(product) {
+  return state.lang === "ar" ? (product.badgeAr || product.badgeEn || "") : (product.badgeEn || product.badgeAr || "");
+}
 
 function productImages(product) {
   return (Array.isArray(product.images) ? product.images : [product.image]).filter(Boolean);
@@ -946,12 +949,14 @@ function productQuantityControl(id, quantity, detail = false) {
 function productCard(item, category) {
   const source = productImages(item)[0] || "logo.png";
   const quantity = cartQuantity(item.id);
+  const badge = productBadge(item);
   const optionConfig = productOptions(item);
   const hasOptionPreparation = optionConfig?.items.some(option => option.preparation);
   return `
     <article class="product-card" data-product="${escapeHtml(item.id)}" tabindex="0">
       <div class="product-image">
         <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" data-src="${escapeHtml(source)}" width="640" height="580" alt="${escapeHtml(productName(item))}" decoding="async" fetchpriority="low">
+        ${badge ? `<span class="product-feature-badge">${escapeHtml(badge)}</span>` : ""}
         <b class="in-cart ${quantity ? "" : "hidden"}" data-cart-badge="${escapeHtml(item.id)}">${quantity ? `${tr("inCart")} × ${quantity}` : ""}</b>
       </div>
       <div class="product-info">
