@@ -5,12 +5,25 @@ const firebaseServices = window.ORDERING_FIREBASE;
 let firebaseAuthUser = null;
 let firebaseProfileHydrated = false;
 
+// Safari قد يتعامل مع الجلسة كجلسة مؤقتة إن لم نطلب التخزين الدائم صراحةً.
+// نضبطها قبل أي تسجيل دخول، ولا تُمسح إلا عند اختيار العميل «تسجيل خروج».
+const firebasePersistenceReady = (async () => {
+  if (!firebaseServices?.auth || !window.firebase?.auth?.Auth?.Persistence?.LOCAL) return null;
+  try {
+    await firebaseServices.auth.setPersistence(window.firebase.auth.Auth.Persistence.LOCAL);
+  } catch (error) {
+    console.error("Firebase local persistence setup failed", error);
+  }
+  return null;
+})();
+
 const firebaseIdentityReady = new Promise(resolve => {
   if (!firebaseServices) return resolve(null);
   let unsubscribe = null;
   unsubscribe = firebaseServices.auth.onAuthStateChanged(async user => {
     if (!user) {
       try {
+        await firebasePersistenceReady;
         await firebaseServices.auth.signInAnonymously();
       } catch (error) {
         console.error("Firebase anonymous sign-in failed", error);
@@ -682,7 +695,8 @@ function trackStoreEvent(type, details = {}) {
 function analyticsCartSnapshot() {
   return {
     cartItems: cartItems().map(({ product: item, quantity, options }) => ({
-      id: String(item.id), name: productName(item), quantity,
+      // التقارير الإدارية تعتمد الاسم العربي دائماً، بغض النظر عن لغة العميل.
+      id: String(item.id), name: String(item.name || item.nameAr || item.nameEn || ""), quantity,
       total: Number((unitPrice(item, options) * quantity).toFixed(3))
     })),
     cartValue: Number(subtotal().toFixed(3))
@@ -716,6 +730,7 @@ async function authenticateFirebaseCustomer(authResult, phone) {
   }
 
   try {
+    await firebasePersistenceReady;
     const signedIn = await firebaseServices.auth.signInWithCustomToken(customToken);
     firebaseAuthUser = signedIn.user;
     return signedIn.user;
@@ -1171,6 +1186,7 @@ function updateCartNote(id, note) {
   state.cart[id] = { ...existing, note: String(note || "").replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 240) };
   state.paymentRequestId = "";
   persistCart();
+  trackStoreEvent("cart_updated", { productId: id, ...analyticsCartSnapshot() });
 }
 
 function requestAddToCart(id, anchor = null) {
@@ -1402,12 +1418,14 @@ function confirmProductOptions() {
 }
 
 function addSelectedOptionsToCart(id, selected, quantity = 1) {
+  const wasEmpty = cartCount() === 0;
   const existing = typeof state.cart[id] === "object" && state.cart[id] ? state.cart[id] : { quantity: 0, note: "" };
   state.cart[id] = { ...existing, options: selected, quantity: Number(existing.quantity || 0) + Math.max(1, Number(quantity) || 1) };
   state.paymentRequestId = "";
   persistCart();
   renderCartBar();
   syncProductQuantityControls(id);
+  trackStoreEvent(wasEmpty ? "cart_created" : "cart_updated", { productId: id, ...analyticsCartSnapshot() });
   closeProductOptions();
   toast(tr("added"));
 }
