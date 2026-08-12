@@ -480,8 +480,50 @@ function productOptions(item) {
   return items.length ? { required: nestedEnabled || config.required === true, multiple, maxSelections: multiple ? Math.min(items.length, Math.max(1, Number(config.maxSelections) || items.length)) : 1, titleAr: String(config.titleAr || ""), titleEn: String(config.titleEn || ""), priceBased: nestedEnabled || config.priceBased === true, nestedEnabled, minimumPerOptionEnabled: config.minimumPerOptionEnabled === true, optionQuantityEnabled: config.optionQuantityEnabled === true, items } : null;
 }
 
+const STUFFED_BREAD_SELECTION_FLOW = Object.freeze({
+  enabled: true,
+  steps: [
+    {
+      id: "dough", titleAr: "اختر نوع العجينة", titleEn: "Choose dough type", required: true, multiple: false,
+      items: [
+        { id: "dough-wheat", nameAr: "بالقمح الكامل والخميرة الطبيعية", nameEn: "Whole wheat & natural sourdough", price: 0 },
+        { id: "dough-rice", nameAr: "بالرز الأبيض الخالي من الجلوتين", nameEn: "White rice - gluten free", price: 1 },
+        { id: "dough-barley", nameAr: "بالشعير الكامل والخميرة الطبيعية", nameEn: "Whole barley & natural sourdough", price: 1, preparation: { first: 1, unit: "day", hasSecond: true, second: 2, secondUnit: "day" } }
+      ]
+    },
+    {
+      id: "size", titleAr: "اختر الحجم والكمية", titleEn: "Choose size & quantity", required: true, multiple: false, quantityEnabled: true,
+      items: [
+        { id: "regular12", nameAr: "صغير عادي (١٢ خبزة = ٢٤ قطعة)", nameEn: "Small regular (12 breads = 24 pieces)", pieces: 24, price: 8 },
+        { id: "mini12", nameAr: "حجم ميني (١٢ خبزة)", nameEn: "Mini size (12 breads)", pieces: 12, price: 6 },
+        { id: "bite12", nameAr: "حجم لقمة (١٢ خبزة)", nameEn: "Bite size (12 breads)", pieces: 12, price: 4 }
+      ]
+    },
+    {
+      id: "fillings", titleAr: "اختر الحشوات", titleEn: "Choose fillings", required: true, multiple: true, quantityEnabled: true,
+      distributeQuantity: true, limitFrom: "size",
+      items: [
+        ["eggplant", "بالباذنجان", "Eggplant"],
+        ["indian-chilli-potatoes", "بالبطاط الهندية الحارة", "Indian chilli potatoes"],
+        ["potatoes-carrots", "بالبطاط والجزر والبازلاء", "Potatoes, carrots & peas"],
+        ["sprouted-fava-beans", "بالفول المبرعم", "Sprouted fava beans"],
+        ["spinach", "بالسبانخ", "Spinach"],
+        ["mushroom", "بالمشروم", "Mushroom"],
+        ["yellow-squash", "بالقرع الأصفر", "Yellow squash"],
+        ["sprouted-falafel", "بالفلافل المبرعمة", "Sprouted falafel"],
+        ["fermented-muhammara", "بالمحمرة المخمرة", "Fermented muhammara"],
+        ["purslane", "بالبربير", "Purslane"],
+        ["organic-plain-eggs", "بالبيض العضوي السادة", "Organic plain eggs"],
+        ["organic-eggs-cheese", "بالبيض العضوي مع الجبن", "Organic eggs with cheese"],
+        ["organic-eggs-spinach", "بالبيض العضوي مع السبانخ", "Organic eggs with spinach"]
+      ].map(([id, nameAr, nameEn]) => ({ id, nameAr, nameEn, price: 0 }))
+    }
+  ]
+});
+
 function productSelectionFlow(item) {
-  const flow = item?.options?.selectionFlow;
+  // هذا المنتج يُعرّف تسلسله في الكود تماماً كالفطاير، ولا يعتمد على خيارات لوحة الإدارة العامة.
+  const flow = String(item?.id) === "9227" ? STUFFED_BREAD_SELECTION_FLOW : item?.options?.selectionFlow;
   if (!flow?.enabled || !Array.isArray(flow.steps) || !flow.steps.length) return null;
   const steps = flow.steps.map((step, index) => ({
     id: String(step.id || `step-${index + 1}`),
