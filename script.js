@@ -1252,6 +1252,8 @@ function openSelectionFlow(id, anchor = null) {
 }
 
 function flowLimit(step) {
+  // في مرحلة الحشوات لا نحد عدد الأنواع؛ القيد الوحيد هو إكمال عدد الحبات.
+  if (step.distributeQuantity) return step.items.length;
   if (!step.limitFrom) return Math.min(step.items.length, step.maxSelections);
   const source = pendingFlowSelections[step.limitFrom]?.[0];
   const limit = source?.maxFillingSelections;
