@@ -503,19 +503,19 @@ const STUFFED_BREAD_SELECTION_FLOW = Object.freeze({
       id: "fillings", titleAr: "اختر الحشوات", titleEn: "Choose fillings", required: true, multiple: true, quantityEnabled: true,
       distributeQuantity: true, limitFrom: "size",
       items: [
-        ["eggplant", "بالباذنجان", "Eggplant"],
-        ["indian-chilli-potatoes", "بالبطاط الهندية الحارة", "Indian chilli potatoes"],
-        ["potatoes-carrots", "بالبطاط والجزر والبازلاء", "Potatoes, carrots & peas"],
-        ["sprouted-fava-beans", "بالفول المبرعم", "Sprouted fava beans"],
-        ["spinach", "بالسبانخ", "Spinach"],
-        ["mushroom", "بالمشروم", "Mushroom"],
-        ["yellow-squash", "بالقرع الأصفر", "Yellow squash"],
-        ["sprouted-falafel", "بالفلافل المبرعمة", "Sprouted falafel"],
-        ["fermented-muhammara", "بالمحمرة المخمرة", "Fermented muhammara"],
-        ["purslane", "بالبربير", "Purslane"],
-        ["organic-plain-eggs", "بالبيض العضوي السادة", "Organic plain eggs"],
-        ["organic-eggs-cheese", "بالبيض العضوي مع الجبن", "Organic eggs with cheese"],
-        ["organic-eggs-spinach", "بالبيض العضوي مع السبانخ", "Organic eggs with spinach"]
+        ["eggplant", "باذنجان", "Eggplant"],
+        ["indian-chilli-potatoes", "بطاط هندية حارة", "Indian chilli potatoes"],
+        ["potatoes-carrots", "بطاط وجزر وبازلاء", "Potatoes, carrots & peas"],
+        ["sprouted-fava-beans", "فول مبرعم", "Sprouted fava beans"],
+        ["spinach", "سبانخ", "Spinach"],
+        ["mushroom", "مشروم", "Mushroom"],
+        ["yellow-squash", "قرع أصفر", "Yellow squash"],
+        ["sprouted-falafel", "فلافل مبرعمة", "Sprouted falafel"],
+        ["fermented-muhammara", "محمرة مخمرة", "Fermented muhammara"],
+        ["purslane", "بربير", "Purslane"],
+        ["organic-plain-eggs", "بيض عضوي سادة", "Organic plain eggs"],
+        ["organic-eggs-cheese", "بيض عضوي مع الجبن", "Organic eggs with cheese"],
+        ["organic-eggs-spinach", "بيض عضوي مع السبانخ", "Organic eggs with spinach"]
       ].map(([id, nameAr, nameEn]) => ({ id, nameAr, nameEn, price: 0 }))
     }
   ]
@@ -1313,6 +1313,12 @@ function flowSelectedQuantity(selected) {
   return selected.reduce((total, option) => total + Math.max(1, Number(option.quantity) || 1), 0);
 }
 
+function selectionFlowPreviousSurcharge(flow, stepIndex) {
+  return flow.steps.slice(0, stepIndex)
+    .flatMap(step => pendingFlowSelections[step.id] || [])
+    .reduce((total, option) => total + Math.max(0, Number(option.price) || 0), 0);
+}
+
 function renderSelectionFlowStep() {
   const item = product(pendingOptionProductId);
   const flow = pendingSelectionFlow;
@@ -1331,10 +1337,13 @@ function renderSelectionFlowStep() {
   const currentPrice = unitPrice(item, flow.steps.flatMap(flowStep => pendingFlowSelections[flowStep.id] || [])) * selectedFlowQuantity(flow, pendingFlowSelections);
   const listScrollTop = productOptionsPopover.querySelector(".product-options-list")?.scrollTop || 0;
   const fillingStatus = fillingRequirement ? `<div class="filling-progress">${state.lang === "ar" ? "الحشوات المختارة" : "Selected fillings"}: <b class="${selectedFillingQuantity === fillingRequirement ? "complete" : ""}">${new Intl.NumberFormat(state.lang === "ar" ? "ar-KW" : "en").format(selectedFillingQuantity)} / ${new Intl.NumberFormat(state.lang === "ar" ? "ar-KW" : "en").format(fillingRequirement)}</b></div>` : "";
+  const previousSurcharge = step.id === "size" ? selectionFlowPreviousSurcharge(flow, pendingFlowStep) : 0;
   productOptionsPopover.innerHTML = `<header><div><small>${state.lang === "ar" ? `الخطوة ${new Intl.NumberFormat("ar-KW").format(pendingFlowStep + 1)} من ${new Intl.NumberFormat("ar-KW").format(flow.steps.length)}` : `Step ${pendingFlowStep + 1} of ${flow.steps.length}`}</small><strong>${escapeHtml(productName(item))}</strong></div><button type="button" data-close-options aria-label="${state.lang === "ar" ? "إغلاق" : "Close"}">×</button></header><div class="option-group-title"><strong>${escapeHtml(title)}</strong>${hint ? `<small>${escapeHtml(hint)}</small>` : ""}</div>${fillingStatus}<div class="product-options-list">${step.items.map(option => {
     const chosen = selected.find(selectedOption => selectedOption.id === option.id);
-    const perUnitHint = option.price && (step.id === "dough" || option.priceGroup) ? `<small class="per-unit-price">${state.lang === "ar" ? "* للكمية الواحدة" : "* per quantity"}</small>` : "";
-    return `<div class="flow-option-row"><label class="product-option-choice"><input type="${type}" name="selection-flow-option" value="${escapeHtml(option.id)}" ${chosen ? "checked" : ""}><span><b>${escapeHtml(optionName(option))}</b><small>${escapeHtml(state.lang === "ar" ? option.nameEn : option.nameAr)}</small>${option.preparation ? `<i>◷ ${escapeHtml(preparationLabel(option.preparation))}</i>` : ""}</span>${option.price ? `<em>+ ${money(option.price)}${perUnitHint}</em>` : ""}${step.quantityEnabled && chosen ? `<div class="flow-choice-quantity-wrap"><small>${state.lang === "ar" ? "الكمية" : "Quantity"}</small><div class="qty flow-choice-quantity"><button type="button" data-flow-quantity="plus" data-flow-option-id="${escapeHtml(option.id)}">+</button><span>${new Intl.NumberFormat(state.lang === "ar" ? "ar-KW" : "en").format(chosen.quantity || 1)}</span><button type="button" data-flow-quantity="minus" data-flow-option-id="${escapeHtml(option.id)}">${chosen.quantity === 1 ? "×" : "−"}</button></div></div>` : ""}</label></div>`;
+    const displayedPrice = Math.max(0, Number(option.price) || 0) + previousSurcharge;
+    const showPrice = step.id !== "dough" && displayedPrice > 0;
+    const perUnitHint = showPrice && option.priceGroup ? `<small class="per-unit-price">${state.lang === "ar" ? "* للكمية الواحدة" : "* per quantity"}</small>` : "";
+    return `<div class="flow-option-row"><label class="product-option-choice"><input type="${type}" name="selection-flow-option" value="${escapeHtml(option.id)}" ${chosen ? "checked" : ""}><span><b>${escapeHtml(optionName(option))}</b><small>${escapeHtml(state.lang === "ar" ? option.nameEn : option.nameAr)}</small>${option.preparation ? `<i>◷ ${escapeHtml(preparationLabel(option.preparation))}</i>` : ""}</span>${showPrice ? `<em>+ ${money(displayedPrice)}${perUnitHint}</em>` : ""}${step.quantityEnabled && chosen ? `<div class="flow-choice-quantity-wrap"><small>${state.lang === "ar" ? "الكمية" : "Quantity"}</small><div class="qty flow-choice-quantity"><button type="button" data-flow-quantity="plus" data-flow-option-id="${escapeHtml(option.id)}">+</button><span>${new Intl.NumberFormat(state.lang === "ar" ? "ar-KW" : "en").format(chosen.quantity || 1)}</span><button type="button" data-flow-quantity="minus" data-flow-option-id="${escapeHtml(option.id)}">${chosen.quantity === 1 ? "×" : "−"}</button></div></div>` : ""}</label></div>`;
   }).join("")}</div><div class="selection-flow-footer"><div class="selection-price"><span>${state.lang === "ar" ? "السعر الحالي" : "Current price"}</span><b>${money(currentPrice)}</b></div><button type="button" class="primary" data-flow-next ${selected.length ? "" : "disabled"}>${isLast ? (state.lang === "ar" ? "إضافة إلى السلة" : "Add to cart") : (state.lang === "ar" ? "التالي" : "Next")}</button></div>`;
   productOptionsPopover.place?.();
   const optionsList = productOptionsPopover.querySelector(".product-options-list");
