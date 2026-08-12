@@ -4,6 +4,8 @@ const orderingConfig = window.ORDERING_CONFIG || {};
 const firebaseServices = window.ORDERING_FIREBASE;
 let firebaseAuthUser = null;
 let firebaseProfileHydrated = false;
+let customerProfileRef = null;
+let customerProfileListener = null;
 
 // Safari قد يتعامل مع الجلسة كجلسة مؤقتة إن لم نطلب التخزين الدائم صراحةً.
 // نضبطها قبل أي تسجيل دخول، ولا تُمسح إلا عند اختيار العميل «تسجيل خروج».
@@ -793,9 +795,29 @@ async function hydrateUserFromFirebase() {
     state.phone = state.user.phone;
     firebaseProfileHydrated = true;
     updateAccountButton();
+    watchCustomerCart(identity.uid);
   } catch (error) {
     console.error("Firebase profile load failed", error);
   }
+}
+
+// الحساب نفسه يملك نسخة سلة واحدة في Firebase. عند فتحه من جهاز آخر، نأخذ
+// آخر نسخة محفوظة فوراً بدلاً من إبقاء نسخة محلية قديمة كسلة مستقلة.
+function watchCustomerCart(uid) {
+  if (!uid || !state.user?.phone) return;
+  if (customerProfileRef && customerProfileListener) customerProfileRef.off("value", customerProfileListener);
+  customerProfileRef = firebaseServices.database.ref(`orderingPlatform/customers/${uid}`);
+  customerProfileListener = snapshot => {
+    const remote = snapshot.val();
+    if (!remote || normalizePhone(remote.phone) !== normalizePhone(state.user?.phone) || !remote.cart || typeof remote.cart !== "object") return;
+    const remoteCart = remote.cart;
+    if (JSON.stringify(remoteCart) === JSON.stringify(state.cart)) return;
+    state.cart = remoteCart;
+    localStorage.setItem(cartStorageKey(state.user.phone), JSON.stringify(state.cart));
+    renderCartBar();
+    syncAllProductQuantityControls();
+  };
+  customerProfileRef.on("value", customerProfileListener);
 }
 
 function updateAccountButton() {
@@ -1749,6 +1771,10 @@ async function logout() {
   } catch (error) {
     console.error("Firebase profile sync before logout failed", error);
   }
+  if (customerProfileRef && customerProfileListener) customerProfileRef.off("value", customerProfileListener);
+  customerProfileRef = null;
+  customerProfileListener = null;
+  firebaseProfileHydrated = false;
   localStorage.removeItem(SESSION_KEY);
   firebaseAuthUser = null;
   if (firebaseServices) {
