@@ -488,6 +488,7 @@ const STUFFED_BREAD_SELECTION_FLOW = Object.freeze({
       items: [
         { id: "dough-wheat", nameAr: "بالقمح الكامل والخميرة الطبيعية", nameEn: "Whole wheat & natural sourdough", price: 0 },
         { id: "dough-rice", nameAr: "بالرز الأبيض الخالي من الجلوتين", nameEn: "White rice - gluten free", price: 1 },
+        { id: "dough-almond", nameAr: "بطحين اللوز لنظام الكيتو", nameEn: "Almond flour - Keto", price: 1 },
         { id: "dough-barley", nameAr: "بالشعير الكامل والخميرة الطبيعية", nameEn: "Whole barley & natural sourdough", price: 1, preparation: { first: 1, unit: "day", hasSecond: true, second: 2, secondUnit: "day" } }
       ]
     },
