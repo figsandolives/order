@@ -1013,12 +1013,15 @@ function syncHeadingNavigationOffset() {
 
 function productQuantityControl(id, quantity, detail = false) {
   const escapedId = escapeHtml(id);
+  const item = product(id);
+  if (item?.availability?.status && item.availability.status !== "available") {
+    return `<button class="${detail ? "primary detail-add" : "product-add"} unavailable-add" data-availability-notify="${escapedId}">أبلغني عندما يتوفر</button>`;
+  }
   if (!quantity) {
     const hasOptions = Boolean(productOptions(product(id)) || productSelectionFlow(product(id)));
     const label = hasOptions ? (state.lang === "ar" ? "اختيار" : "Select") : (detail ? tr("addToCart") : tr("add"));
     return `<button class="${detail ? "primary detail-add" : "product-add"}" data-product-add="${escapedId}">${label}</button>`;
   }
-  const item = product(id);
   return `<div class="product-qty ${detail ? "detail-product-qty" : ""}" aria-label="${escapeHtml(item ? productName(item) : "")}">
     <button type="button" data-product-plus="${escapedId}" aria-label="+">+</button>
     <strong>${quantity}</strong>
@@ -1032,11 +1035,14 @@ function productCard(item, category) {
   const badge = productBadge(item);
   const optionConfig = productOptions(item);
   const hasOptionPreparation = optionConfig?.items.some(option => option.preparation);
+  const availability = item.availability?.status || "available";
+  const availabilityText = availability === "sold_out" ? "نفذت الكمية" : availability === "unavailable" ? "غير متوفر" : "";
   return `
-    <article class="product-card" data-product="${escapeHtml(item.id)}" tabindex="0">
+    <article class="product-card ${availabilityText ? "unavailable" : ""}" data-product="${escapeHtml(item.id)}" tabindex="0">
       <div class="product-image">
         <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" data-src="${escapeHtml(source)}" width="640" height="580" alt="${escapeHtml(productName(item))}" decoding="async" fetchpriority="low">
         ${badge ? `<span class="product-feature-badge">${escapeHtml(badge)}</span>` : ""}
+        ${availabilityText ? `<b class="availability-overlay">${availabilityText}</b>` : ""}
         <b class="in-cart ${quantity ? "" : "hidden"}" data-cart-badge="${escapeHtml(item.id)}">${quantity ? `${tr("inCart")} × ${quantity}` : ""}</b>
       </div>
       <div class="product-info">
@@ -3076,17 +3082,42 @@ $("#headingNavigation").onclick = event => {
 };
 $("#catalogSwitch").onclick = event => setCatalogType(event.currentTarget.dataset.catalogTarget);
 function handleProductQuantityEvent(event) {
+  const notify = event.target.closest("[data-availability-notify]");
   const add = event.target.closest("[data-product-add]");
   const plus = event.target.closest("[data-product-plus]");
   const minus = event.target.closest("[data-product-minus]");
-  const control = add || plus || minus;
+  const control = notify || add || plus || minus;
   if (!control) return false;
   event.preventDefault();
   event.stopPropagation();
+  if (notify) requestAvailabilityNotification(notify.dataset.availabilityNotify);
   if (add) requestAddToCart(add.dataset.productAdd, add);
   if (plus) changeQuantity(plus.dataset.productPlus, 1);
   if (minus) changeQuantity(minus.dataset.productMinus, -1);
   return true;
+}
+
+async function requestAvailabilityNotification(id) {
+  const item = product(id);
+  if (!item || item.availability?.status === "available") return;
+  if (!state.user?.name || !state.user?.phone) { toast("سجّل دخولك أولاً ليصلك التنبيه", "error"); return openAuth("login"); }
+  const identity = await firebaseIdentityReady;
+  if (!identity || !firebaseServices) return toast("تعذر حفظ طلب التنبيه", "error");
+  try {
+    await firebaseServices.database.ref(`orderingPlatform/availabilityNotifications/${id}/${identity.uid}`).set({
+      name: String(state.user.name).slice(0, 80), phone: String(state.user.phone).replace(/\D/g, "").slice(-8),
+      cycleId: String(item.availability?.cycleId || ""), createdAt: firebase.database.ServerValue.TIMESTAMP
+    });
+    showAvailabilityConfirmation(item);
+  } catch (error) { console.error(error); toast("تعذر تسجيل طلب التنبيه", "error"); }
+}
+
+function showAvailabilityConfirmation(item) {
+  const modal = document.createElement("section");
+  modal.className = "availability-confirmation modal";
+  modal.innerHTML = `<div class="availability-confirmation-card"><div class="check">✓</div><h2>سيتم إبلاغك عند توفر المنتج مباشرة...</h2><img src="${escapeHtml(productImages(item)[0] || "logo.png")}" alt=""><strong>${escapeHtml(productName(item))}</strong><button class="primary">حسناً</button></div>`;
+  modal.querySelector("button").onclick = () => modal.remove();
+  document.body.append(modal);
 }
 $("#productSections").onclick = event => {
   if (handleProductQuantityEvent(event)) return;
@@ -3170,7 +3201,7 @@ function applyCatalog(catalog, cache = true) {
     catalog.appearance || {},
     catalog.headings || [],
     catalog.categories.map(category => [category.id, category.catalogType || "bakery", category.active !== false, category.order, category.nameAr, category.nameEn]),
-    catalog.products.map(item => [item.id, item.catalogType || "bakery", item.active !== false, item.category, item.order, item.price, item.name, item.nameEn, item.image, item.options || null, item.preparation || null]),
+    catalog.products.map(item => [item.id, item.catalogType || "bakery", item.active !== false, item.availability || null, item.category, item.order, item.price, item.name, item.nameEn, item.image, item.options || null, item.preparation || null]),
     catalog.deliveryAreas.map(area => [area.id, area.nameAr || area.name, area.nameEn, area.price, area.order])
   ]);
   if (signature === catalogSignature) return true;
