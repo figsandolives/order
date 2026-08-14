@@ -1046,8 +1046,8 @@ function productCard(item, category) {
         <b class="in-cart ${quantity ? "" : "hidden"}" data-cart-badge="${escapeHtml(item.id)}">${quantity ? `${tr("inCart")} × ${quantity}` : ""}</b>
       </div>
       <div class="product-info">
-        ${minimumOrderConfig(item.minimumOrder) ? `<div class="minimum-order-badge">${escapeHtml(minimumOrderText(item.minimumOrder))}</div>` : ""}
-        ${hasOptionPreparation ? "" : `<span class="preparation-badge" aria-label="${escapeHtml(preparationLabel(item))}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/></svg>${escapeHtml(preparationLabel(item))}</span>`}
+        ${availabilityText ? "" : (minimumOrderConfig(item.minimumOrder) ? `<div class="minimum-order-badge">${escapeHtml(minimumOrderText(item.minimumOrder))}</div>` : "")}
+        ${availabilityText || hasOptionPreparation ? "" : `<span class="preparation-badge" aria-label="${escapeHtml(preparationLabel(item))}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/></svg>${escapeHtml(preparationLabel(item))}</span>`}
         <h3>${escapeHtml(productName(item))}</h3>
         <p>${escapeHtml(productDescription(item) || item.nameEn || item.name)}</p>
         <div class="product-foot"><strong>${productPriceLabel(item)}</strong><div class="product-quantity-slot" data-product-quantity="${escapeHtml(item.id)}">${productQuantityControl(item.id, quantity)}</div></div>
@@ -3105,7 +3105,7 @@ async function requestAvailabilityNotification(id) {
   if (!identity || !firebaseServices) return toast("تعذر حفظ طلب التنبيه", "error");
   try {
     await firebaseServices.database.ref(`orderingPlatform/availabilityNotifications/${id}/${identity.uid}`).set({
-      name: String(state.user.name).slice(0, 80), phone: String(state.user.phone).replace(/\D/g, "").slice(-8),
+      name: String(state.user.name).slice(0, 80), phone: normalizePhone(state.user.phone).slice(-8),
       cycleId: String(item.availability?.cycleId || ""), createdAt: firebase.database.ServerValue.TIMESTAMP
     });
     showAvailabilityConfirmation(item);
