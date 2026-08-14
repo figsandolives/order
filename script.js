@@ -7,6 +7,22 @@ let firebaseProfileHydrated = false;
 let customerProfileRef = null;
 let customerProfileListener = null;
 
+// نطلب من المتصفح حفظ مساحة الموقع بشكل دائم قدر الإمكان. هذا مهم خصوصاً
+// في iPhone/Safari حتى لا تُعامل بيانات تسجيل الدخول كتخزين مؤقت.
+async function requestPersistentStorage() {
+  try {
+    if (!navigator.storage?.persist) return false;
+    if (navigator.storage.persisted && await navigator.storage.persisted()) return true;
+    return await navigator.storage.persist();
+  } catch (error) {
+    // عدم دعم المتصفح لهذه الميزة لا يعني فشل تسجيل الدخول.
+    console.warn("Persistent browser storage is unavailable", error);
+    return false;
+  }
+}
+
+const persistentStorageReady = requestPersistentStorage();
+
 // Safari قد يتعامل مع الجلسة كجلسة مؤقتة إن لم نطلب التخزين الدائم صراحةً.
 // نضبطها قبل أي تسجيل دخول، ولا تُمسح إلا عند اختيار العميل «تسجيل خروج».
 const firebasePersistenceReady = (async () => {
@@ -179,6 +195,7 @@ const branches = [
 
 const PROFILE_KEY = "figsOlivesProfilesV1";
 const SESSION_KEY = "figsOlivesSessionV1";
+const REMEMBERED_SESSION_COOKIE = "figsOlivesRememberedSession";
 const LEGACY_CART_KEY = "figsOlivesCartV1";
 const CART_KEY = "figsOlivesCartV2";
 const CATALOG_CACHE_KEY = "figsOlivesCatalogV2";
@@ -190,11 +207,28 @@ function readJson(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch { return fallback; }
 }
 
+function readRememberedSessionPhone() {
+  const match = document.cookie.match(new RegExp(`(?:^|; )${REMEMBERED_SESSION_COOKIE}=([^;]*)`));
+  return match ? normalizePhone(decodeURIComponent(match[1])) : "";
+}
+
+function rememberSession(phone) {
+  const normalizedPhone = normalizePhone(phone);
+  if (!normalizedPhone) return;
+  // نسخة خفيفة من مفتاح الجلسة، لا تحتوي الاسم أو العنوان أو الطلبات.
+  document.cookie = `${REMEMBERED_SESSION_COOKIE}=${encodeURIComponent(normalizedPhone)}; Max-Age=31536000; Path=/; SameSite=Lax; Secure`;
+}
+
+function forgetRememberedSession() {
+  document.cookie = `${REMEMBERED_SESSION_COOKIE}=; Max-Age=0; Path=/; SameSite=Lax; Secure`;
+}
+
 function loadCurrentUser() {
   const session = readJson(SESSION_KEY, null);
   const profiles = readJson(PROFILE_KEY, {});
-  if (!session?.phone || !profiles[session.phone]) return null;
-  const profile = profiles[session.phone];
+  const phone = normalizePhone(session?.phone || readRememberedSessionPhone());
+  const profile = profiles[phone] || Object.values(profiles).find(item => normalizePhone(item?.phone) === phone);
+  if (!phone || !profile) return null;
   return { ...profile };
 }
 
@@ -761,6 +795,8 @@ function persistUser() {
   profiles[state.user.phone] = { ...state.user };
   localStorage.setItem(PROFILE_KEY, JSON.stringify(profiles));
   localStorage.setItem(SESSION_KEY, JSON.stringify({ phone: state.user.phone }));
+  rememberSession(state.user.phone);
+  requestPersistentStorage();
   state.name = state.user.name;
   state.phone = state.user.phone;
   updateAccountButton();
@@ -841,6 +877,38 @@ async function hydrateUserFromFirebase() {
     watchCustomerCart(identity.uid);
   } catch (error) {
     console.error("Firebase profile load failed", error);
+  }
+}
+
+// حتى لو حُذفت نسخة الجلسة المحلية أو انتهت بعد فترة، Firebase يعيد جلسة
+// العميل المعتمدة تلقائياً. نسترجع ملفه من UID نفسه بدل إجباره على طلب رمز OTP.
+async function restoreSavedCustomerSession() {
+  if (state.user?.phone || !firebaseServices?.database) return;
+  try {
+    await persistentStorageReady;
+    const identity = firebaseAuthUser || await firebaseIdentityReady;
+    if (!identity || identity.isAnonymous) return;
+    const snapshot = await firebaseServices.database.ref(`orderingPlatform/customers/${identity.uid}`).once("value");
+    const profile = snapshot.val();
+    if (!profile || normalizePhone(profile.phone).length !== 8 || !String(profile.name || "").trim()) return;
+    state.user = {
+      ...profile,
+      phone: normalizePhone(profile.phone),
+      name: String(profile.name).trim(),
+      addresses: Array.isArray(profile.addresses) ? profile.addresses : [],
+      orders: Array.isArray(profile.orders) ? profile.orders : []
+    };
+    state.cart = profile.cart && typeof profile.cart === "object" ? profile.cart : loadUserCart(state.user);
+    localStorage.setItem(cartStorageKey(state.user.phone), JSON.stringify(state.cart));
+    persistUser();
+    firebaseProfileHydrated = true;
+    watchCustomerCart(identity.uid);
+    updateAccountButton();
+    renderCartBar();
+    syncAllProductQuantityControls();
+    reportVisitorPresence();
+  } catch (error) {
+    console.warn("Saved customer session could not be restored", error);
   }
 }
 
@@ -1836,6 +1904,7 @@ async function logout() {
   customerProfileListener = null;
   firebaseProfileHydrated = false;
   localStorage.removeItem(SESSION_KEY);
+  forgetRememberedSession();
   firebaseAuthUser = null;
   if (firebaseServices) {
     try {
@@ -3277,7 +3346,13 @@ async function initializeStoreData() {
     hasCatalog = applyCatalog(localCatalog);
   }
   if (hasCatalog) resumePendingPayment();
-  hydrateUserFromFirebase();
+  if (state.user?.phone) {
+    rememberSession(state.user.phone);
+    requestPersistentStorage();
+    hydrateUserFromFirebase();
+  } else {
+    await restoreSavedCustomerSession();
+  }
   trackStoreEvent("visit");
   if (firebaseServices) {
     const catalogRef = firebaseServices.database.ref("orderingPlatform/catalog");
