@@ -324,6 +324,9 @@ let pendingFlowSelections = {};
 let pendingFlowStep = 0;
 let authMode = "login";
 let authPhone = "";
+// تفعيل مؤقت إلى أن يكتمل ربط WhatsApp Business Platform الرسمي.
+// أعدها إلى false لإرجاع التحقق برمز واتساب.
+const TEMPORARY_PHONE_CONFIRMATION_LOGIN = true;
 let accountReturnToCheckout = false;
 let catalogScrollPosition = 0;
 let userSyncTimer;
@@ -1732,9 +1735,52 @@ function renderPhoneAuth() {
   };
   $("#phoneAuthForm").onsubmit = event => {
     event.preventDefault();
+    authPhone = normalizePhone(authPhone || $("#loginPhone")?.value);
+    if (authPhone.length !== 8) return setAuthMessage(tr("invalidPhone"));
+    if (TEMPORARY_PHONE_CONFIRMATION_LOGIN) return renderPhoneConfirmation();
     sendLoginCode();
   };
   setTimeout(() => input.focus(), 60);
+}
+
+function renderPhoneConfirmation() {
+  const arabic = state.lang === "ar";
+  const title = arabic ? "هل أنت متأكد من رقم الهاتف؟" : "Is this phone number correct?";
+  const hint = arabic ? "سيتم الدخول باستخدام هذا الرقم" : "You will sign in with this number";
+  const yes = arabic ? "نعم، الرقم صحيح" : "Yes, this is correct";
+  const no = arabic ? "تعديل الرقم" : "Edit number";
+  $("#authBody").innerHTML = `${authBrand(title, hint)}
+    <div class="auth-form phone-confirmation">
+      <strong class="phone-confirmation-number">${escapeHtml(authPhone)}</strong>
+      <button class="primary" id="confirmPhoneLogin" type="button">${yes}</button>
+      <button class="secondary" id="editPhoneLogin" type="button">${no}</button>
+    </div>`;
+  $("#confirmPhoneLogin").onclick = completePhoneConfirmationLogin;
+  $("#editPhoneLogin").onclick = renderPhoneAuth;
+}
+
+function completePhoneConfirmationLogin() {
+  const profiles = readJson(PROFILE_KEY, {});
+  if (authMode === "changePhone" && state.user) {
+    const previousPhone = state.user.phone;
+    const previousCart = { ...state.cart };
+    state.user.phone = authPhone;
+    if (profiles[previousPhone]) delete profiles[previousPhone];
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(profiles));
+    localStorage.setItem(cartStorageKey(authPhone), JSON.stringify(previousCart));
+    persistUser();
+    closeAuth();
+    openAccountDrawer("info");
+    return toast(tr("infoSaved"));
+  }
+  const profile = profiles[authPhone] || { phone: authPhone, name: "", addresses: [], orders: [] };
+  state.user = { ...profile, phone: authPhone, addresses: profile.addresses || [], orders: profile.orders || [] };
+  state.cart = loadUserCart(state.user);
+  state.name = state.user.name;
+  state.phone = state.user.phone;
+  if (!state.user.name) return renderUsernameAuth();
+  persistUser();
+  completeLogin();
 }
 
 async function sendLoginCode(isResend = false) {
