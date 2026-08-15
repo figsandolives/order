@@ -1759,7 +1759,22 @@ function renderPhoneConfirmation() {
   $("#editPhoneLogin").onclick = renderPhoneAuth;
 }
 
-function completePhoneConfirmationLogin() {
+async function completePhoneConfirmationLogin() {
+  const button = $("#confirmPhoneLogin");
+  if (button) { button.disabled = true; button.innerHTML = `<span class="auth-loader"></span>`; }
+  let authResult;
+  try {
+    const response = await fetch(orderingConfig.temporaryPhoneConfirmationWebhookUrl, {
+      method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify({ phone: authPhone }), cache: "no-store"
+    });
+    authResult = await response.json().catch(() => ({}));
+    if (!response.ok || !authResult.ok) throw new Error(authResult.message || tr("loginServiceUnavailable"));
+    await authenticateFirebaseCustomer(authResult, authPhone);
+  } catch (error) {
+    if (button) { button.disabled = false; button.textContent = state.lang === "ar" ? "نعم، الرقم صحيح" : "Yes, this is correct"; }
+    return setAuthMessage(error.message || tr("loginServiceUnavailable"));
+  }
   const profiles = readJson(PROFILE_KEY, {});
   if (authMode === "changePhone" && state.user) {
     const previousPhone = state.user.phone;
@@ -1776,6 +1791,7 @@ function completePhoneConfirmationLogin() {
   const profile = profiles[authPhone] || { phone: authPhone, name: "", addresses: [], orders: [] };
   state.user = { ...profile, phone: authPhone, addresses: profile.addresses || [], orders: profile.orders || [] };
   state.cart = loadUserCart(state.user);
+  await hydrateUserFromFirebase();
   state.name = state.user.name;
   state.phone = state.user.phone;
   if (!state.user.name) return renderUsernameAuth();
