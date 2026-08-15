@@ -422,9 +422,9 @@ function showAdvertisement(value) {
   const key = JSON.stringify(ad);
   if (!ad.enabled || !ad.image || shownAdvertisementKey === key) return;
   shownAdvertisementKey = key;
-  const modal = $("#advertisementModal"); const card = $("#advertisementCard"); const image = $("#advertisementImageDisplay"); const target = $("#advertisementTarget");
+  const modal = $("#advertisementModal"); const card = $("#promotionFrame"); const image = $("#advertisementImageDisplay"); const target = $("#advertisementTarget");
   const href = ad.targetType === "product" ? `#product=${encodeURIComponent(ad.productId)}` : ad.link;
-  card.className = `advertisement-card size-${ad.size}`;
+  card.className = `promotion-frame size-${ad.size}`;
   // حماية إضافية من أي قاعدة CSS عامة قد تخفي محتوى النافذة على سطح المكتب.
   card.style.setProperty("display", "block", "important");
   card.style.setProperty("visibility", "visible", "important");
