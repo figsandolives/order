@@ -8,5 +8,6 @@ window.ORDERING_CONFIG = Object.freeze({
   invoiceWhatsappWebhookUrl: "https://us-central1-menassafigs.cloudfunctions.net/sendInvoiceWhatsapp",
   // تسجيل الدخول يعمل عبر Firebase Functions؛ لا يعتمد على n8n أو نفق محلي.
   sendLoginCodeWebhookUrl: "https://us-central1-menassafigs.cloudfunctions.net/sendLoginCode",
-  verifyLoginCodeWebhookUrl: "https://us-central1-menassafigs.cloudfunctions.net/verifyLoginCode"
+  verifyLoginCodeWebhookUrl: "https://us-central1-menassafigs.cloudfunctions.net/verifyLoginCode",
+  temporaryPhoneConfirmationWebhookUrl: "https://us-central1-menassafigs.cloudfunctions.net/confirmPhoneLogin"
 });
