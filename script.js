@@ -1161,6 +1161,7 @@ function renderProductSections() {
   const ordered = sortedCategories();
   const used = new Set();
   const headings = (state.headings || []).filter(item => catalogTypeOf(item) === state.catalogType).sort((a, b) => Number(a.order) - Number(b.order));
+  const linkedCategoryIds = new Set(headings.flatMap(item => [...(item.categoryIds || []), ...(item.subheadings || []).flatMap(group => group.categoryIds || [])]));
   const renderCategory = category => {
     const matches = categoryProducts(category.id);
     if (!matches.length) return "";
@@ -1170,13 +1171,20 @@ function renderProductSections() {
         <div class="product-grid">${matches.map(item => productCard(item, category)).join("")}</div>
       </section>`;
   };
-  for (const heading of headings) {
-    const subheadings = Array.isArray(heading.subheadings) ? heading.subheadings : [];
-    const groups = subheadings.length ? subheadings : [{ nameAr: "", nameEn: "", categoryIds: heading.categoryIds || [] }];
+  const entries = [
+    ...headings.map(item => ({ type: "heading", item })),
+    ...ordered.map(item => ({ type: "category", item }))
+  ].sort((a, b) => Number(a.item.order) - Number(b.item.order) || (a.type === "heading" ? -1 : 1));
+  entries.forEach(({ type, item }) => {
+    if (type === "category") {
+      if (!linkedCategoryIds.has(item.id) && !used.has(item.id)) { const markup = renderCategory(item); if (markup) sections.push(markup); }
+      return;
+    }
+    const subheadings = Array.isArray(item.subheadings) ? item.subheadings : [];
+    const groups = subheadings.length ? subheadings : [{ nameAr: "", nameEn: "", categoryIds: item.categoryIds || [] }];
     const groupMarkup = groups.map(group => { const linked = (group.categoryIds || []).map(id => ordered.find(category => category.id === id)).filter(Boolean); linked.forEach(category => used.add(category.id)); if (!linked.length) return ""; return `<section class="catalog-subheading-group" data-subheading-section="${escapeHtml(group.id || "")}">${linked.map(renderCategory).join("")}</section>`; }).join("");
-    if (groupMarkup) sections.push(`<section class="catalog-heading-group" id="heading-${encodeURIComponent(heading.id)}" data-heading-section="${escapeHtml(heading.id)}">${groupMarkup}</section>`);
-  }
-  ordered.filter(category => !used.has(category.id)).forEach(category => { const markup = renderCategory(category); if (markup) sections.push(markup); });
+    if (groupMarkup) sections.push(`<section class="catalog-heading-group" id="heading-${encodeURIComponent(item.id)}" data-heading-section="${escapeHtml(item.id)}">${groupMarkup}</section>`);
+  });
   $("#productSections").innerHTML = sections.length ? sections.join("") : `<div class="loading">${tr("noResults")}</div>`;
   observeImages();
 }
