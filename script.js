@@ -424,7 +424,14 @@ function showAdvertisement(value) {
   shownAdvertisementKey = key;
   const modal = $("#advertisementModal"); const card = $("#advertisementCard"); const image = $("#advertisementImageDisplay"); const target = $("#advertisementTarget");
   const href = ad.targetType === "product" ? `#product=${encodeURIComponent(ad.productId)}` : ad.link;
-  card.className = `advertisement-card size-${ad.size}`; image.src = ad.image; target.href = href || "#";
+  card.className = `advertisement-card size-${ad.size}`;
+  // حماية إضافية من أي قاعدة CSS عامة قد تخفي محتوى النافذة على سطح المكتب.
+  card.style.setProperty("display", "block", "important");
+  card.style.setProperty("visibility", "visible", "important");
+  card.style.setProperty("opacity", "1", "important");
+  image.style.setProperty("display", "block", "important");
+  image.style.setProperty("visibility", "visible", "important");
+  image.src = ad.image; target.href = href || "#";
   modal.classList.remove("hidden"); modal.setAttribute("aria-hidden", "false");
 }
 
@@ -3470,18 +3477,18 @@ initializeStoreData().catch(error => {
   $("#productSections").innerHTML = `<div class="loading">${tr("loadingError")}</div>`;
 });
 
-function closeAdvertisement() {
+function hideAdvertisement() {
   const modal = $("#advertisementModal");
   modal.classList.add("hidden");
   modal.setAttribute("aria-hidden", "true");
 }
 
-window.closeAdvertisement = event => { event?.preventDefault(); event?.stopPropagation(); closeAdvertisement(); };
+window.closeAdvertisement = event => { event?.preventDefault(); event?.stopPropagation(); hideAdvertisement(); };
 window.openAdvertisementTarget = event => {
   event?.preventDefault(); event?.stopPropagation();
   const target = $("#advertisementTarget");
   const href = target?.getAttribute("href") || "";
-  closeAdvertisement();
+  hideAdvertisement();
   if (href.startsWith("#product=")) { history.pushState(null, "", href); syncProductRoute(); }
   else if (/^https?:\/\//i.test(href)) window.location.assign(href);
   return false;
@@ -3498,5 +3505,5 @@ document.addEventListener("pointerup", event => {
   window.openAdvertisementTarget(event);
 }, true);
 document.addEventListener("click", event => {
-  if (event.target === $("#advertisementModal")) closeAdvertisement();
+  if (event.target === $("#advertisementModal")) hideAdvertisement();
 }, true);
