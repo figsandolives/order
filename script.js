@@ -3476,22 +3476,26 @@ function closeAdvertisement() {
   modal.setAttribute("aria-hidden", "true");
 }
 
+window.closeAdvertisement = event => { event?.preventDefault(); event?.stopPropagation(); closeAdvertisement(); };
+window.openAdvertisementTarget = event => {
+  event?.preventDefault(); event?.stopPropagation();
+  const target = $("#advertisementTarget");
+  const href = target?.getAttribute("href") || "";
+  closeAdvertisement();
+  if (href.startsWith("#product=")) { history.pushState(null, "", href); syncProductRoute(); }
+  else if (/^https?:\/\//i.test(href)) window.location.assign(href);
+  return false;
+};
+
 // نستخدم pointerup و click في وضع الالتقاط حتى تستجيب النافذة على الهاتف
 // حتى مع منع تمرير الصفحة خلف الإعلان.
 document.addEventListener("pointerup", event => {
   const close = event.target.closest("#closeAdvertisement");
-  if (close) { event.preventDefault(); event.stopPropagation(); closeAdvertisement(); return; }
+  if (close) { window.closeAdvertisement(event); return; }
   const target = event.target.closest("#advertisementTarget");
   if (!target) return;
   event.preventDefault(); event.stopPropagation();
-  const href = target.getAttribute("href") || "";
-  closeAdvertisement();
-  if (href.startsWith("#product=")) {
-    history.pushState(null, "", href);
-    syncProductRoute();
-  } else if (/^https?:\/\//i.test(href)) {
-    window.location.assign(href);
-  }
+  window.openAdvertisementTarget(event);
 }, true);
 document.addEventListener("click", event => {
   if (event.target === $("#advertisementModal")) closeAdvertisement();
