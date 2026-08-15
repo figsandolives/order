@@ -31,6 +31,7 @@
   <link rel="preconnect" href="https://menassafigs-default-rtdb.firebaseio.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@400;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=20260803-11">
+  <style>.sale-price{display:grid;gap:2px}.sale-price del{color:#c83232;text-decoration-color:#c83232;text-decoration-thickness:2px;font-size:11px;font-weight:800}.sale-price b{color:#1c543e;font-size:15px}.advertisement-modal{z-index:100}.advertisement-card{position:relative;width:min(86vw,540px);max-height:82vh;background:white;border-radius:22px;overflow:hidden;box-shadow:0 20px 70px #0008}.advertisement-card.size-portrait{width:min(75vw,420px)}.advertisement-card.size-landscape{width:min(92vw,720px)}.advertisement-card img{display:block;width:100%;max-height:78vh;object-fit:contain}.advertisement-close{position:absolute;top:10px;left:10px;width:36px;height:36px;border:0;border-radius:50%;background:#fff;color:#123d2c;font-size:28px;line-height:1;z-index:1}</style>
   <link rel="stylesheet" href="payment.css?v=20260729-3">
   <link rel="stylesheet" href="account.css?v=20260731-3">
   <script type="application/ld+json">
@@ -197,6 +198,7 @@
       <button type="button" class="primary" id="confirmProductOptions">إضافة إلى السلة</button>
     </section>
   </div>
+  <div class="modal hidden advertisement-modal" id="advertisementModal" aria-hidden="true"><section class="advertisement-card" id="advertisementCard" role="dialog" aria-modal="true"><button type="button" class="advertisement-close" id="closeAdvertisement" aria-label="إغلاق">×</button><a id="advertisementTarget" href="#"><img id="advertisementImageDisplay" alt="إعلان"></a></section></div>
 
   <div class="modal hidden" id="checkoutModal">
     <section class="checkout-panel">
@@ -248,6 +250,6 @@
   <script src="https://www.gstatic.com/firebasejs/11.10.0/firebase-storage-compat.js"></script>
   <script src="firebase-config.js"></script>
   <script src="config.js?v=20260730-1"></script>
-  <script src="script.js?v=20260815-phone-confirmation-session"></script>
+  <script src="script.js?v=20260815-inventory-sale-ad"></script>
 </body>
 </html>
