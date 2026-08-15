@@ -304,6 +304,7 @@ const state = {
   paymentMethod: "", deliveryTiming: "asap", scheduledDate: "", scheduledHour: "1",
   scheduledMinute: "00", scheduledPeriod: "pm", user: initialUser, lastInvoice: null,
   appearance: { ...DEFAULT_APPEARANCE }
+  ,advertisement: null
 };
 
 let imageObserver;
@@ -332,6 +333,7 @@ let catalogScrollPosition = 0;
 let userSyncTimer;
 let pendingPaymentResumed = false;
 let catalogSignature = "";
+let shownAdvertisementKey = "";
 let restaurantProductImages = {};
 let pageScrollLocked = false;
 let pageScrollLockY = 0;
@@ -409,6 +411,21 @@ function applyStoreAppearance(value) {
   hero.style.backgroundImage = state.appearance.heroImage
     ? `linear-gradient(rgba(8, 28, 20, .38), rgba(8, 28, 20, .38)), url(${JSON.stringify(state.appearance.heroImage)})`
     : "";
+}
+
+function normalizeAdvertisement(value = {}) {
+  return { enabled: value?.enabled === true, image: String(value?.image || "").trim(), size: ["square", "portrait", "landscape"].includes(value?.size) ? value.size : "square", targetType: value?.targetType === "link" ? "link" : "product", productId: String(value?.productId || ""), link: String(value?.link || "").trim() };
+}
+
+function showAdvertisement(value) {
+  const ad = normalizeAdvertisement(value);
+  const key = JSON.stringify(ad);
+  if (!ad.enabled || !ad.image || shownAdvertisementKey === key) return;
+  shownAdvertisementKey = key;
+  const modal = $("#advertisementModal"); const card = $("#advertisementCard"); const image = $("#advertisementImageDisplay"); const target = $("#advertisementTarget");
+  const href = ad.targetType === "product" ? `#product=${encodeURIComponent(ad.productId)}` : ad.link;
+  card.className = `advertisement-card size-${ad.size}`; image.src = ad.image; target.href = href || "#";
+  modal.classList.remove("hidden"); modal.setAttribute("aria-hidden", "false");
 }
 
 // The selected catalogue is deliberately view-only: a full page load always
@@ -618,6 +635,19 @@ function productPriceLabel(item) {
   const config = productOptions(item);
   if (!config?.priceBased && !productSelectionFlow(item)) return money(item.price);
   return state.lang === "ar" ? "السعر عند الاختيار" : "Price on selection";
+}
+
+function productPriceMarkup(item) {
+  const current = productPriceLabel(item);
+  const original = Number(item?.originalPrice || 0);
+  if (original > Number(item?.price || 0) && !productOptions(item)?.priceBased && !productSelectionFlow(item)) {
+    return `<span class="sale-price"><del>${money(original)}</del><b>${current}</b></span>`;
+  }
+  return `<span>${current}</span>`;
+}
+
+function productIsSoldOut(item) {
+  return item?.inventory?.enabled === true && Number(item.inventory.quantity || 0) <= 0;
 }
 
 function preparationLabel(item) {
@@ -1085,7 +1115,7 @@ function syncHeadingNavigationOffset() {
 function productQuantityControl(id, quantity, detail = false) {
   const escapedId = escapeHtml(id);
   const item = product(id);
-  if (item?.availability?.status && item.availability.status !== "available") {
+  if ((item?.availability?.status && item.availability.status !== "available") || productIsSoldOut(item)) {
     return `<button class="${detail ? "primary detail-add" : "product-add"} unavailable-add" data-availability-notify="${escapedId}">أبلغني عندما يتوفر</button>`;
   }
   if (!quantity) {
@@ -1106,7 +1136,7 @@ function productCard(item, category) {
   const badge = productBadge(item);
   const optionConfig = productOptions(item);
   const hasOptionPreparation = optionConfig?.items.some(option => option.preparation);
-  const availability = item.availability?.status || "available";
+  const availability = productIsSoldOut(item) ? "sold_out" : (item.availability?.status || "available");
   const availabilityText = availability === "sold_out" ? "نفذت الكمية" : availability === "unavailable" ? "غير متوفر" : "";
   return `
     <article class="product-card ${availabilityText ? "unavailable" : ""}" data-product="${escapeHtml(item.id)}" tabindex="0">
@@ -1121,7 +1151,7 @@ function productCard(item, category) {
         ${availabilityText || hasOptionPreparation ? "" : `<span class="preparation-badge" aria-label="${escapeHtml(preparationLabel(item))}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/></svg>${escapeHtml(preparationLabel(item))}</span>`}
         <h3>${escapeHtml(productName(item))}</h3>
         <p>${escapeHtml(productDescription(item) || item.nameEn || item.name)}</p>
-        <div class="product-foot"><strong>${productPriceLabel(item)}</strong><div class="product-quantity-slot" data-product-quantity="${escapeHtml(item.id)}">${productQuantityControl(item.id, quantity)}</div></div>
+        <div class="product-foot"><strong>${productPriceMarkup(item)}</strong><div class="product-quantity-slot" data-product-quantity="${escapeHtml(item.id)}">${productQuantityControl(item.id, quantity)}</div></div>
       </div>
     </article>`;
 }
@@ -1633,7 +1663,7 @@ function renderProductDetail(id) {
       </div>
     </div>
     <div class="detail-purchase-bar">
-      <div><small>${escapeHtml(productName(item))}</small><strong class="detail-price">${productPriceLabel(item)}</strong></div>
+      <div><small>${escapeHtml(productName(item))}</small><strong class="detail-price">${productPriceMarkup(item)}</strong></div>
       <div class="product-quantity-slot" data-product-quantity="${escapeHtml(item.id)}" data-detail-quantity="true">${productQuantityControl(item.id, quantity, true)}</div>
     </div>`;
 }
@@ -3329,10 +3359,10 @@ function applyCatalog(catalog, cache = true) {
   const signature = JSON.stringify([
     catalog.version || "", catalog.updatedAt || "",
     catalog.restaurantEnabled !== false,
-    catalog.appearance || {},
+    catalog.appearance || {}, catalog.advertisement || {},
     catalog.headings || [],
     catalog.categories.map(category => [category.id, category.catalogType || "bakery", category.active !== false, category.order, category.nameAr, category.nameEn]),
-    catalog.products.map(item => [item.id, item.catalogType || "bakery", item.active !== false, item.availability || null, item.category, item.order, item.price, item.name, item.nameEn, item.image, item.options || null, item.preparation || null]),
+    catalog.products.map(item => [item.id, item.catalogType || "bakery", item.active !== false, item.availability || null, item.inventory || null, item.originalPrice || 0, item.category, item.order, item.price, item.name, item.nameEn, item.image, item.options || null, item.preparation || null]),
     catalog.deliveryAreas.map(area => [area.id, area.nameAr || area.name, area.nameEn, area.price, area.order])
   ]);
   if (signature === catalogSignature) return true;
@@ -3354,6 +3384,7 @@ function applyCatalog(catalog, cache = true) {
     state.area = state.areas.find(area => (area.name || area.nameAr) === currentAreaName) || null;
   }
   applyStoreAppearance(catalog.appearance);
+  state.advertisement = normalizeAdvertisement(catalog.advertisement);
   const visibleProductIds = new Set(visibleProducts.map(item => String(item.id)));
   let removedCartItem = false;
   Object.keys(state.cart).forEach(id => {
@@ -3374,6 +3405,7 @@ function applyCatalog(catalog, cache = true) {
   renderProductSections();
   renderCartBar();
   syncProductRoute();
+  setTimeout(() => showAdvertisement(state.advertisement), 250);
   return true;
 }
 
@@ -3429,3 +3461,6 @@ initializeStoreData().catch(error => {
   console.error(error);
   $("#productSections").innerHTML = `<div class="loading">${tr("loadingError")}</div>`;
 });
+
+$("#closeAdvertisement").addEventListener("click", () => { $("#advertisementModal").classList.add("hidden"); $("#advertisementModal").setAttribute("aria-hidden", "true"); });
+$("#advertisementModal").addEventListener("click", event => { if (event.target === $("#advertisementModal")) $("#closeAdvertisement").click(); });
