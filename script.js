@@ -620,7 +620,7 @@ function optionName(option) {
 
 function optionSummary(option) {
   const name = optionName(option);
-  return option?.isFilling || option?.flowStepId === "fillings"
+  return option?.showQuantity || option?.isFilling || option?.flowStepId === "fillings"
     ? `${new Intl.NumberFormat(state.lang === "ar" ? "ar-KW" : "en").format(Math.max(1, Number(option.quantity) || 1))} ${name}`
     : name;
 }
@@ -1636,7 +1636,7 @@ function confirmProductOptions() {
   }
   const selectedIds = pendingGeneralOptionSelections.length ? pendingGeneralOptionSelections : $$('input[name="product-option"]:checked', productOptionsPopover || document).map(input => input.value);
   if (config.required && !selectedIds.length) return toast(tr("optionsRequired"), "error");
-  const selected = config.items.filter(option => selectedIds.includes(option.id)).map(option => ({ ...option, quantity: Math.max(1, Number(pendingGeneralOptionQuantities[option.id]) || 1) }));
+  const selected = config.items.filter(option => selectedIds.includes(option.id)).map(option => ({ ...option, quantity: Math.max(1, Number(pendingGeneralOptionQuantities[option.id]) || 1), showQuantity: config.optionQuantityEnabled === true }));
   if (config.nestedEnabled) {
     pendingPrimaryOption = selected[0] || null;
     if (!pendingPrimaryOption) return toast(tr("optionsRequired"), "error");
@@ -2440,7 +2440,7 @@ function renderReview() {
   $("#checkoutBody").innerHTML = `
     <section class="checkout-review"><div class="cart-list">${cartItems().map(({ product: item, quantity, note, options }) => { const minimumIssue = cartItemMinimumIssue({ product: item, quantity, options }); return `
       <div class="cart-row ${minimumIssue ? "minimum-order-warning" : ""}"><img src="${escapeHtml(productImages(item)[0] || "logo.png")}" alt="">
-        <div class="cart-copy"><h4>${escapeHtml(productName(item))}</h4>${options.length ? `<small class="cart-options">${escapeHtml(options.map(optionSummary).join("، "))}</small>` : ""}${minimumIssue ? `<small class="minimum-order-warning-note">${escapeHtml(minimumOrderText(minimumIssue.minimum))}</small>` : ""}<strong>${money(unitPrice(item, options) * quantity)}</strong></div><label class="cart-note-label"><textarea aria-label="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}" data-cart-note="${escapeHtml(item.id)}" maxlength="240" placeholder="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}">${escapeHtml(note)}</textarea></label>
+        <div class="cart-copy"><h4>${escapeHtml(productName(item))}</h4>${options.length ? `<small class="cart-options">${escapeHtml(options.map(option => optionSummary({ ...option, showQuantity: option.showQuantity || productOptions(item)?.optionQuantityEnabled === true })).join("، "))}</small>` : ""}${minimumIssue ? `<small class="minimum-order-warning-note">${escapeHtml(minimumOrderText(minimumIssue.minimum))}</small>` : ""}<strong>${money(unitPrice(item, options) * quantity)}</strong></div><label class="cart-note-label"><textarea aria-label="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}" data-cart-note="${escapeHtml(item.id)}" maxlength="240" placeholder="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}">${escapeHtml(note)}</textarea></label>
         <div class="qty"><button data-plus="${escapeHtml(item.id)}">+</button><span>${quantity}</span><button data-minus="${escapeHtml(item.id)}">${quantity === 1 ? "×" : "−"}</button></div>
       </div>`; }).join("")}</div><div class="checkout-sticky-actions">${cartHasLongPreparationItems() ? `<p class="long-preparation-notice">${state.lang === "ar" ? "ملاحظة: يوجد في طلبك أصناف تأخذ وقت للتجهيز.. لذا يرجى العلم أنه قد يتأخر طلبك أو يتم تأجيله." : "Note: Your order includes items that need extra preparation time, so it may be delayed or rescheduled."}</p>` : ""}${totalsHtml()}<button class="primary" id="next1">${tr("confirmContinue")}</button></div></section>`;
   $$('[data-cart-note]').forEach(input => input.onchange = () => updateCartNote(input.dataset.cartNote, input.value));
