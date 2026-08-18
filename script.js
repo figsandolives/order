@@ -1186,7 +1186,7 @@ function renderProductSections() {
   const renderCategory = category => {
     const matches = categoryProducts(category.id);
     if (!matches.length) return "";
-    const sectionImage = clean(category.sectionImage);
+    const sectionImage = String(category.sectionImage || "").trim();
     return `
       <section class="category-section" id="category-${encodeURIComponent(category.id)}" data-category-section="${escapeHtml(category.id)}">
         <div class="section-heading"><h2>${escapeHtml(categoryName(category))}</h2></div>
