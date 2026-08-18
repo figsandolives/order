@@ -1186,9 +1186,11 @@ function renderProductSections() {
   const renderCategory = category => {
     const matches = categoryProducts(category.id);
     if (!matches.length) return "";
+    const sectionImage = clean(category.sectionImage);
     return `
       <section class="category-section" id="category-${encodeURIComponent(category.id)}" data-category-section="${escapeHtml(category.id)}">
         <div class="section-heading"><h2>${escapeHtml(categoryName(category))}</h2></div>
+        ${sectionImage ? `<figure class="category-illustration"><img src="${escapeHtml(sectionImage)}" alt="${escapeHtml(categoryName(category))}" loading="lazy"></figure>` : ""}
         <div class="product-grid">${matches.map(item => productCard(item, category)).join("")}</div>
       </section>`;
   };
