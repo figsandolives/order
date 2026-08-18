@@ -592,6 +592,7 @@ function productSelectionFlow(item) {
   const steps = flow.steps.map((step, index) => ({
     id: String(step.id || `step-${index + 1}`),
     titleAr: String(step.titleAr || ""), titleEn: String(step.titleEn || ""),
+    required: step.required !== false,
     multiple: step.multiple === true,
     maxSelections: Math.max(1, Number(step.maxSelections) || 1),
     limitFrom: String(step.limitFrom || ""), quantityEnabled: step.quantityEnabled === true,
@@ -623,6 +624,33 @@ function optionSummary(option) {
   return option?.showQuantity || option?.isFilling || option?.flowStepId === "fillings"
     ? `${new Intl.NumberFormat(state.lang === "ar" ? "ar-KW" : "en").format(Math.max(1, Number(option.quantity) || 1))} ${name}`
     : name;
+}
+
+// الخيار الإلزامي الواحد يعرّف الصنف نفسه (مثل: كيكة بالشوكولاتة)،
+// أما الإضافات الاختيارية أو المتعددة فتبقى كسطر تفاصيل منفصل.
+function optionBelongsInName(item, option) {
+  if (option?.nameSuffix) return true;
+  const flowStep = productSelectionFlow(item)?.steps.find(step => step.id === option?.flowStepId);
+  if (flowStep) return flowStep.required && !flowStep.multiple;
+  const config = productOptions(item);
+  return Boolean(config?.required && !config.multiple);
+}
+
+function cartDisplayName(item, options = [], language = state.lang) {
+  const base = language === "ar" ? item.name : (item.nameEn || item.name);
+  const suffixes = (options || [])
+    .filter(option => optionBelongsInName(item, option))
+    .map(option => language === "ar" ? option.nameAr : (option.nameEn || option.nameAr))
+    .filter(Boolean);
+  return [base, ...suffixes].filter(Boolean).join(" ");
+}
+
+function cartDetailOptions(item, options = []) {
+  const config = productOptions(item);
+  return (options || []).filter(option => !optionBelongsInName(item, option)).map(option => ({
+    ...option,
+    showQuantity: option.showQuantity || config?.optionQuantityEnabled === true
+  }));
 }
 
 function unitPrice(item, selectedOptions = []) {
@@ -1499,7 +1527,7 @@ function renderSelectionFlowStep() {
     const choice = step.items.find(option => option.id === input.value);
     if (!choice) return;
     let next = step.multiple ? [...(pendingFlowSelections[step.id] || [])] : [];
-    if (input.checked && !next.some(option => option.id === choice.id)) next.push({ ...choice, quantity: 1, flowStepId: step.id, isFilling: step.distributeQuantity === true });
+    if (input.checked && !next.some(option => option.id === choice.id)) next.push({ ...choice, quantity: 1, flowStepId: step.id, isFilling: step.distributeQuantity === true, nameSuffix: step.required !== false && step.multiple !== true });
     if (!input.checked) next = next.filter(option => option.id !== choice.id);
     if (next.length > limit) return toast(state.lang === "ar" ? `الحد الأقصى ${new Intl.NumberFormat("ar-KW").format(limit)} خيارات` : `Maximum ${limit} options`, "error"), renderSelectionFlowStep();
     pendingFlowSelections[step.id] = next;
@@ -1634,11 +1662,11 @@ function confirmProductOptions() {
     const selectedId = productOptionsPopover?.querySelector('input[name="product-sub-option"]:checked')?.value;
     const selectedSubOption = pendingPrimaryOption.subOptions.find(option => option.id === selectedId);
     if (!selectedSubOption) return toast(tr("optionsRequired"), "error");
-    return addSelectedOptionsToCart(id, [pendingPrimaryOption, selectedSubOption]);
+    return addSelectedOptionsToCart(id, [{ ...pendingPrimaryOption, nameSuffix: true }, { ...selectedSubOption, nameSuffix: true }]);
   }
   const selectedIds = pendingGeneralOptionSelections.length ? pendingGeneralOptionSelections : $$('input[name="product-option"]:checked', productOptionsPopover || document).map(input => input.value);
   if (config.required && !selectedIds.length) return toast(tr("optionsRequired"), "error");
-  const selected = config.items.filter(option => selectedIds.includes(option.id)).map(option => ({ ...option, quantity: Math.max(1, Number(pendingGeneralOptionQuantities[option.id]) || 1), showQuantity: config.optionQuantityEnabled === true }));
+  const selected = config.items.filter(option => selectedIds.includes(option.id)).map(option => ({ ...option, quantity: Math.max(1, Number(pendingGeneralOptionQuantities[option.id]) || 1), showQuantity: config.optionQuantityEnabled === true, nameSuffix: config.required === true && config.multiple !== true }));
   if (config.nestedEnabled) {
     pendingPrimaryOption = selected[0] || null;
     if (!pendingPrimaryOption) return toast(tr("optionsRequired"), "error");
@@ -2442,7 +2470,7 @@ function renderReview() {
   $("#checkoutBody").innerHTML = `
     <section class="checkout-review"><div class="cart-list">${cartItems().map(({ product: item, quantity, note, options }) => { const minimumIssue = cartItemMinimumIssue({ product: item, quantity, options }); return `
       <div class="cart-row ${minimumIssue ? "minimum-order-warning" : ""}"><img src="${escapeHtml(productImages(item)[0] || "logo.png")}" alt="">
-        <div class="cart-copy"><h4>${escapeHtml(productName(item))}</h4>${options.length ? `<small class="cart-options">${escapeHtml(options.map(option => optionSummary({ ...option, showQuantity: option.showQuantity || productOptions(item)?.optionQuantityEnabled === true })).join("، "))}</small>` : ""}${minimumIssue ? `<small class="minimum-order-warning-note">${escapeHtml(minimumOrderText(minimumIssue.minimum))}</small>` : ""}<strong>${money(unitPrice(item, options) * quantity)}</strong></div><label class="cart-note-label"><textarea aria-label="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}" data-cart-note="${escapeHtml(item.id)}" maxlength="240" placeholder="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}">${escapeHtml(note)}</textarea></label>
+        <div class="cart-copy"><h4>${escapeHtml(cartDisplayName(item, options))}</h4>${cartDetailOptions(item, options).length ? `<small class="cart-options">${escapeHtml(cartDetailOptions(item, options).map(optionSummary).join("، "))}</small>` : ""}${minimumIssue ? `<small class="minimum-order-warning-note">${escapeHtml(minimumOrderText(minimumIssue.minimum))}</small>` : ""}<strong>${money(unitPrice(item, options) * quantity)}</strong></div><label class="cart-note-label"><textarea aria-label="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}" data-cart-note="${escapeHtml(item.id)}" maxlength="240" placeholder="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}">${escapeHtml(note)}</textarea></label>
         <div class="qty"><button data-plus="${escapeHtml(item.id)}">+</button><span>${quantity}</span><button data-minus="${escapeHtml(item.id)}">${quantity === 1 ? "×" : "−"}</button></div>
       </div>`; }).join("")}</div><div class="checkout-sticky-actions">${cartHasLongPreparationItems() ? `<p class="long-preparation-notice">${state.lang === "ar" ? "ملاحظة: يوجد في طلبك أصناف تأخذ وقت للتجهيز.. لذا يرجى العلم أنه قد يتأخر طلبك أو يتم تأجيله." : "Note: Your order includes items that need extra preparation time, so it may be delayed or rescheduled."}</p>` : ""}${totalsHtml()}<button class="primary" id="next1">${tr("confirmContinue")}</button></div></section>`;
   $$('[data-cart-note]').forEach(input => input.onchange = () => updateCartNote(input.dataset.cartNote, input.value));
@@ -3049,7 +3077,7 @@ function currentInvoiceModel() {
     scheduledAt: scheduled?.getTime() || null,
     expectedStart: asapWindow?.start.getTime() || null,
     expectedEnd: asapWindow?.end.getTime() || null,
-    items: cartItems().map(({ product: item, quantity, note, options }) => ({ id: String(item.id), nameAr: item.name, nameEn: item.nameEn || item.name, preparation: item.preparation || null, quantity, note, options, unitPrice: unitPrice(item, options), total: unitPrice(item, options) * quantity })),
+    items: cartItems().map(({ product: item, quantity, note, options }) => ({ id: String(item.id), nameAr: cartDisplayName(item, options, "ar"), nameEn: cartDisplayName(item, options, "en"), preparation: item.preparation || null, quantity, note, options, unitPrice: unitPrice(item, options), total: unitPrice(item, options) * quantity })),
     subtotal: subtotal(), deliveryFee: deliveryFee(), total: total(), paymentMethod: state.paymentMethod || "knet", status: "paid"
   };
 }
@@ -3107,7 +3135,7 @@ function buildInvoice(order) {
   const customerLine = [order.customerName || tr("customer"), order.phone || "—", destination].filter(Boolean).map(escapeHtml).join("&nbsp; · &nbsp;");
   const deliveryTime = invoiceDeliveryTime(order);
   const productsValue = Number.isFinite(Number(order.subtotal)) ? Number(order.subtotal) : Math.max(0, Number(order.total || 0) - Number(order.deliveryFee || 0));
-  $("#invoice").innerHTML = `<section class="a4-invoice"><header class="a4-head"><img src="logo.png" alt=""><div><h1>فاتورة شراء</h1><p>Purchase Invoice</p></div></header><section class="a4-meta"><div><b>رقم الفاتورة</b><strong>#${escapeHtml(order.orderId)}</strong><b>تاريخ الإصدار</b><strong>${createdAt.toLocaleDateString(locale)}</strong></div><div class="a4-company">شركة صحي ولذيذ للتجهيزات الغذائية<br>حولي، شارع تونس، مجمع علي فهد الخالد، دور الميزانين<br><span dir="ltr">66906605 · 22085888</span></div></section><p class="a4-customer-line">${customerLine}</p><table class="a4-items"><thead><tr><th>#</th><th>الصنف</th><th>الملاحظات</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead><tbody>${order.items.map((item, index) => `<tr><td>${index + 1}</td><td><b>${escapeHtml(item.nameAr || item.nameEn || item.id)}</b><small dir="ltr">${escapeHtml(item.nameEn || item.nameAr || item.id)}</small>${item.options?.length ? `<small>${escapeHtml(item.options.map(optionSummary).join("، "))}</small>` : ""}</td><td>${escapeHtml(item.note || "—")}</td><td>${item.quantity}</td><td>${money(item.unitPrice || (item.total / item.quantity))}</td><td><b>${money(item.total)}</b></td></tr>`).join("")}</tbody></table>${invoicePreparationNotice(order)}<section class="a4-summary-row"><section class="a4-delivery-time"><small>${order.mode === "pickup" ? tr("pickup") : tr("deliveryTime")}</small><strong>${order.mode === "pickup" ? destination : deliveryTime}</strong></section><section class="a4-total"><span><b>${tr("productsTotal")}</b><strong>${money(productsValue)}</strong></span><span><b>${tr("deliveryFee")}</b><strong>${money(order.deliveryFee)}</strong></span><span class="a4-grand-total"><b>${tr("total")}</b><strong>${money(order.total)}</strong></span></section></section><div class="a4-paid">✓&nbsp; مدفوع: ${escapeHtml(String(order.paymentMethod || "KNET").toUpperCase())}</div></section>`;
+  $("#invoice").innerHTML = `<section class="a4-invoice"><header class="a4-head"><img src="logo.png" alt=""><div><h1>فاتورة شراء</h1><p>Purchase Invoice</p></div></header><section class="a4-meta"><div><b>رقم الفاتورة</b><strong>#${escapeHtml(order.orderId)}</strong><b>تاريخ الإصدار</b><strong>${createdAt.toLocaleDateString(locale)}</strong></div><div class="a4-company">شركة صحي ولذيذ للتجهيزات الغذائية<br>حولي، شارع تونس، مجمع علي فهد الخالد، دور الميزانين<br><span dir="ltr">66906605 · 22085888</span></div></section><p class="a4-customer-line">${customerLine}</p><table class="a4-items"><thead><tr><th>#</th><th>الصنف</th><th>الملاحظات</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead><tbody>${order.items.map((item, index) => { const detailOptions = (item.options || []).filter(option => !option?.nameSuffix); return `<tr><td>${index + 1}</td><td><b>${escapeHtml(item.nameAr || item.nameEn || item.id)}</b><small dir="ltr">${escapeHtml(item.nameEn || item.nameAr || item.id)}</small>${detailOptions.length ? `<small>${escapeHtml(detailOptions.map(optionSummary).join("، "))}</small>` : ""}</td><td>${escapeHtml(item.note || "—")}</td><td>${item.quantity}</td><td>${money(item.unitPrice || (item.total / item.quantity))}</td><td><b>${money(item.total)}</b></td></tr>`; }).join("")}</tbody></table>${invoicePreparationNotice(order)}<section class="a4-summary-row"><section class="a4-delivery-time"><small>${order.mode === "pickup" ? tr("pickup") : tr("deliveryTime")}</small><strong>${order.mode === "pickup" ? destination : deliveryTime}</strong></section><section class="a4-total"><span><b>${tr("productsTotal")}</b><strong>${money(productsValue)}</strong></span><span><b>${tr("deliveryFee")}</b><strong>${money(order.deliveryFee)}</strong></span><span class="a4-grand-total"><b>${tr("total")}</b><strong>${money(order.total)}</strong></span></section></section><div class="a4-paid">✓&nbsp; مدفوع: ${escapeHtml(String(order.paymentMethod || "KNET").toUpperCase())}</div></section>`;
   $("#invoice").setAttribute("dir", state.lang === "ar" ? "rtl" : "ltr");
   const phoneLabel = $("#invoice .a4-phone");
   if (phoneLabel) phoneLabel.textContent = `☎︎ ${order.phone || "—"}`;
