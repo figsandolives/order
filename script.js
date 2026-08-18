@@ -1190,7 +1190,7 @@ function renderProductSections() {
     return `
       <section class="category-section" id="category-${encodeURIComponent(category.id)}" data-category-section="${escapeHtml(category.id)}">
         <div class="section-heading"><h2>${escapeHtml(categoryName(category))}</h2></div>
-        ${sectionImage ? `<figure class="category-illustration"><img src="${escapeHtml(sectionImage)}" alt="${escapeHtml(categoryName(category))}" loading="lazy"></figure>` : ""}
+        ${sectionImage ? `<button type="button" class="category-illustration" data-category-illustration="${escapeHtml(sectionImage)}" aria-label="تكبير الصورة التوضيحية لقسم ${escapeHtml(categoryName(category))}"><img src="${escapeHtml(sectionImage)}" alt="${escapeHtml(categoryName(category))}" loading="lazy"></button>` : ""}
         <div class="product-grid">${matches.map(item => productCard(item, category)).join("")}</div>
       </section>`;
   };
@@ -3328,8 +3328,63 @@ function showAvailabilityConfirmation(item) {
   modal.querySelector("button").onclick = () => modal.remove();
   document.body.append(modal);
 }
+
+function openCategoryImageViewer(source, alt = "") {
+  const viewer = document.createElement("section");
+  viewer.className = "category-image-viewer";
+  viewer.innerHTML = `<div class="category-image-viewer-card" role="dialog" aria-modal="true" aria-label="الصورة التوضيحية"><button type="button" class="category-image-close" aria-label="إغلاق">×</button><div class="category-image-stage"><img src="${escapeHtml(source)}" alt="${escapeHtml(alt)}" draggable="false"></div><div class="category-image-tools"><button type="button" data-category-zoom="out" aria-label="تصغير">−</button><button type="button" data-category-zoom="reset">100%</button><button type="button" data-category-zoom="in" aria-label="تكبير">＋</button><small>اسحب الصورة للتنقل</small></div></div>`;
+  const stage = $(".category-image-stage", viewer);
+  const image = $("img", stage);
+  let scale = 1;
+  let offsetX = 0;
+  let offsetY = 0;
+  let dragging = false;
+  let startX = 0;
+  let startY = 0;
+  const apply = () => {
+    image.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+    image.style.cursor = scale > 1 ? (dragging ? "grabbing" : "grab") : "zoom-in";
+  };
+  const setScale = value => {
+    scale = Math.max(1, Math.min(4, value));
+    if (scale === 1) { offsetX = 0; offsetY = 0; }
+    apply();
+  };
+  const close = () => viewer.remove();
+  $(".category-image-close", viewer).onclick = close;
+  viewer.addEventListener("click", event => { if (event.target === viewer) close(); });
+  $(".category-image-tools", viewer).onclick = event => {
+    const action = event.target.closest("[data-category-zoom]")?.dataset.categoryZoom;
+    if (!action) return;
+    if (action === "in") setScale(scale + .35);
+    else if (action === "out") setScale(scale - .35);
+    else setScale(1);
+  };
+  stage.addEventListener("wheel", event => { event.preventDefault(); setScale(scale + (event.deltaY < 0 ? .22 : -.22)); }, { passive: false });
+  stage.addEventListener("pointerdown", event => {
+    if (scale === 1) { setScale(1.7); return; }
+    dragging = true;
+    startX = event.clientX - offsetX;
+    startY = event.clientY - offsetY;
+    stage.setPointerCapture(event.pointerId);
+    apply();
+  });
+  stage.addEventListener("pointermove", event => {
+    if (!dragging) return;
+    offsetX = event.clientX - startX;
+    offsetY = event.clientY - startY;
+    apply();
+  });
+  const stopDragging = () => { dragging = false; apply(); };
+  stage.addEventListener("pointerup", stopDragging);
+  stage.addEventListener("pointercancel", stopDragging);
+  document.body.append(viewer);
+  apply();
+}
 $("#productSections").onclick = event => {
   if (handleProductQuantityEvent(event)) return;
+  const illustration = event.target.closest("[data-category-illustration]");
+  if (illustration) return openCategoryImageViewer(illustration.dataset.categoryIllustration, illustration.querySelector("img")?.alt || "");
   const card = event.target.closest("[data-product]");
   if (card) openProductPage(card.dataset.product);
 };
