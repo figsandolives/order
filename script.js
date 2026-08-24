@@ -585,9 +585,44 @@ const STUFFED_BREAD_SELECTION_FLOW = Object.freeze({
   ]
 });
 
+function isFatayerSelectionProduct(item) {
+  const label = `${item?.name || ""} ${item?.nameEn || ""}`;
+  return /فطاير|فطائر|fatayer/i.test(label);
+}
+
+// حشوات الفطاير معرفة برمجياً. ننسخ الحشوة الغنية الموجودة حتى ترث سعرها
+// وقواعدها، ولا نُعدّل البيانات الأصلية القادمة من الكتالوج.
+function applyFatayerFillingRules(flow) {
+  if (!flow?.enabled || !Array.isArray(flow.steps)) return flow;
+  return {
+    ...flow,
+    steps: flow.steps.map(step => {
+      const stepLabel = `${step?.id || ""} ${step?.titleAr || ""} ${step?.titleEn || ""}`;
+      if (!/fillings|حشوات/i.test(stepLabel)) return step;
+      const items = (Array.isArray(step.items) ? step.items : []).filter(option => {
+        const optionLabel = `${option?.id || ""} ${option?.nameAr || ""} ${option?.nameEn || ""}`;
+        return !/mushroom|مشروم/i.test(optionLabel);
+      });
+      const alreadyAdded = items.some(option => /عكاوي.*بابريكا|akkawi.*paprika/i.test(`${option?.id || ""} ${option?.nameAr || ""} ${option?.nameEn || ""}`));
+      if (alreadyAdded) return { ...step, items };
+      const richTemplate = items.find(option => /غنية|rich/i.test(`${option?.groupAr || ""} ${option?.groupEn || ""} ${option?.priceGroup || ""}`));
+      return {
+        ...step,
+        items: [...items, {
+          ...(richTemplate ? { ...richTemplate } : { price: 0, groupAr: "الحشوات الغنية", groupEn: "Rich fillings" }),
+          id: "akkawi-cheese-paprika",
+          nameAr: "جبن عكاوي بالبابريكا",
+          nameEn: "Akkawi cheese with paprika"
+        }]
+      };
+    })
+  };
+}
+
 function productSelectionFlow(item) {
   // هذا المنتج يُعرّف تسلسله في الكود تماماً كالفطاير، ولا يعتمد على خيارات لوحة الإدارة العامة.
-  const flow = String(item?.id) === "9227" ? STUFFED_BREAD_SELECTION_FLOW : item?.options?.selectionFlow;
+  const sourceFlow = String(item?.id) === "9227" ? STUFFED_BREAD_SELECTION_FLOW : item?.options?.selectionFlow;
+  const flow = isFatayerSelectionProduct(item) ? applyFatayerFillingRules(sourceFlow) : sourceFlow;
   if (!flow?.enabled || !Array.isArray(flow.steps) || !flow.steps.length) return null;
   const steps = flow.steps.map((step, index) => ({
     id: String(step.id || `step-${index + 1}`),
