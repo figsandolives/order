@@ -485,31 +485,8 @@ function isCurrentCatalog(entry) {
   return catalogTypeOf(entry) === state.catalogType;
 }
 
-function categoryBelongsToDesserts(categoryId) {
-  const category = state.categories.find(item => String(item.id) === String(categoryId));
-  const categoryLabel = `${category?.nameAr || ""} ${category?.nameEn || ""}`;
-  if (/حلويات|sweets?|desserts?/i.test(categoryLabel)) return true;
-  return (state.headings || []).some(heading => {
-    const headingLabel = `${heading?.nameAr || ""} ${heading?.nameEn || ""}`;
-    if (!/حلويات|sweets?|desserts?/i.test(headingLabel)) return false;
-    const direct = Array.isArray(heading.categoryIds) ? heading.categoryIds : [];
-    const nested = (Array.isArray(heading.subheadings) ? heading.subheadings : []).flatMap(group => Array.isArray(group.categoryIds) ? group.categoryIds : []);
-    return [...direct, ...nested].some(id => String(id) === String(categoryId));
-  });
-}
-
 function productName(product) {
-  const arabic = String(product?.name || "");
-  const english = String(product?.nameEn || product?.name || "");
-  const id = String(product?.id || "");
-  let name = state.lang === "ar" ? arabic : english;
-  if (id === "79170" && !/زيت اللبان والمرة|frankincense.*myrrh/i.test(name)) name += state.lang === "ar" ? " بزيت اللبان والمرة" : " with frankincense and myrrh oil";
-  if (id === "79168" && !/الكركم والزنجبيل|turmeric.*ginger/i.test(name)) name += state.lang === "ar" ? " بالكركم والزنجبيل" : " with turmeric and ginger";
-  if (categoryBelongsToDesserts(product?.category)) {
-    const suffix = state.lang === "ar" ? " بالقمح الكامل والخميرة الطبيعية" : " — made with whole wheat and natural sourdough";
-    if (!(state.lang === "ar" ? /بالقمح الكامل\s*والخميرة الطبيعية/ : /whole wheat and natural sourdough/i).test(name)) name += suffix;
-  }
-  return name;
+  return state.lang === "ar" ? product.name : (product.nameEn || product.name);
 }
 
 function productDescription(product) {
