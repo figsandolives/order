@@ -303,8 +303,10 @@ const state = {
   name: "", phone: "", order: "", paymentRequestId: "", detailProductId: "",
   paymentMethod: "", deliveryTiming: "asap", scheduledDate: "", scheduledHour: "1",
   scheduledMinute: "00", scheduledPeriod: "pm", user: initialUser, lastInvoice: null,
-  appearance: { ...DEFAULT_APPEARANCE }
-  ,advertisement: null
+  appearance: { ...DEFAULT_APPEARANCE },
+  advertisement: null,
+  productFilters: [],
+  activeProductFilterId: ""
 };
 
 let imageObserver;
@@ -493,6 +495,8 @@ function productDescription(product) {
   return state.lang === "ar" ? (product.description || product.descriptionEn || "") : (product.descriptionEn || product.description || "");
 }
 function productBadge(product) {
+  const filter = activeProductFilter();
+  if (filter && filter.products.some(entry => String(entry.productId) === String(product.id))) return state.lang === "ar" ? filter.nameAr : (filter.nameEn || filter.nameAr);
   return state.lang === "ar" ? (product.badgeAr || product.badgeEn || "") : (product.badgeEn || product.badgeAr || "");
 }
 
@@ -1072,6 +1076,7 @@ function applyLanguage() {
   $("#languageLabel").textContent = state.lang === "ar" ? "English" : "العربية";
   applyStoreAppearance(state.catalogAppearance);
   renderCatalogSwitch();
+  renderProductFilters();
   $(".steps [data-step='1'] span").textContent = tr("review");
   $(".steps [data-step='2'] span").textContent = tr("deliveryDetails");
   $(".steps [data-step='3'] span").textContent = tr("deliveryTime");
@@ -1084,6 +1089,7 @@ function setLanguage(language) {
   localStorage.setItem("storeLanguage", language);
   applyLanguage();
   renderCategories();
+  renderProductFilters();
   renderProductSections();
   renderSearchResults();
   renderCartBar();
@@ -1097,7 +1103,26 @@ function sortedCategories() {
 }
 
 function categoryProducts(categoryId) {
-  return state.products.filter(item => item.category === categoryId && isCurrentCatalog(item)).sort((a, b) => Number(a.order) - Number(b.order));
+  return state.products.filter(item => item.category === categoryId && isCurrentCatalog(item) && productMatchesActiveFilter(item)).sort((a, b) => Number(a.order) - Number(b.order));
+}
+
+function activeProductFilter() { return state.productFilters.find(filter => filter.id === state.activeProductFilterId) || null; }
+function productMatchesActiveFilter(item) { const filter = activeProductFilter(); return !filter || filter.products.some(entry => String(entry.productId) === String(item.id)); }
+function filterOptionIds(productId, stepId) {
+  const entry = activeProductFilter()?.products.find(item => String(item.productId) === String(productId));
+  if (!entry) return null;
+  const step = entry.steps?.find(value => String(value.stepId) === String(stepId));
+  if (step) return step.optionIds || [];
+  return entry.firstStepId === stepId ? entry.optionIds || [] : null;
+}
+function filterLabel(filter) { return state.lang === "ar" ? filter.nameAr : (filter.nameEn || filter.nameAr); }
+function renderProductFilters() {
+  const menu = $("#productFilterMenu"), toggle = $("#productFilterToggle"), clear = $("#productFilterClear");
+  if (!menu || !toggle || !clear) return;
+  const filter = activeProductFilter();
+  toggle.querySelector("b").textContent = filter ? filterLabel(filter) : (state.lang === "ar" ? "فلترة المنتجات" : "Filter products");
+  clear.classList.toggle("hidden", !filter); clear.textContent = state.lang === "ar" ? "حذف الفلتر" : "Clear filter";
+  menu.innerHTML = state.productFilters.filter(entry => entry.products.some(product => state.products.some(item => String(item.id) === String(product.productId) && isCurrentCatalog(item)))).map(entry => `<button type="button" data-product-filter="${escapeHtml(entry.id)}" class="${entry.id === state.activeProductFilterId ? "active" : ""}">${escapeHtml(filterLabel(entry))}<small>${entry.products.length}</small></button>`).join("") || `<span>${state.lang === "ar" ? "لا توجد فلاتر متاحة" : "No filters available"}</span>`;
 }
 
 function cartHasRestaurantItems() {
@@ -1526,6 +1551,8 @@ function renderSelectionFlowStep() {
   const flow = pendingSelectionFlow;
   const step = flow?.steps[pendingFlowStep];
   if (!item || !step || !productOptionsPopover) return closeProductOptions();
+  const allowedIds = filterOptionIds(item.id, step.id);
+  const visibleItems = Array.isArray(allowedIds) ? step.items.filter(option => allowedIds.includes(String(option.id))) : step.items;
   const selected = pendingFlowSelections[step.id] || [];
   const limit = flowLimit(step);
   const fillingRequirement = flowFillingRequirement(step);
@@ -1541,7 +1568,7 @@ function renderSelectionFlowStep() {
   const fillingStatus = fillingRequirement ? `<div class="filling-progress">${state.lang === "ar" ? "الحشوات المختارة" : "Selected fillings"}: <b class="${selectedFillingQuantity === fillingRequirement ? "complete" : ""}">${new Intl.NumberFormat(state.lang === "ar" ? "ar-KW" : "en").format(selectedFillingQuantity)} / ${new Intl.NumberFormat(state.lang === "ar" ? "ar-KW" : "en").format(fillingRequirement)}</b></div>` : "";
   const previousSurcharge = step.id === "size" ? selectionFlowPreviousSurcharge(flow, pendingFlowStep) : 0;
   let previousGroup = "";
-  const optionsMarkup = step.items.map(option => {
+  const optionsMarkup = visibleItems.map(option => {
     const groupTitle = state.lang === "ar" ? option.groupAr : (option.groupEn || option.groupAr);
     const groupHeading = groupTitle && groupTitle !== previousGroup
       ? `<h4 class="flow-option-group-title">${escapeHtml(groupTitle)}</h4>`
@@ -1601,6 +1628,7 @@ function openProductOptions(id, anchor = null) {
   pendingOptionAnchor = anchor || document.querySelector(`[data-product-add="${CSS.escape(String(id))}"]`);
   pendingGeneralOptionSelections = [];
   pendingGeneralOptionQuantities = {};
+  pendingPrimaryOption = null;
   productOptionsPopover = document.createElement("section");
   productOptionsPopover.className = "product-options-popover";
   const optionsBackdrop = document.createElement("div");
@@ -1627,7 +1655,9 @@ function renderProductOptionsStep() {
   const config = productOptions(item);
   if (!productOptionsPopover || !item || !config) return closeProductOptions();
   const choosingSubOption = Boolean(pendingPrimaryOption);
-  const choices = choosingSubOption ? pendingPrimaryOption.subOptions : config.items;
+  const filterIds = filterOptionIds(item.id, choosingSubOption ? "subOptions" : "options");
+  const rawChoices = choosingSubOption ? pendingPrimaryOption.subOptions : config.items;
+  const choices = Array.isArray(filterIds) ? rawChoices.filter(option => filterIds.includes(choosingSubOption ? `${pendingPrimaryOption.id}::${option.id}` : String(option.id))) : rawChoices;
   const choiceName = choosingSubOption ? "product-sub-option" : "product-option";
   const type = choosingSubOption ? "radio" : (config.multiple ? "checkbox" : "radio");
   const stepText = choosingSubOption
@@ -3353,6 +3383,23 @@ $("#headingNavigation").onclick = event => {
   if (categoryButton) { state.activeCategory = categoryButton.dataset.linkedNav; syncActiveNavigation(); scrollToCategory(categoryButton.dataset.linkedNav); }
 };
 $("#catalogSwitch").onclick = event => setCatalogType(event.currentTarget.dataset.catalogTarget);
+$("#productFilterToggle").onclick = event => {
+  event.stopPropagation();
+  const menu = $("#productFilterMenu"), open = menu.classList.toggle("hidden");
+  $("#productFilterToggle").setAttribute("aria-expanded", String(!open));
+};
+$("#productFilterMenu").onclick = event => {
+  const button = event.target.closest("[data-product-filter]"); if (!button) return;
+  state.activeProductFilterId = button.dataset.productFilter;
+  state.activeCategory = "all"; state.activeHeadingId = ""; state.activeSubheadingId = "";
+  $("#productFilterMenu").classList.add("hidden"); $("#productFilterToggle").setAttribute("aria-expanded", "false");
+  renderProductFilters(); renderCategories(); renderProductSections(); window.scrollTo({ top: 0, behavior: "smooth" });
+};
+$("#productFilterClear").onclick = () => {
+  state.activeProductFilterId = ""; state.activeCategory = "all"; state.activeHeadingId = ""; state.activeSubheadingId = "";
+  renderProductFilters(); renderCategories(); renderProductSections();
+};
+document.addEventListener("pointerdown", event => { const wrap = $("#catalogFilterWrap"); if (wrap && !wrap.contains(event.target)) { $("#productFilterMenu").classList.add("hidden"); $("#productFilterToggle").setAttribute("aria-expanded", "false"); } });
 function handleProductQuantityEvent(event) {
   const notify = event.target.closest("[data-availability-notify]");
   const add = event.target.closest("[data-product-add]");
@@ -3526,7 +3573,7 @@ function applyCatalog(catalog, cache = true) {
     catalog.version || "", catalog.updatedAt || "",
     catalog.restaurantEnabled !== false,
     catalog.appearance || {}, catalog.advertisement || {},
-    catalog.headings || [],
+    catalog.headings || [], catalog.productFilters || [],
     catalog.categories.map(category => [category.id, category.catalogType || "bakery", category.active !== false, category.order, category.nameAr, category.nameEn]),
     catalog.products.map(item => [item.id, item.catalogType || "bakery", item.active !== false, item.availability || null, item.inventory || null, item.originalPrice || 0, item.category, item.order, item.price, item.name, item.nameEn, item.image, item.options || null, item.preparation || null]),
     catalog.deliveryAreas.map(area => [area.id, area.nameAr || area.name, area.nameEn, area.price, area.order])
@@ -3543,6 +3590,8 @@ function applyCatalog(catalog, cache = true) {
   if (!state.restaurantEnabled && state.catalogType === "restaurant") state.catalogType = "bakery";
   renderCatalogSwitch();
   state.headings = Array.isArray(catalog.headings) ? catalog.headings : [];
+  state.productFilters = Array.isArray(catalog.productFilters) ? catalog.productFilters.map((filter, index) => ({ id: String(filter.id || `filter-${index}`), nameAr: String(filter.nameAr || filter.name || ""), nameEn: String(filter.nameEn || filter.nameAr || filter.name || ""), products: (Array.isArray(filter.products) ? filter.products : []).map(entry => ({ productId: String(entry?.productId || entry?.id || entry || ""), firstStepId: String(entry?.firstStepId || ""), optionIds: Array.isArray(entry?.optionIds) ? entry.optionIds.map(String) : [], steps: (Array.isArray(entry?.steps) ? entry.steps : []).map(step => ({ stepId: String(step?.stepId || step?.id || ""), optionIds: Array.isArray(step?.optionIds) ? step.optionIds.map(String) : [] })).filter(step => step.stepId) })) })) : [];
+  if (!state.productFilters.some(filter => filter.id === state.activeProductFilterId)) state.activeProductFilterId = "";
   state.products = applyRestaurantProductImages(visibleProducts);
   state.areas = Array.isArray(catalog?.deliveryAreas) ? catalog.deliveryAreas : [];
   if (state.area) {
@@ -3550,6 +3599,7 @@ function applyCatalog(catalog, cache = true) {
     state.area = state.areas.find(area => (area.name || area.nameAr) === currentAreaName) || null;
   }
   applyStoreAppearance(catalog.appearance);
+  renderProductFilters();
   state.advertisement = normalizeAdvertisement(catalog.advertisement);
   const visibleProductIds = new Set(visibleProducts.map(item => String(item.id)));
   let removedCartItem = false;
