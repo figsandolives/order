@@ -1517,7 +1517,30 @@ function openSelectionFlow(id, anchor = null) {
     if (top < 8) top = Math.min(window.innerHeight - productOptionsPopover.offsetHeight - 8, rect.bottom + 10);
     Object.assign(productOptionsPopover.style, { left: `${left}px`, top: `${Math.max(8, top)}px` });
   };
+  autoSelectSingleFilteredFlowSteps();
+  if (pendingFlowStep >= pendingSelectionFlow.steps.length) {
+    const chosen = pendingSelectionFlow.steps.flatMap(step => pendingFlowSelections[step.id] || []);
+    return addSelectedOptionsToCart(id, chosen, selectedFlowQuantity(pendingSelectionFlow, pendingFlowSelections));
+  }
   renderSelectionFlowStep();
+}
+
+// لا نعرض للعميل خطوة لا تحتوي - بسبب الفلتر - إلا خياراً واحداً محدداً.
+// يضاف هذا الخيار تلقائياً إلى اسم المنتج ويستمر التسلسل إلى الخطوة التالية.
+function autoSelectSingleFilteredFlowSteps() {
+  const item = product(pendingOptionProductId);
+  const flow = pendingSelectionFlow;
+  while (item && flow?.steps?.[pendingFlowStep]) {
+    const step = flow.steps[pendingFlowStep];
+    const allowedIds = filterOptionIds(item.id, step.id);
+    if (!Array.isArray(allowedIds)) break;
+    const choices = step.items.filter(option => allowedIds.includes(String(option.id)));
+    if (choices.length !== 1) break;
+    const choice = choices[0];
+    const quantity = step.distributeQuantity ? Math.max(1, flowFillingRequirement(step) || 1) : 1;
+    pendingFlowSelections[step.id] = [{ ...choice, quantity, flowStepId: step.id, isFilling: step.distributeQuantity === true, nameSuffix: step.required !== false }];
+    pendingFlowStep++;
+  }
 }
 
 function flowLimit(step) {
@@ -1613,7 +1636,11 @@ function renderSelectionFlowStep() {
     if (isLast && fillingRequirement && selectedFillingQuantity !== fillingRequirement) {
       return toast(state.lang === "ar" ? "ارجو اكمال اختيار الحشوات للكمية كاملة" : "Please complete filling selections for the full quantity", "error");
     }
-    if (!isLast) { pendingFlowStep++; return renderSelectionFlowStep(); }
+    if (!isLast) {
+      pendingFlowStep++;
+      autoSelectSingleFilteredFlowSteps();
+      if (pendingFlowStep < flow.steps.length) return renderSelectionFlowStep();
+    }
     const chosen = flow.steps.flatMap(flowStep => pendingFlowSelections[flowStep.id] || []);
     addSelectedOptionsToCart(pendingOptionProductId, chosen, selectedFlowQuantity(flow, pendingFlowSelections));
   };
@@ -1623,12 +1650,16 @@ function openProductOptions(id, anchor = null) {
   const item = product(id);
   const config = productOptions(item);
   if (!item || !config) return requestAddToCart(id);
+  const optionIds = filterOptionIds(id, "options");
+  const allowed = Array.isArray(optionIds) ? config.items.filter(option => optionIds.includes(String(option.id))) : [];
+  const singleFilteredOption = Array.isArray(optionIds) && allowed.length === 1;
+  if (singleFilteredOption && config.required && !config.multiple && !config.nestedEnabled) return addSelectedOptionsToCart(id, [{ ...allowed[0], quantity: 1, nameSuffix: true }]);
   closeProductOptions();
   pendingOptionProductId = id;
   pendingOptionAnchor = anchor || document.querySelector(`[data-product-add="${CSS.escape(String(id))}"]`);
   pendingGeneralOptionSelections = [];
   pendingGeneralOptionQuantities = {};
-  pendingPrimaryOption = null;
+  pendingPrimaryOption = singleFilteredOption && config.required && !config.multiple && config.nestedEnabled ? { ...allowed[0], nameSuffix: true } : null;
   productOptionsPopover = document.createElement("section");
   productOptionsPopover.className = "product-options-popover";
   const optionsBackdrop = document.createElement("div");
@@ -1658,6 +1689,7 @@ function renderProductOptionsStep() {
   const filterIds = filterOptionIds(item.id, choosingSubOption ? "subOptions" : "options");
   const rawChoices = choosingSubOption ? pendingPrimaryOption.subOptions : config.items;
   const choices = Array.isArray(filterIds) ? rawChoices.filter(option => filterIds.includes(choosingSubOption ? `${pendingPrimaryOption.id}::${option.id}` : String(option.id))) : rawChoices;
+  if (choosingSubOption && Array.isArray(filterIds) && choices.length === 1) return addSelectedOptionsToCart(id, [{ ...pendingPrimaryOption, nameSuffix: true }, { ...choices[0], quantity: 1, nameSuffix: true }]);
   const choiceName = choosingSubOption ? "product-sub-option" : "product-option";
   const type = choosingSubOption ? "radio" : (config.multiple ? "checkbox" : "radio");
   const stepText = choosingSubOption
