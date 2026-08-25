@@ -607,17 +607,15 @@ function applyFatayerFillingRules(flow) {
         const optionLabel = `${option?.id || ""} ${option?.nameAr || ""} ${option?.nameEn || ""}`;
         return !/mushroom|مشروم/i.test(optionLabel);
       });
-      const alreadyAdded = items.some(option => /عكاوي.*بابريكا|akkawi.*paprika/i.test(`${option?.id || ""} ${option?.nameAr || ""} ${option?.nameEn || ""}`));
-      if (alreadyAdded) return { ...step, items };
       const richTemplate = items.find(option => /غنية|rich/i.test(`${option?.groupAr || ""} ${option?.groupEn || ""} ${option?.priceGroup || ""}`));
       return {
         ...step,
-        items: [...items, {
-          ...(richTemplate ? { ...richTemplate } : { price: 0, groupAr: "الحشوات الغنية", groupEn: "Rich fillings" }),
-          id: "akkawi-cheese-paprika",
-          nameAr: "جبن عكاوي بالبابريكا",
-          nameEn: "Akkawi cheese with paprika"
-        }]
+        items: [...items, ...[
+          { id: "akkawi-cheese-paprika", nameAr: "جبن عكاوي بالبابريكا", nameEn: "Akkawi cheese with paprika" },
+          { id: "cheddar-cheese", nameAr: "جبن الشيدر", nameEn: "Cheddar cheese" }
+        ].filter(extra => !items.some(option => String(option?.id) === extra.id || `${option?.nameAr || ""} ${option?.nameEn || ""}`.toLowerCase() === `${extra.nameAr} ${extra.nameEn}`.toLowerCase())).map(extra => ({
+          ...(richTemplate ? { ...richTemplate } : { price: 0, groupAr: "الحشوات الغنية", groupEn: "Rich fillings" }), ...extra
+        }))]
       };
     })
   };
