@@ -1100,8 +1100,15 @@ function sortedCategories() {
   return state.categories.filter(isCurrentCatalog).slice().sort((a, b) => Number(a.order) - Number(b.order));
 }
 
+// Category IDs come from Firebase and may be numeric in older records and
+// strings in newer ones.  Compare their canonical value so a filtered product
+// can never be matched to a different section because of an ID type mismatch.
+function sameCatalogId(first, second) {
+  return String(first ?? "") === String(second ?? "");
+}
+
 function categoryProducts(categoryId) {
-  return state.products.filter(item => item.category === categoryId && isCurrentCatalog(item) && productMatchesActiveFilter(item)).sort((a, b) => Number(a.order) - Number(b.order));
+  return state.products.filter(item => sameCatalogId(item.category, categoryId) && isCurrentCatalog(item) && productMatchesActiveFilter(item)).sort((a, b) => Number(a.order) - Number(b.order));
 }
 
 function activeProductFilter() { return state.productFilters.find(filter => filter.id === state.activeProductFilterId) || null; }
@@ -1167,10 +1174,15 @@ function renderCatalogSwitch() {
 
 function renderCategories() {
   const buttons = [];
-  const linkedCategoryIds = new Set((state.headings || []).filter(item => catalogTypeOf(item) === state.catalogType).flatMap(item => [...(item.categoryIds || []), ...(item.subheadings || []).flatMap(group => group.categoryIds || [])]));
+  const filteringProducts = Boolean(activeProductFilter());
+  // A filter is a product filter, not a category reorganisation tool.  While
+  // it is active we intentionally show the original categories as a flat list
+  // and do not use manually-linked heading groups (which can link a category
+  // to a different heading in the administration panel).
+  const linkedCategoryIds = filteringProducts ? new Set() : new Set((state.headings || []).filter(item => catalogTypeOf(item) === state.catalogType).flatMap(item => [...(item.categoryIds || []), ...(item.subheadings || []).flatMap(group => group.categoryIds || [])].map(String)));
   const entries = [
-    ...(state.headings || []).filter(item => catalogTypeOf(item) === state.catalogType).map(item => ({ type: "heading", item })),
-    ...sortedCategories().filter(category => !linkedCategoryIds.has(category.id) && categoryProducts(category.id).length).map(item => ({ type: "category", item }))
+    ...(filteringProducts ? [] : (state.headings || []).filter(item => catalogTypeOf(item) === state.catalogType).map(item => ({ type: "heading", item }))),
+    ...sortedCategories().filter(category => !linkedCategoryIds.has(String(category.id)) && categoryProducts(category.id).length).map(item => ({ type: "category", item }))
   ].sort((a, b) => Number(a.item.order) - Number(b.item.order) || (a.type === "heading" ? -1 : 1));
   entries.forEach(({ type, item }) => {
     if (type === "heading") buttons.push(`<button class="heading-category-link ${state.activeHeadingId === item.id ? "active" : ""}" data-heading-link="${escapeHtml(item.id)}">${escapeHtml(state.lang === "ar" ? item.nameAr : (item.nameEn || item.nameAr))}</button>`);
@@ -1182,14 +1194,15 @@ function renderCategories() {
 }
 
 function currentHeading() {
+  if (activeProductFilter()) return null;
   return (state.headings || []).find(item => item.id === state.activeHeadingId && catalogTypeOf(item) === state.catalogType);
 }
 
 function linkedGroupForCategory(heading, categoryId) {
   if (!heading) return null;
   const subheadings = Array.isArray(heading.subheadings) ? heading.subheadings : [];
-  if (subheadings.length) return subheadings.find(group => (group.categoryIds || []).includes(categoryId)) || null;
-  return (heading.categoryIds || []).includes(categoryId) ? { id: "", categoryIds: heading.categoryIds || [] } : null;
+  if (subheadings.length) return subheadings.find(group => (group.categoryIds || []).some(id => sameCatalogId(id, categoryId))) || null;
+  return (heading.categoryIds || []).some(id => sameCatalogId(id, categoryId)) ? { id: "", categoryIds: heading.categoryIds || [] } : null;
 }
 
 function updateHeadingNavigation() {
@@ -1197,12 +1210,12 @@ function updateHeadingNavigation() {
   if (!host || !subheadingRow || !categoryRow) return;
   if (!heading) { host.classList.add("hidden"); return; }
   const subheadings = Array.isArray(heading.subheadings) ? heading.subheadings : [];
-  const group = subheadings.length ? (subheadings.find(item => item.id === state.activeSubheadingId) || subheadings.find(item => (item.categoryIds || []).includes(state.activeCategory)) || subheadings[0]) : { id: "", categoryIds: heading.categoryIds || [] };
+  const group = subheadings.length ? (subheadings.find(item => item.id === state.activeSubheadingId) || subheadings.find(item => (item.categoryIds || []).some(id => sameCatalogId(id, state.activeCategory))) || subheadings[0]) : { id: "", categoryIds: heading.categoryIds || [] };
   state.activeSubheadingId = group?.id || "";
   host.classList.remove("hidden");
   subheadingRow.classList.toggle("hidden", !subheadings.length);
   subheadingRow.innerHTML = subheadings.map(item => `<button class="${item.id === state.activeSubheadingId ? "active" : ""}" data-heading-nav="${escapeHtml(heading.id)}" data-subheading-nav="${escapeHtml(item.id)}">${escapeHtml(state.lang === "ar" ? item.nameAr : (item.nameEn || item.nameAr))}</button>`).join("");
-  const categories = (group?.categoryIds || []).map(id => state.categories.find(item => item.id === id)).filter(Boolean);
+  const categories = (group?.categoryIds || []).map(id => state.categories.find(item => sameCatalogId(item.id, id))).filter(Boolean);
   categoryRow.classList.toggle("hidden", !categories.length);
   categoryRow.innerHTML = categories.map(category => `<button class="${category.id === state.activeCategory ? "active" : ""}" data-linked-nav="${escapeHtml(category.id)}">${escapeHtml(categoryName(category))}</button>`).join("");
   subheadingRow.querySelector(".active")?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
@@ -1266,6 +1279,25 @@ function productCard(item, category) {
 function renderProductSections() {
   const sections = [];
   const ordered = sortedCategories();
+  const filteringProducts = Boolean(activeProductFilter());
+  // Preserve the real product.category relationship when filtering.  Headings
+  // are a display grouping only, so they must not decide a product's section.
+  if (filteringProducts) {
+    ordered.forEach(category => {
+      const matches = categoryProducts(category.id);
+      if (!matches.length) return;
+      const sectionImage = String(category.sectionImage || "").trim();
+      sections.push(`
+        <section class="category-section" id="category-${encodeURIComponent(category.id)}" data-category-section="${escapeHtml(category.id)}">
+          <div class="section-heading"><h2>${escapeHtml(categoryName(category))}</h2></div>
+          ${sectionImage ? `<button type="button" class="category-illustration" data-category-illustration="${escapeHtml(sectionImage)}" aria-label="تكبير الصورة التوضيحية لقسم ${escapeHtml(categoryName(category))}"><img src="${escapeHtml(sectionImage)}" alt="${escapeHtml(categoryName(category))}" loading="lazy"></button>` : ""}
+          <div class="product-grid">${matches.map(item => productCard(item, category)).join("")}</div>
+        </section>`);
+    });
+    $("#productSections").innerHTML = sections.length ? sections.join("") : `<div class="loading">${tr("noResults")}</div>`;
+    observeImages();
+    return;
+  }
   const used = new Set();
   const headings = (state.headings || []).filter(item => catalogTypeOf(item) === state.catalogType).sort((a, b) => Number(a.order) - Number(b.order));
   const linkedCategoryIds = new Set(headings.flatMap(item => [...(item.categoryIds || []), ...(item.subheadings || []).flatMap(group => group.categoryIds || [])]));
@@ -1291,7 +1323,7 @@ function renderProductSections() {
     }
     const subheadings = Array.isArray(item.subheadings) ? item.subheadings : [];
     const groups = subheadings.length ? subheadings : [{ nameAr: "", nameEn: "", categoryIds: item.categoryIds || [] }];
-    const groupMarkup = groups.map(group => { const linked = (group.categoryIds || []).map(id => ordered.find(category => category.id === id)).filter(Boolean); linked.forEach(category => used.add(category.id)); if (!linked.length) return ""; return `<section class="catalog-subheading-group" data-subheading-section="${escapeHtml(group.id || "")}">${linked.map(renderCategory).join("")}</section>`; }).join("");
+    const groupMarkup = groups.map(group => { const linked = (group.categoryIds || []).map(id => ordered.find(category => sameCatalogId(category.id, id))).filter(Boolean); linked.forEach(category => used.add(category.id)); if (!linked.length) return ""; return `<section class="catalog-subheading-group" data-subheading-section="${escapeHtml(group.id || "")}">${linked.map(renderCategory).join("")}</section>`; }).join("");
     if (groupMarkup) sections.push(`<section class="catalog-heading-group" id="heading-${encodeURIComponent(item.id)}" data-heading-section="${escapeHtml(item.id)}">${groupMarkup}</section>`);
   });
   $("#productSections").innerHTML = sections.length ? sections.join("") : `<div class="loading">${tr("noResults")}</div>`;
@@ -1421,6 +1453,15 @@ function centerCategoryButton(categoryId) {
 }
 
 function syncActiveNavigation() {
+  if (activeProductFilter()) {
+    state.activeHeadingId = "";
+    state.activeSubheadingId = "";
+    $$('[data-heading-link]').forEach(button => button.classList.remove("active"));
+    $$('[data-category-link]').forEach(button => button.classList.toggle("active", sameCatalogId(button.dataset.categoryLink, state.activeCategory)));
+    updateHeadingNavigation();
+    centerCategoryButton(state.activeCategory);
+    return;
+  }
   const heading = (state.headings || []).filter(item => catalogTypeOf(item) === state.catalogType).find(item => linkedGroupForCategory(item, state.activeCategory));
   state.activeHeadingId = heading?.id || "";
   state.activeSubheadingId = heading ? (linkedGroupForCategory(heading, state.activeCategory)?.id || "") : "";
