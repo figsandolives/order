@@ -322,6 +322,7 @@ let pendingOptionProductId = "";
 let pendingOptionAnchor = null;
 let productOptionsPopover = null;
 let pendingPrimaryOption = null;
+let pendingSecondaryOption = null;
 let pendingGeneralOptionSelections = [];
 let pendingGeneralOptionQuantities = {};
 let pendingSelectionFlow = null;
@@ -539,12 +540,17 @@ function productOptions(item) {
   const items = config.items.filter(option => option && (option.nameAr || option.nameEn)).map(option => ({
     id: String(option.id || option.nameAr || option.nameEn), nameAr: String(option.nameAr || option.nameEn || ""), nameEn: String(option.nameEn || option.nameAr || ""), price: Math.max(0, Number(option.price) || 0), preparation: option.preparation || null, image: String(option.image || ""), minimumOrder: minimumOrderConfig(option.minimumOrder),
     subOptions: (Array.isArray(option.subOptions) ? option.subOptions : []).filter(subOption => subOption && (subOption.nameAr || subOption.nameEn)).map(subOption => ({
-      id: String(subOption.id || subOption.nameAr || subOption.nameEn), nameAr: String(subOption.nameAr || subOption.nameEn || ""), nameEn: String(subOption.nameEn || subOption.nameAr || ""), price: Math.max(0, Number(subOption.price) || 0)
+      id: String(subOption.id || subOption.nameAr || subOption.nameEn), nameAr: String(subOption.nameAr || subOption.nameEn || ""), nameEn: String(subOption.nameEn || subOption.nameAr || ""), price: Math.max(0, Number(subOption.price) || 0),
+      subOptions: (Array.isArray(subOption.subOptions) ? subOption.subOptions : []).filter(thirdOption => thirdOption && (thirdOption.nameAr || thirdOption.nameEn)).map(thirdOption => ({
+        id: String(thirdOption.id || thirdOption.nameAr || thirdOption.nameEn), nameAr: String(thirdOption.nameAr || thirdOption.nameEn || ""), nameEn: String(thirdOption.nameEn || thirdOption.nameAr || ""), price: Math.max(0, Number(thirdOption.price) || 0)
+      }))
     }))
   }));
   const nestedEnabled = config.nestedEnabled === true;
-  const multiple = nestedEnabled ? false : config.multiple === true;
-  return items.length ? { required: nestedEnabled || config.required === true, multiple, maxSelections: multiple ? Math.min(items.length, Math.max(1, Number(config.maxSelections) || items.length)) : 1, titleAr: String(config.titleAr || ""), titleEn: String(config.titleEn || ""), priceBased: nestedEnabled || config.priceBased === true, nestedEnabled, minimumPerOptionEnabled: config.minimumPerOptionEnabled === true, optionQuantityEnabled: config.optionQuantityEnabled === true, items } : null;
+  const thirdLevelEnabled = nestedEnabled && config.thirdLevelEnabled === true;
+  const stages = thirdLevelEnabled ? 3 : nestedEnabled ? 2 : 1;
+  const multiple = config.multiple === true;
+  return items.length ? { required: nestedEnabled || config.required === true, multiple, multipleStep: Math.min(stages, Math.max(1, Number(config.multipleStep) || 1)), maxSelections: multiple ? Math.max(1, Math.min(99, Number(config.maxSelections) || items.length)) : 1, titleAr: String(config.titleAr || ""), titleEn: String(config.titleEn || ""), priceBased: nestedEnabled || config.priceBased === true, nestedEnabled, thirdLevelEnabled, minimumPerOptionEnabled: config.minimumPerOptionEnabled === true, optionQuantityEnabled: config.optionQuantityEnabled === true, quantityStep: Math.min(stages, Math.max(1, Number(config.quantityStep) || 1)), items } : null;
 }
 
 const STUFFED_BREAD_SELECTION_FLOW = Object.freeze({
@@ -1238,10 +1244,15 @@ function productQuantityControl(id, quantity, detail = false) {
   if ((item?.availability?.status && item.availability.status !== "available") || productIsSoldOut(item)) {
     return `<button class="${detail ? "primary detail-add" : "product-add"} unavailable-add" data-availability-notify="${escapedId}">أبلغني عندما يتوفر</button>`;
   }
+  // Products with choices are separate configurations, not one quantity line.
+  // Keep "Select" visible even after one configuration was added so the
+  // customer can add the same product again with different choices.
+  const hasOptions = Boolean(productOptions(item) || productSelectionFlow(item));
+  if (hasOptions) {
+    return `<button class="${detail ? "primary detail-add" : "product-add"}" data-product-add="${escapedId}">${state.lang === "ar" ? "اختيار" : "Select"}</button>`;
+  }
   if (!quantity) {
-    const hasOptions = Boolean(productOptions(product(id)) || productSelectionFlow(product(id)));
-    const label = hasOptions ? (state.lang === "ar" ? "اختيار" : "Select") : (detail ? tr("addToCart") : tr("add"));
-    return `<button class="${detail ? "primary detail-add" : "product-add"}" data-product-add="${escapedId}">${label}</button>`;
+    return `<button class="${detail ? "primary detail-add" : "product-add"}" data-product-add="${escapedId}">${detail ? tr("addToCart") : tr("add")}</button>`;
   }
   return `<div class="product-qty ${detail ? "detail-product-qty" : ""}" aria-label="${escapeHtml(item ? productName(item) : "")}">
     <button type="button" data-product-plus="${escapedId}" aria-label="+">+</button>
@@ -1699,6 +1710,7 @@ function openProductOptions(id, anchor = null) {
   pendingGeneralOptionSelections = [];
   pendingGeneralOptionQuantities = {};
   pendingPrimaryOption = singleFilteredOption && config.required && !config.multiple && config.nestedEnabled ? { ...allowed[0], nameSuffix: true } : null;
+  pendingSecondaryOption = null;
   productOptionsPopover = document.createElement("section");
   productOptionsPopover.className = "product-options-popover";
   const optionsBackdrop = document.createElement("div");
@@ -1724,35 +1736,39 @@ function renderProductOptionsStep() {
   const item = product(id);
   const config = productOptions(item);
   if (!productOptionsPopover || !item || !config) return closeProductOptions();
-  const choosingSubOption = Boolean(pendingPrimaryOption);
+  const choosingThirdOption = Boolean(pendingSecondaryOption);
+  const choosingSubOption = Boolean(pendingPrimaryOption) && !choosingThirdOption;
+  const stage = choosingThirdOption ? 3 : choosingSubOption ? 2 : 1;
   const filterIds = filterOptionIds(item.id, choosingSubOption ? "subOptions" : "options");
-  const rawChoices = choosingSubOption ? pendingPrimaryOption.subOptions : config.items;
-  const choices = Array.isArray(filterIds) ? rawChoices.filter(option => filterIds.includes(choosingSubOption ? `${pendingPrimaryOption.id}::${option.id}` : String(option.id))) : rawChoices;
-  if (choosingSubOption && Array.isArray(filterIds) && choices.length === 1) return addSelectedOptionsToCart(id, [{ ...pendingPrimaryOption, nameSuffix: true }, { ...choices[0], quantity: 1, nameSuffix: true }]);
-  const choiceName = choosingSubOption ? "product-sub-option" : "product-option";
-  const type = choosingSubOption ? "radio" : (config.multiple ? "checkbox" : "radio");
-  const stepText = choosingSubOption
-    ? (state.lang === "ar" ? `اختر الخيار المرتبط بـ «${optionName(pendingPrimaryOption)}»` : `Choose an option for ${optionName(pendingPrimaryOption)}`)
+  const rawChoices = choosingThirdOption ? pendingSecondaryOption.subOptions : (choosingSubOption ? pendingPrimaryOption.subOptions : config.items);
+  const choices = Array.isArray(filterIds) && !choosingThirdOption ? rawChoices.filter(option => filterIds.includes(choosingSubOption ? `${pendingPrimaryOption.id}::${option.id}` : String(option.id))) : rawChoices;
+  if (choosingSubOption && Array.isArray(filterIds) && choices.length === 1 && !config.thirdLevelEnabled) return addSelectedOptionsToCart(id, [{ ...pendingPrimaryOption, nameSuffix: true }, { ...choices[0], quantity: 1, nameSuffix: true }]);
+  const choiceName = choosingThirdOption ? "product-third-option" : (choosingSubOption ? "product-sub-option" : "product-option");
+  const stageMultiple = config.multiple === true && Number(config.multipleStep || 1) === stage;
+  const stageQuantity = config.optionQuantityEnabled === true && Number(config.quantityStep || 1) === stage;
+  const type = stageMultiple ? "checkbox" : "radio";
+  const stepText = choosingThirdOption
+    ? (state.lang === "ar" ? `اختر الخيار المرتبط بـ «${optionName(pendingSecondaryOption)}»` : `Choose an option for ${optionName(pendingSecondaryOption)}`)
+    : choosingSubOption
+      ? (state.lang === "ar" ? `اختر الخيار المرتبط بـ «${optionName(pendingPrimaryOption)}»` : `Choose an option for ${optionName(pendingPrimaryOption)}`)
     : (config.required ? tr("optionsRequired") : tr("optionOptional"));
-  const actionText = choosingSubOption ? (state.lang === "ar" ? "إضافة إلى السلة" : "Add to cart") : (config.nestedEnabled ? (state.lang === "ar" ? "التالي" : "Next") : (state.lang === "ar" ? "إضافة إلى السلة" : "Add to cart"));
-  const optionsTitle = !choosingSubOption && config.multiple ? (state.lang === "ar" ? config.titleAr : config.titleEn) : "";
-  const maxHint = !choosingSubOption && config.multiple ? (state.lang === "ar" ? `يمكنك اختيار حتى ${new Intl.NumberFormat("ar-KW").format(config.maxSelections)} خيارات` : `Choose up to ${config.maxSelections} options`) : "";
-  const showNestedCurrentPrice = choosingSubOption && Number(pendingPrimaryOption?.price || 0) > 0 && choices.some(option => Number(option.price || 0) > 0);
-  const selectedOptionIds = new Set(choosingSubOption ? [] : pendingGeneralOptionSelections);
-  productOptionsPopover.innerHTML = `<header><div><small>${state.lang === "ar" ? (choosingSubOption ? "الخيار الثاني" : "خيارات المنتج") : (choosingSubOption ? "Second option" : "Product options")}</small><strong>${escapeHtml(productName(item))}</strong></div><button type="button" data-close-options aria-label="${state.lang === "ar" ? "إغلاق" : "Close"}">×</button></header><p>${escapeHtml(stepText)}</p>${optionsTitle ? `<div class="option-group-title"><strong>${escapeHtml(optionsTitle)}</strong><small>${escapeHtml(maxHint)}</small></div>` : ""}<div class="product-options-list">${choices.map(option => { const chosen = selectedOptionIds.has(option.id); const quantity = Math.max(1, Number(pendingGeneralOptionQuantities[option.id]) || 1); return `<label class="product-option-choice"><input type="${type}" name="${choiceName}" value="${escapeHtml(option.id)}" ${chosen ? "checked" : ""}>${option.image ? `<img src="${escapeHtml(option.image)}" alt="">` : ""}<span><b>${escapeHtml(optionName(option))}</b><small>${escapeHtml(state.lang === "ar" ? option.nameEn : option.nameAr)}</small>${option.preparation ? `<i>◷ ${escapeHtml(preparationLabel(option.preparation))}</i>` : ""}${config.minimumPerOptionEnabled && option.minimumOrder ? `<i class="option-minimum-note">${escapeHtml(minimumOrderText(option.minimumOrder))}</i>` : ""}</span>${config.priceBased ? `<em>${money(option.price)}</em>` : ""}${!choosingSubOption && config.optionQuantityEnabled && chosen ? `<div class="option-choice-quantity-wrap"><small>${state.lang === "ar" ? "الكمية" : "Quantity"}</small><div class="qty option-choice-quantity"><button type="button" data-option-quantity-action="plus" data-option-id="${escapeHtml(option.id)}">+</button><span>${new Intl.NumberFormat(state.lang === "ar" ? "ar-KW" : "en").format(quantity)}</span><button type="button" data-option-quantity-action="minus" data-option-id="${escapeHtml(option.id)}">${quantity === 1 ? "×" : "−"}</button></div></div>` : ""}</label>`; }).join("")}</div>${showNestedCurrentPrice ? `<div class="selection-price hidden" data-option-current-price><span>${state.lang === "ar" ? "السعر الحالي" : "Current price"}</span><b></b></div>` : ""}<button type="button" class="primary" data-option-confirm ${config.required && !selectedOptionIds.size ? "disabled" : ""}>${actionText}</button>`;
+  const actionText = stage < (config.thirdLevelEnabled ? 3 : (config.nestedEnabled ? 2 : 1)) ? (state.lang === "ar" ? "التالي" : "Next") : (state.lang === "ar" ? "إضافة إلى السلة" : "Add to cart");
+  const optionsTitle = stageMultiple ? (state.lang === "ar" ? config.titleAr : config.titleEn) : "";
+  const maxHint = stageMultiple ? (state.lang === "ar" ? `يمكنك اختيار حتى ${new Intl.NumberFormat("ar-KW").format(config.maxSelections)} خيارات` : `Choose up to ${config.maxSelections} options`) : "";
+  const showNestedCurrentPrice = stage > 1 && choices.some(option => Number(option.price || 0) > 0);
+  const selectedOptionIds = new Set(pendingGeneralOptionSelections);
+  productOptionsPopover.innerHTML = `<header><div><small>${state.lang === "ar" ? (stage === 3 ? "الخيار الثالث" : stage === 2 ? "الخيار الثاني" : "خيارات المنتج") : (stage === 3 ? "Third option" : stage === 2 ? "Second option" : "Product options")}</small><strong>${escapeHtml(productName(item))}</strong></div><button type="button" data-close-options aria-label="${state.lang === "ar" ? "إغلاق" : "Close"}">×</button></header><p>${escapeHtml(stepText)}</p>${optionsTitle ? `<div class="option-group-title"><strong>${escapeHtml(optionsTitle)}</strong><small>${escapeHtml(maxHint)}</small></div>` : ""}<div class="product-options-list">${choices.map(option => { const chosen = selectedOptionIds.has(option.id); const quantity = Math.max(1, Number(pendingGeneralOptionQuantities[option.id]) || 1); return `<label class="product-option-choice"><input type="${type}" name="${choiceName}" value="${escapeHtml(option.id)}" ${chosen ? "checked" : ""}>${option.image ? `<img src="${escapeHtml(option.image)}" alt="">` : ""}<span><b>${escapeHtml(optionName(option))}</b><small>${escapeHtml(state.lang === "ar" ? option.nameEn : option.nameAr)}</small>${option.preparation ? `<i>◷ ${escapeHtml(preparationLabel(option.preparation))}</i>` : ""}${config.minimumPerOptionEnabled && option.minimumOrder ? `<i class="option-minimum-note">${escapeHtml(minimumOrderText(option.minimumOrder))}</i>` : ""}</span>${config.priceBased ? `<em>${money(option.price)}</em>` : ""}${stageQuantity && chosen ? `<div class="option-choice-quantity-wrap"><small>${state.lang === "ar" ? "الكمية" : "Quantity"}</small><div class="qty option-choice-quantity"><button type="button" data-option-quantity-action="plus" data-option-id="${escapeHtml(option.id)}">+</button><span>${new Intl.NumberFormat(state.lang === "ar" ? "ar-KW" : "en").format(quantity)}</span><button type="button" data-option-quantity-action="minus" data-option-id="${escapeHtml(option.id)}">${quantity === 1 ? "×" : "−"}</button></div></div>` : ""}</label>`; }).join("")}</div>${showNestedCurrentPrice ? `<div class="selection-price hidden" data-option-current-price><span>${state.lang === "ar" ? "السعر الحالي" : "Current price"}</span><b></b></div>` : ""}<button type="button" class="primary" data-option-confirm ${config.required && !selectedOptionIds.size ? "disabled" : ""}>${actionText}</button>`;
   productOptionsPopover.place?.();
   productOptionsPopover.querySelector("[data-close-options]").onclick = closeProductOptions;
   productOptionsPopover.querySelectorAll(`input[name="${choiceName}"]`).forEach(input => input.onchange = () => {
     const selected = productOptionsPopover.querySelectorAll(`input[name="${choiceName}"]:checked`);
-    if (!choosingSubOption && config.multiple && selected.length > config.maxSelections) {
+    if (stageMultiple && selected.length > config.maxSelections) {
       input.checked = false;
       return toast(state.lang === "ar" ? `الحد الأقصى ${new Intl.NumberFormat("ar-KW").format(config.maxSelections)} خيارات` : `Maximum ${config.maxSelections} options`, "error");
     }
-    if (!choosingSubOption) {
-      pendingGeneralOptionSelections = [...productOptionsPopover.querySelectorAll(`input[name="${choiceName}"]:checked`)].map(option => option.value);
-      pendingGeneralOptionSelections.forEach(optionId => { pendingGeneralOptionQuantities[optionId] ||= 1; });
-      return renderProductOptionsStep();
-    }
+    pendingGeneralOptionSelections = [...productOptionsPopover.querySelectorAll(`input[name="${choiceName}"]:checked`)].map(option => option.value);
+    pendingGeneralOptionSelections.forEach(optionId => { pendingGeneralOptionQuantities[optionId] ||= 1; });
+    if (stageQuantity) return renderProductOptionsStep();
     productOptionsPopover.querySelector("[data-option-confirm]").disabled = config.required && !productOptionsPopover.querySelector(`input[name="${choiceName}"]:checked`);
     const currentPrice = productOptionsPopover.querySelector("[data-option-current-price]");
     if (currentPrice && input.checked) {
@@ -1779,6 +1795,7 @@ function closeProductOptions() {
   pendingOptionProductId = "";
   pendingOptionAnchor = null;
   pendingPrimaryOption = null;
+  pendingSecondaryOption = null;
   pendingGeneralOptionSelections = [];
   pendingGeneralOptionQuantities = {};
   pendingSelectionFlow = null;
@@ -1794,11 +1811,25 @@ function confirmProductOptions() {
   const id = pendingOptionProductId;
   const config = productOptions(product(id));
   if (!id || !config) return closeProductOptions();
+  if (pendingSecondaryOption) {
+    const selectedIds = pendingGeneralOptionSelections.length ? pendingGeneralOptionSelections : $$('input[name="product-third-option"]:checked', productOptionsPopover || document).map(input => input.value);
+    const selectedThirdOptions = pendingSecondaryOption.subOptions.filter(option => selectedIds.includes(option.id)).map(option => ({ ...option, quantity: Math.max(1, Number(pendingGeneralOptionQuantities[option.id]) || 1), nameSuffix: true, showQuantity: config.optionQuantityEnabled === true && Number(config.quantityStep || 1) === 3 }));
+    if (!selectedThirdOptions.length) return toast(tr("optionsRequired"), "error");
+    return addSelectedOptionsToCart(id, [{ ...pendingPrimaryOption, nameSuffix: true }, { ...pendingSecondaryOption, nameSuffix: true }, ...selectedThirdOptions]);
+  }
   if (pendingPrimaryOption) {
-    const selectedId = productOptionsPopover?.querySelector('input[name="product-sub-option"]:checked')?.value;
-    const selectedSubOption = pendingPrimaryOption.subOptions.find(option => option.id === selectedId);
+    const selectedIds = pendingGeneralOptionSelections.length ? pendingGeneralOptionSelections : $$('input[name="product-sub-option"]:checked', productOptionsPopover || document).map(input => input.value);
+    const selectedSubOptions = pendingPrimaryOption.subOptions.filter(option => selectedIds.includes(option.id)).map(option => ({ ...option, quantity: Math.max(1, Number(pendingGeneralOptionQuantities[option.id]) || 1), nameSuffix: true, showQuantity: config.optionQuantityEnabled === true && Number(config.quantityStep || 1) === 2 }));
+    const selectedSubOption = selectedSubOptions[0];
     if (!selectedSubOption) return toast(tr("optionsRequired"), "error");
-    return addSelectedOptionsToCart(id, [{ ...pendingPrimaryOption, nameSuffix: true }, { ...selectedSubOption, nameSuffix: true }]);
+    if (config.thirdLevelEnabled) {
+      pendingSecondaryOption = selectedSubOption;
+      pendingGeneralOptionSelections = [];
+      pendingGeneralOptionQuantities = {};
+      if (!pendingSecondaryOption.subOptions.length) return toast(state.lang === "ar" ? "لا توجد خيارات مرتبطة بهذا الخيار بعد" : "No linked options are available yet", "error");
+      return renderProductOptionsStep();
+    }
+    return addSelectedOptionsToCart(id, [{ ...pendingPrimaryOption, nameSuffix: true }, ...selectedSubOptions]);
   }
   const selectedIds = pendingGeneralOptionSelections.length ? pendingGeneralOptionSelections : $$('input[name="product-option"]:checked', productOptionsPopover || document).map(input => input.value);
   if (config.required && !selectedIds.length) return toast(tr("optionsRequired"), "error");
@@ -1806,6 +1837,8 @@ function confirmProductOptions() {
   if (config.nestedEnabled) {
     pendingPrimaryOption = selected[0] || null;
     if (!pendingPrimaryOption) return toast(tr("optionsRequired"), "error");
+    pendingGeneralOptionSelections = [];
+    pendingGeneralOptionQuantities = {};
     if (!pendingPrimaryOption.subOptions.length) return toast(state.lang === "ar" ? "لا توجد خيارات مرتبطة بهذا الخيار بعد" : "No linked options are available yet", "error");
     return renderProductOptionsStep();
   }
