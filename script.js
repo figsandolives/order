@@ -794,9 +794,10 @@ function invoicePreparationNotice(order) {
 }
 
 function cartItems() {
-  return Object.entries(state.cart).map(([id, value]) => {
+  return Object.entries(state.cart).map(([cartKey, value]) => {
     const entry = typeof value === "object" && value ? value : { quantity: value };
-    return { product: product(id), quantity: Number(entry.quantity), note: String(entry.note || "").slice(0, 240), options: Array.isArray(entry.options) ? entry.options : [] };
+    const productId = String(entry.productId || cartKey.split("::")[0]);
+    return { cartKey, product: product(productId), quantity: Number(entry.quantity), note: String(entry.note || "").slice(0, 240), options: Array.isArray(entry.options) ? entry.options : [] };
   }).filter(item => item.product && item.quantity > 0);
 }
 
@@ -827,7 +828,7 @@ function resolveMissingCartChoice(entry) {
   if (!entry?.product) return;
   // هذه سلة محفوظة من نسخة سابقة قبل اختيار المنتج؛ نحذف السطر غير المكتمل
   // ثم نفتح الاختيارات مباشرة حتى لا يصل العميل إلى صفحة فشل الدفع.
-  delete state.cart[entry.product.id];
+  delete state.cart[entry.cartKey];
   state.paymentRequestId = "";
   persistCart();
   renderCartBar();
@@ -837,8 +838,28 @@ function resolveMissingCartChoice(entry) {
   toast(state.lang === "ar" ? "يرجى اختيار تفاصيل المنتج ثم إكمال الدفع" : "Choose the product details, then complete payment", "error");
 }
 function cartQuantity(id) {
-  const value = state.cart[id];
-  return Number(typeof value === "object" && value ? value.quantity : value || 0);
+  const productId = String(id);
+  return Object.entries(state.cart).reduce((sum, [cartKey, value]) => {
+    const entry = typeof value === "object" && value ? value : { quantity: value };
+    const entryProductId = String(entry.productId || cartKey.split("::")[0]);
+    return entryProductId === productId ? sum + Math.max(0, Number(entry.quantity) || 0) : sum;
+  }, 0);
+}
+
+function optionSelectionSignature(options = []) {
+  return (Array.isArray(options) ? options : []).map(option => ({
+    id: String(option?.id || ""),
+    quantity: Math.max(1, Number(option?.quantity) || 1),
+    flowStepId: String(option?.flowStepId || "")
+  })).sort((a, b) => `${a.flowStepId}:${a.id}`.localeCompare(`${b.flowStepId}:${b.id}`)).map(option => `${option.flowStepId}:${option.id}:${option.quantity}`).join("|");
+}
+
+function cartLineKey(productId, options = []) {
+  const signature = optionSelectionSignature(options);
+  if (!signature) return String(productId);
+  let hash = 2166136261;
+  for (const character of signature) hash = Math.imul(hash ^ character.charCodeAt(0), 16777619);
+  return `${productId}::${(hash >>> 0).toString(36)}`;
 }
 
 function cartCount() {
@@ -1510,8 +1531,9 @@ function updateCategoryFromScroll() {
 function changeQuantity(id, difference) {
   const wasEmpty = cartCount() === 0;
   const existing = typeof state.cart[id] === "object" && state.cart[id] ? state.cart[id] : { quantity: state.cart[id] || 0, note: "" };
-  state.cart[id] = { ...existing, quantity: Math.max(0, Number(existing.quantity || 0) + difference) };
-  if (!state.cart[id]) delete state.cart[id];
+  const nextQuantity = Math.max(0, Number(existing.quantity || 0) + difference);
+  if (!nextQuantity) delete state.cart[id];
+  else state.cart[id] = { ...existing, quantity: nextQuantity };
   state.paymentRequestId = "";
   persistCart();
   renderCartBar();
@@ -1757,6 +1779,14 @@ function renderProductOptionsStep() {
   const maxHint = stageMultiple ? (state.lang === "ar" ? `يمكنك اختيار حتى ${new Intl.NumberFormat("ar-KW").format(config.maxSelections)} خيارات` : `Choose up to ${config.maxSelections} options`) : "";
   const showNestedCurrentPrice = stage > 1 && choices.some(option => Number(option.price || 0) > 0);
   const selectedOptionIds = new Set(pendingGeneralOptionSelections);
+  const currentNestedPrice = () => {
+    const carriedChoices = [pendingPrimaryOption, pendingSecondaryOption].filter(Boolean);
+    const currentChoices = choices.filter(option => pendingGeneralOptionSelections.includes(option.id));
+    return [...carriedChoices, ...currentChoices].reduce((total, option) => {
+      const quantity = Math.max(1, Number(option.quantity) || 1);
+      return total + Math.max(0, Number(option.price) || 0) * quantity;
+    }, 0);
+  };
   productOptionsPopover.innerHTML = `<header><div><small>${state.lang === "ar" ? (stage === 3 ? "الخيار الثالث" : stage === 2 ? "الخيار الثاني" : "خيارات المنتج") : (stage === 3 ? "Third option" : stage === 2 ? "Second option" : "Product options")}</small><strong>${escapeHtml(productName(item))}</strong></div><button type="button" data-close-options aria-label="${state.lang === "ar" ? "إغلاق" : "Close"}">×</button></header><p>${escapeHtml(stepText)}</p>${optionsTitle ? `<div class="option-group-title"><strong>${escapeHtml(optionsTitle)}</strong><small>${escapeHtml(maxHint)}</small></div>` : ""}<div class="product-options-list">${choices.map(option => { const chosen = selectedOptionIds.has(option.id); const quantity = Math.max(1, Number(pendingGeneralOptionQuantities[option.id]) || 1); return `<label class="product-option-choice"><input type="${type}" name="${choiceName}" value="${escapeHtml(option.id)}" ${chosen ? "checked" : ""}>${option.image ? `<img src="${escapeHtml(option.image)}" alt="">` : ""}<span><b>${escapeHtml(optionName(option))}</b><small>${escapeHtml(state.lang === "ar" ? option.nameEn : option.nameAr)}</small>${option.preparation ? `<i>◷ ${escapeHtml(preparationLabel(option.preparation))}</i>` : ""}${config.minimumPerOptionEnabled && option.minimumOrder ? `<i class="option-minimum-note">${escapeHtml(minimumOrderText(option.minimumOrder))}</i>` : ""}</span>${config.priceBased ? `<em>${money(option.price)}</em>` : ""}${stageQuantity && chosen ? `<div class="option-choice-quantity-wrap"><small>${state.lang === "ar" ? "الكمية" : "Quantity"}</small><div class="qty option-choice-quantity"><button type="button" data-option-quantity-action="plus" data-option-id="${escapeHtml(option.id)}">+</button><span>${new Intl.NumberFormat(state.lang === "ar" ? "ar-KW" : "en").format(quantity)}</span><button type="button" data-option-quantity-action="minus" data-option-id="${escapeHtml(option.id)}">${quantity === 1 ? "×" : "−"}</button></div></div>` : ""}</label>`; }).join("")}</div>${showNestedCurrentPrice ? `<div class="selection-price hidden" data-option-current-price><span>${state.lang === "ar" ? "السعر الحالي" : "Current price"}</span><b></b></div>` : ""}<button type="button" class="primary" data-option-confirm ${config.required && !selectedOptionIds.size ? "disabled" : ""}>${actionText}</button>`;
   productOptionsPopover.place?.();
   productOptionsPopover.querySelector("[data-close-options]").onclick = closeProductOptions;
@@ -1771,10 +1801,9 @@ function renderProductOptionsStep() {
     if (stageQuantity) return renderProductOptionsStep();
     productOptionsPopover.querySelector("[data-option-confirm]").disabled = config.required && !productOptionsPopover.querySelector(`input[name="${choiceName}"]:checked`);
     const currentPrice = productOptionsPopover.querySelector("[data-option-current-price]");
-    if (currentPrice && input.checked) {
-      const selectedOption = choices.find(option => option.id === input.value);
+    if (currentPrice && productOptionsPopover.querySelector(`input[name="${choiceName}"]:checked`)) {
       currentPrice.classList.remove("hidden");
-      $("b", currentPrice).textContent = money(Number(pendingPrimaryOption?.price || 0) + Number(selectedOption?.price || 0));
+      $("b", currentPrice).textContent = money(currentNestedPrice());
     }
   });
   productOptionsPopover.querySelectorAll("[data-option-quantity-action]").forEach(button => button.onclick = event => {
@@ -1847,8 +1876,10 @@ function confirmProductOptions() {
 
 function addSelectedOptionsToCart(id, selected, quantity = 1) {
   const wasEmpty = cartCount() === 0;
-  const existing = typeof state.cart[id] === "object" && state.cart[id] ? state.cart[id] : { quantity: 0, note: "" };
-  state.cart[id] = { ...existing, options: selected, quantity: Number(existing.quantity || 0) + Math.max(1, Number(quantity) || 1) };
+  const options = JSON.parse(JSON.stringify(Array.isArray(selected) ? selected : []));
+  const lineKey = cartLineKey(id, options);
+  const existing = typeof state.cart[lineKey] === "object" && state.cart[lineKey] ? state.cart[lineKey] : { quantity: 0, note: "", productId: String(id) };
+  state.cart[lineKey] = { ...existing, productId: String(id), options, quantity: Number(existing.quantity || 0) + Math.max(1, Number(quantity) || 1) };
   state.paymentRequestId = "";
   persistCart();
   renderCartBar();
@@ -2637,10 +2668,10 @@ function minimumOrderNotice() {
 
 function renderReview() {
   $("#checkoutBody").innerHTML = `
-    <section class="checkout-review"><div class="cart-list">${cartItems().map(({ product: item, quantity, note, options }) => { const minimumIssue = cartItemMinimumIssue({ product: item, quantity, options }); return `
+    <section class="checkout-review"><div class="cart-list">${cartItems().map(({ cartKey, product: item, quantity, note, options }) => { const minimumIssue = cartItemMinimumIssue({ product: item, quantity, options }); return `
       <div class="cart-row ${minimumIssue ? "minimum-order-warning" : ""}"><img src="${escapeHtml(productImages(item)[0] || "logo.png")}" alt="">
-        <div class="cart-copy"><h4>${escapeHtml(cartDisplayName(item, options))}</h4>${cartDetailOptions(item, options).length ? `<small class="cart-options">${escapeHtml(cartDetailOptions(item, options).map(optionSummary).join("، "))}</small>` : ""}${minimumIssue ? `<small class="minimum-order-warning-note">${escapeHtml(minimumOrderText(minimumIssue.minimum))}</small>` : ""}<strong>${money(unitPrice(item, options) * quantity)}</strong></div><label class="cart-note-label"><textarea aria-label="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}" data-cart-note="${escapeHtml(item.id)}" maxlength="240" placeholder="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}">${escapeHtml(note)}</textarea></label>
-        <div class="qty"><button data-plus="${escapeHtml(item.id)}">+</button><span>${quantity}</span><button data-minus="${escapeHtml(item.id)}">${quantity === 1 ? "×" : "−"}</button></div>
+        <div class="cart-copy"><h4>${escapeHtml(cartDisplayName(item, options))}</h4>${cartDetailOptions(item, options).length ? `<small class="cart-options">${escapeHtml(cartDetailOptions(item, options).map(optionSummary).join("، "))}</small>` : ""}${minimumIssue ? `<small class="minimum-order-warning-note">${escapeHtml(minimumOrderText(minimumIssue.minimum))}</small>` : ""}<strong>${money(unitPrice(item, options) * quantity)}</strong></div><label class="cart-note-label"><textarea aria-label="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}" data-cart-note="${escapeHtml(cartKey)}" maxlength="240" placeholder="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}">${escapeHtml(note)}</textarea></label>
+        <div class="qty"><button data-plus="${escapeHtml(cartKey)}">+</button><span>${quantity}</span><button data-minus="${escapeHtml(cartKey)}">${quantity === 1 ? "×" : "−"}</button></div>
       </div>`; }).join("")}</div><div class="checkout-sticky-actions">${cartHasLongPreparationItems() ? `<p class="long-preparation-notice">${state.lang === "ar" ? "ملاحظة: يوجد في طلبك أصناف تأخذ وقت للتجهيز.. لذا يرجى العلم أنه قد يتأخر طلبك أو يتم تأجيله." : "Note: Your order includes items that need extra preparation time, so it may be delayed or rescheduled."}</p>` : ""}${totalsHtml()}<button class="primary" id="next1">${tr("confirmContinue")}</button></div></section>`;
   $$('[data-cart-note]').forEach(input => input.onchange = () => updateCartNote(input.dataset.cartNote, input.value));
   $("#next1").onclick = () => {
@@ -3707,9 +3738,11 @@ function applyCatalog(catalog, cache = true) {
   state.advertisement = normalizeAdvertisement(catalog.advertisement);
   const visibleProductIds = new Set(visibleProducts.map(item => String(item.id)));
   let removedCartItem = false;
-  Object.keys(state.cart).forEach(id => {
-    if (visibleProductIds.has(String(id))) return;
-    delete state.cart[id];
+  Object.keys(state.cart).forEach(cartKey => {
+    const entry = state.cart[cartKey];
+    const productId = String(entry?.productId || cartKey.split("::")[0]);
+    if (visibleProductIds.has(productId)) return;
+    delete state.cart[cartKey];
     removedCartItem = true;
   });
   if (removedCartItem) persistCart();
