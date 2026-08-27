@@ -809,6 +809,25 @@ function cartItemMissingRequiredChoice(entry) {
   return Boolean(config?.required && !options.length);
 }
 
+// لا يكفي وجود أسماء الحشوات في السلة: يجب أن يساوي مجموع كمياتها عدد
+// الحبات الذي اختاره العميل في مرحلة الحجم. هذا يمنع وصول سلة غير صحيحة
+// إلى بوابة الدفع ويعرض السبب بوضوح قبل إنشاء رابط الدفع.
+function cartItemFillingIssue(entry) {
+  const item = entry?.product;
+  const flow = productSelectionFlow(item);
+  const options = Array.isArray(entry?.options) ? entry.options : [];
+  if (!flow) return null;
+  for (const step of flow.steps) {
+    if (!step.distributeQuantity || !step.limitFrom) continue;
+    const size = options.find(option => option?.flowStepId === step.limitFrom);
+    const required = Math.max(1, Number(size?.pieces) || 1) * Math.max(1, Number(size?.quantity) || 1);
+    const selected = options.filter(option => option?.flowStepId === step.id);
+    const selectedQuantity = flowSelectedQuantity(selected);
+    if (selectedQuantity !== required) return { product: item, selectedQuantity, required };
+  }
+  return null;
+}
+
 function cartItemMinimumIssue(entry) {
   const productMinimum = minimumOrderConfig(entry?.product?.minimumOrder);
   if (productMinimum && Number(entry.quantity) < productMinimum.quantity) return { product: entry.product, minimum: productMinimum };
@@ -1684,7 +1703,15 @@ function renderSelectionFlowStep() {
     const choice = step.items.find(option => option.id === input.value);
     if (!choice) return;
     let next = step.multiple ? [...(pendingFlowSelections[step.id] || [])] : [];
-    if (input.checked && !next.some(option => option.id === choice.id)) next.push({ ...choice, quantity: 1, flowStepId: step.id, isFilling: step.distributeQuantity === true, nameSuffix: step.required !== false && step.multiple !== true });
+    if (input.checked && !next.some(option => option.id === choice.id)) {
+      // لا نسمح بإضافة نوع جديد عندما يكتمل عدد الحشوات. سابقاً كان يمكن
+      // تحديد خيارات إضافية من مربعات الاختيار فتتجاوز السلة ١٢/١٢ مثلاً.
+      if (fillingRequirement && flowSelectedQuantity(next) >= fillingRequirement) {
+        input.checked = false;
+        return toast(state.lang === "ar" ? "لقد اكتمل عدد الحشوات المطلوب" : "The required fillings quantity is complete", "error");
+      }
+      next.push({ ...choice, quantity: 1, flowStepId: step.id, isFilling: step.distributeQuantity === true, nameSuffix: step.required !== false && step.multiple !== true });
+    }
     if (!input.checked) next = next.filter(option => option.id !== choice.id);
     if (next.length > limit) return toast(state.lang === "ar" ? `الحد الأقصى ${new Intl.NumberFormat("ar-KW").format(limit)} خيارات` : `Maximum ${limit} options`, "error"), renderSelectionFlowStep();
     pendingFlowSelections[step.id] = next;
@@ -2668,15 +2695,16 @@ function minimumOrderNotice() {
 
 function renderReview() {
   $("#checkoutBody").innerHTML = `
-    <section class="checkout-review"><div class="cart-list">${cartItems().map(({ cartKey, product: item, quantity, note, options }) => { const minimumIssue = cartItemMinimumIssue({ product: item, quantity, options }); return `
-      <div class="cart-row ${minimumIssue ? "minimum-order-warning" : ""}"><img src="${escapeHtml(productImages(item)[0] || "logo.png")}" alt="">
-        <div class="cart-copy"><h4>${escapeHtml(cartDisplayName(item, options))}</h4>${cartDetailOptions(item, options).length ? `<small class="cart-options">${escapeHtml(cartDetailOptions(item, options).map(optionSummary).join("، "))}</small>` : ""}${minimumIssue ? `<small class="minimum-order-warning-note">${escapeHtml(minimumOrderText(minimumIssue.minimum))}</small>` : ""}<strong>${money(unitPrice(item, options) * quantity)}</strong></div><label class="cart-note-label"><textarea aria-label="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}" data-cart-note="${escapeHtml(cartKey)}" maxlength="240" placeholder="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}">${escapeHtml(note)}</textarea></label>
+    <section class="checkout-review"><div class="cart-list">${cartItems().map(({ cartKey, product: item, quantity, note, options }) => { const minimumIssue = cartItemMinimumIssue({ product: item, quantity, options }); const fillingIssue = cartItemFillingIssue({ product: item, quantity, options }); return `
+      <div class="cart-row ${minimumIssue || fillingIssue ? "minimum-order-warning" : ""}"><img src="${escapeHtml(productImages(item)[0] || "logo.png")}" alt="">
+        <div class="cart-copy"><h4>${escapeHtml(cartDisplayName(item, options))}</h4>${cartDetailOptions(item, options).length ? `<small class="cart-options">${escapeHtml(cartDetailOptions(item, options).map(optionSummary).join("، "))}</small>` : ""}${minimumIssue ? `<small class="minimum-order-warning-note">${escapeHtml(minimumOrderText(minimumIssue.minimum))}</small>` : ""}${fillingIssue ? `<small class="minimum-order-warning-note">${escapeHtml(state.lang === "ar" ? `الحشوات: ${new Intl.NumberFormat("ar-KW").format(fillingIssue.selectedQuantity)} من ${new Intl.NumberFormat("ar-KW").format(fillingIssue.required)}. احذف هذا الصنف وأضفه مجدداً لتوزيع الحشوات بدقة.` : `Fillings: ${fillingIssue.selectedQuantity} of ${fillingIssue.required}. Remove this item and add it again to distribute fillings correctly.`)}</small>` : ""}<strong>${money(unitPrice(item, options) * quantity)}</strong></div><label class="cart-note-label"><textarea aria-label="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}" data-cart-note="${escapeHtml(cartKey)}" maxlength="240" placeholder="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}">${escapeHtml(note)}</textarea></label>
         <div class="qty"><button data-plus="${escapeHtml(cartKey)}">+</button><span>${quantity}</span><button data-minus="${escapeHtml(cartKey)}">${quantity === 1 ? "×" : "−"}</button></div>
       </div>`; }).join("")}</div><div class="checkout-sticky-actions">${cartHasLongPreparationItems() ? `<p class="long-preparation-notice">${state.lang === "ar" ? "ملاحظة: يوجد في طلبك أصناف تأخذ وقت للتجهيز.. لذا يرجى العلم أنه قد يتأخر طلبك أو يتم تأجيله." : "Note: Your order includes items that need extra preparation time, so it may be delayed or rescheduled."}</p>` : ""}${totalsHtml()}<button class="primary" id="next1">${tr("confirmContinue")}</button></div></section>`;
   $$('[data-cart-note]').forEach(input => input.onchange = () => updateCartNote(input.dataset.cartNote, input.value));
   $("#next1").onclick = () => {
     if (!cartCount()) return toast(state.lang === "ar" ? "لا يمكن المتابعة وسلتك فارغة" : "You cannot continue with an empty cart");
     if (cartItems().some(cartItemMinimumIssue)) return toast(state.lang === "ar" ? "ارجو إكمال كمية المنتج المطلوبة" : "Please complete the required product quantity", "error");
+    if (cartItems().some(cartItemFillingIssue)) return toast(state.lang === "ar" ? "عدد الحشوات لا يطابق الحجم المختار. عدّل الصنف الظاهر بالتنبيه أولاً." : "The fillings count does not match the selected size. Please correct the highlighted item first.", "error");
     if (!hasMinimumOrderValue()) return toast(minimumOrderNotice(), "error");
     state.step = 2;
     renderCheckout();
@@ -3106,6 +3134,7 @@ async function finishOrder() {
   const incompleteItem = cartItems().find(cartItemMissingRequiredChoice);
   if (incompleteItem) return resolveMissingCartChoice(incompleteItem);
   if (cartItems().some(cartItemMinimumIssue)) return paymentError(state.lang === "ar" ? "ارجو إكمال كمية المنتج المطلوبة" : "Please complete the required product quantity");
+  if (cartItems().some(cartItemFillingIssue)) return paymentError(state.lang === "ar" ? "عدد الحشوات لا يطابق الحجم المختار. عدّل الصنف قبل متابعة الدفع." : "The fillings count does not match the selected size. Please correct the item before payment.");
   if (!orderingConfig.paymentWebhookUrl || !orderingConfig.paymentStatusWebhookUrl) return paymentError(tr("paymentUnavailable"));
   if (!state.paymentMethod) return toast(tr("choosePaymentMethod"));
   clearProductRoute();
