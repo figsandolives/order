@@ -312,6 +312,12 @@ state.tableReservation = readJson("figsOlivesTableReservation", null);
 function tableReservationActive() { return Boolean(state.tableReservation?.active); }
 function persistTableReservation() { localStorage.setItem("figsOlivesTableReservation", JSON.stringify(state.tableReservation || null)); }
 function cancelTableReservation() { state.tableReservation = null; persistTableReservation(); renderProductFilters(); renderCartBar(); }
+function showBakeryCartConfirmation(onConfirm) {
+  $("#tableReservationBody").innerHTML = `<section class="table-confirm"><span class="eyebrow">حجز طاولة</span><h2>تأكيد المتابعة</h2><p>يوجد أصناف تخص المخبز في سلة. هل تريد حذفها والمتابعة في حجز الطاولة في المطعم؟</p><div class="actions"><button class="secondary" id="cancelBakeryCart">إلغاء</button><button class="primary" id="confirmBakeryCart">نعم، متابعة</button></div></section>`;
+  $("#tableReservationModal").classList.remove("hidden");
+  $("#cancelBakeryCart").onclick=()=>$("#tableReservationModal").classList.add("hidden");
+  $("#confirmBakeryCart").onclick=()=>{$("#tableReservationModal").classList.add("hidden");onConfirm();};
+}
 function openTableReservation() {
   // Keep the restaurant control in its reservation state even if the catalogue
   // transition animation has not finished yet.
@@ -328,9 +334,9 @@ function openTableReservation() {
     if (reservationHour < 8 || reservationHour > 21 || (reservationHour === 21 && $("#tableMinute").value !== "00")) return toast("الحجز متاح من ٨ صباحاً إلى ٩ مساءً", "error");
     state.tableReservation={active:true,people,date:$("#tableDate").value,period:$("#tablePeriod").value,hour:$("#tableHour").value,minute:$("#tableMinute").value}; persistTableReservation();
     $("#tableReservationModal").classList.add("hidden"); renderProductFilters();
-    $("#checkoutModal").classList.remove("hidden"); $("#steps").classList.add("hidden"); $("#checkoutTitle").textContent="حجز طاولة";
+    $("#checkoutModal").classList.remove("hidden"); $("#checkoutModal").dataset.tableFlow="choice"; $("#steps").classList.add("hidden"); $("#checkoutTitle").textContent="حجز طاولة"; $("#closeCheckout").textContent="← رجوع"; $("#closeCheckout").setAttribute("aria-label","رجوع إلى بيانات الحجز");
     $("#checkoutBody").innerHTML=`<section class="table-next"><span class="eyebrow">حجز طاولة</span><h2>يرجى اختيار الأصناف التي تريدها على طاولتك</h2><p>يمكنك إضافة الأصناف ثم الضغط على «إتمام الحجز».</p><button class="primary" id="browseTableProducts">تصفح المنتجات</button></section>`;
-    $("#browseTableProducts").onclick=()=>{const bakery=cartItems().some(({product})=>catalogTypeOf(product)==="bakery"); if(bakery&&!confirm("يوجد أصناف تخص المخبز في سلة.. هل تريد حذفها والمتابعة في حجز الطاولة في المطعم؟"))return; if(bakery){state.cart=Object.fromEntries(Object.entries(state.cart).filter(([key])=>catalogTypeOf(product(key.split("::")[0]))!=="bakery"));persistCart();renderCartBar();} $("#checkoutModal").classList.add("hidden"); if(state.catalogType!=="restaurant")setCatalogType("restaurant");};
+    $("#browseTableProducts").onclick=()=>{const proceed=()=>{$("#checkoutModal").classList.add("hidden");delete $("#checkoutModal").dataset.tableFlow;$("#closeCheckout").textContent="×";if(state.catalogType!=="restaurant")setCatalogType("restaurant");};const bakery=cartItems().some(({product})=>catalogTypeOf(product)==="bakery");if(!bakery)return proceed();showBakeryCartConfirmation(()=>{state.cart=Object.fromEntries(Object.entries(state.cart).filter(([key])=>catalogTypeOf(product(key.split("::")[0]))!=="bakery"));persistCart();renderCartBar();proceed();});};
   };
 }
 
@@ -2682,6 +2688,8 @@ function openCheckout() {
   state.name = state.user.name;
   state.phone = state.user.phone;
   state.step = 1;
+  delete $("#checkoutModal").dataset.tableFlow;
+  $("#closeCheckout").textContent = "×";
   $("#steps").classList.remove("hidden");
   $("#checkoutModal").classList.remove("hidden");
   renderCheckout();
@@ -3738,7 +3746,16 @@ window.addEventListener("resize", () => { productOptionsPopover?.place?.(); sync
 $("#checkoutBtn").onclick = openCheckout;
 $("#cartSummary").onclick = openCheckout;
 $("#headerCart").onclick = openCheckout;
-$("#closeCheckout").onclick = () => $("#checkoutModal").classList.add("hidden");
+$("#closeCheckout").onclick = () => {
+  if ($("#checkoutModal").dataset.tableFlow === "choice") {
+    $("#checkoutModal").classList.add("hidden");
+    delete $("#checkoutModal").dataset.tableFlow;
+    $("#closeCheckout").textContent = "×";
+    openTableReservation();
+    return;
+  }
+  $("#checkoutModal").classList.add("hidden");
+};
 $("#checkoutBody").onclick = event => {
   const plus = event.target.closest("[data-plus]");
   const minus = event.target.closest("[data-minus]");
