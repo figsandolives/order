@@ -508,14 +508,6 @@ function productDescription(product) {
 }
 function productBadge(product) {
   const filter = activeProductFilter();
-  const restaurantTable = state.catalogType === "restaurant";
-  toggle.classList.toggle("table-reservation-trigger", restaurantTable);
-  toggle.querySelector("b").textContent = restaurantTable ? "احجز طاولتك" : (filter ? filterLabel(filter) : (state.lang === "ar" ? "فلترة المنتجات" : "Filter products"));
-  toggle.querySelector("span").textContent = restaurantTable ? "⌂" : "⌘";
-  toggle.querySelector("i").textContent = restaurantTable ? "" : "⌄";
-  clear.classList.toggle("hidden", restaurantTable ? !tableReservationActive() : !filter);
-  clear.textContent = restaurantTable ? "إلغاء الحجز" : (state.lang === "ar" ? "حذف الفلتر" : "Clear filter");
-  if (restaurantTable) { menu.classList.add("hidden"); menu.innerHTML = ""; return; }
   if (filter && filter.products.some(entry => String(entry.productId) === String(product.id))) return state.lang === "ar" ? filter.nameAr : (filter.nameEn || filter.nameAr);
   return state.lang === "ar" ? (product.badgeAr || product.badgeEn || "") : (product.badgeEn || product.badgeAr || "");
 }
@@ -1190,6 +1182,14 @@ function renderProductFilters() {
   const menu = $("#productFilterMenu"), toggle = $("#productFilterToggle"), clear = $("#productFilterClear");
   if (!menu || !toggle || !clear) return;
   const filter = activeProductFilter();
+  const restaurantTable = state.catalogType === "restaurant";
+  toggle.classList.toggle("table-reservation-trigger", restaurantTable);
+  toggle.querySelector("b").textContent = restaurantTable ? "احجز طاولتك" : (filter ? filterLabel(filter) : (state.lang === "ar" ? "فلترة المنتجات" : "Filter products"));
+  toggle.querySelector("span").textContent = restaurantTable ? "⌂" : "⌘";
+  toggle.querySelector("i").textContent = restaurantTable ? "" : "⌄";
+  clear.classList.toggle("hidden", restaurantTable ? !tableReservationActive() : !filter);
+  clear.textContent = restaurantTable ? "إلغاء الحجز" : (state.lang === "ar" ? "حذف الفلتر" : "Clear filter");
+  if (restaurantTable) { menu.classList.add("hidden"); menu.innerHTML = ""; return; }
   menu.innerHTML = state.productFilters.filter(entry => entry.products.some(product => state.products.some(item => String(item.id) === String(product.productId) && isCurrentCatalog(item)))).map(entry => `<button type="button" data-product-filter="${escapeHtml(entry.id)}" class="${entry.id === state.activeProductFilterId ? "active" : ""}">${escapeHtml(filterLabel(entry))}<small>${entry.products.length}</small></button>`).join("") || `<span>${state.lang === "ar" ? "لا توجد فلاتر متاحة" : "No filters available"}</span>`;
 }
 
@@ -1348,6 +1348,9 @@ function productCard(item, category) {
 
 function renderProductSections() {
   const sections = [];
+  const restaurantImageNotice = state.catalogType === "restaurant"
+    ? `<p class="restaurant-image-notice">جميع صور المنتجات هنا تم تصويرها كما تقدم لك في طاولة المطعم .. لذلك سيختلف التغليف عند طلبها للتوصيل</p>`
+    : "";
   const ordered = sortedCategories();
   const filteringProducts = Boolean(activeProductFilter());
   // Preserve the real product.category relationship when filtering.  Headings
@@ -1361,7 +1364,7 @@ function renderProductSections() {
         <section class="category-section" id="category-${encodeURIComponent(category.id)}" data-category-section="${escapeHtml(category.id)}">
           <div class="section-heading"><h2>${escapeHtml(categoryName(category))}</h2></div>
           ${sectionImage ? `<button type="button" class="category-illustration" data-category-illustration="${escapeHtml(sectionImage)}" aria-label="تكبير الصورة التوضيحية لقسم ${escapeHtml(categoryName(category))}"><img src="${escapeHtml(sectionImage)}" alt="${escapeHtml(categoryName(category))}" loading="lazy"></button>` : ""}
-          <div class="product-grid">${matches.map(item => productCard(item, category)).join("")}</div>
+          <div class="product-grid">${matches.map(item => productCard(item, category)).join("")}</div>${restaurantImageNotice}
         </section>`);
     });
     $("#productSections").innerHTML = sections.length ? sections.join("") : `<div class="loading">${tr("noResults")}</div>`;
@@ -1379,7 +1382,7 @@ function renderProductSections() {
       <section class="category-section" id="category-${encodeURIComponent(category.id)}" data-category-section="${escapeHtml(category.id)}">
         <div class="section-heading"><h2>${escapeHtml(categoryName(category))}</h2></div>
         ${sectionImage ? `<button type="button" class="category-illustration" data-category-illustration="${escapeHtml(sectionImage)}" aria-label="تكبير الصورة التوضيحية لقسم ${escapeHtml(categoryName(category))}"><img src="${escapeHtml(sectionImage)}" alt="${escapeHtml(categoryName(category))}" loading="lazy"></button>` : ""}
-        <div class="product-grid">${matches.map(item => productCard(item, category)).join("")}</div>
+        <div class="product-grid">${matches.map(item => productCard(item, category)).join("")}</div>${restaurantImageNotice}
       </section>`;
   };
   const entries = [
