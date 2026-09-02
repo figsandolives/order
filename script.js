@@ -3538,10 +3538,29 @@ $("#headingNavigation").onclick = event => {
   if (categoryButton) { state.activeCategory = categoryButton.dataset.linkedNav; syncActiveNavigation(); scrollToCategory(categoryButton.dataset.linkedNav); }
 };
 $("#catalogSwitch").onclick = event => setCatalogType(event.currentTarget.dataset.catalogTarget);
+function positionProductFilterMenu() {
+  if (window.matchMedia("(max-width: 760px)").matches) {
+    const trigger = $("#productFilterToggle");
+    const menu = $("#productFilterMenu");
+    const rect = trigger.getBoundingClientRect();
+    const menuMaxHeight = Math.min(300, window.innerHeight * .45);
+    menu.style.top = `${Math.max(12, Math.min(window.innerHeight - menuMaxHeight - 12, rect.bottom + 8))}px`;
+    menu.style.left = `${Math.max(12, rect.left)}px`;
+    menu.style.right = "auto";
+    menu.style.width = `${rect.width}px`;
+  } else {
+    const menu = $("#productFilterMenu");
+    menu.style.top = "";
+    menu.style.left = "";
+    menu.style.right = "";
+    menu.style.width = "";
+  }
+}
 $("#productFilterToggle").onclick = event => {
   event.stopPropagation();
-  const menu = $("#productFilterMenu"), open = menu.classList.toggle("hidden");
-  $("#productFilterToggle").setAttribute("aria-expanded", String(!open));
+  const menu = $("#productFilterMenu"), isNowHidden = menu.classList.toggle("hidden");
+  if (!isNowHidden) positionProductFilterMenu();
+  $("#productFilterToggle").setAttribute("aria-expanded", String(!isNowHidden));
 };
 $("#productFilterMenu").onclick = event => {
   const button = event.target.closest("[data-product-filter]"); if (!button) return;
@@ -3555,6 +3574,7 @@ $("#productFilterClear").onclick = () => {
   renderProductFilters(); renderCategories(); renderProductSections();
 };
 document.addEventListener("pointerdown", event => { const wrap = $("#catalogFilterWrap"); if (wrap && !wrap.contains(event.target)) { $("#productFilterMenu").classList.add("hidden"); $("#productFilterToggle").setAttribute("aria-expanded", "false"); } });
+window.addEventListener("resize", () => { if (!$("#productFilterMenu").classList.contains("hidden")) positionProductFilterMenu(); });
 function handleProductQuantityEvent(event) {
   const notify = event.target.closest("[data-availability-notify]");
   const add = event.target.closest("[data-product-add]");
