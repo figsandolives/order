@@ -313,6 +313,9 @@ function tableReservationActive() { return Boolean(state.tableReservation?.activ
 function persistTableReservation() { localStorage.setItem("figsOlivesTableReservation", JSON.stringify(state.tableReservation || null)); }
 function cancelTableReservation() { state.tableReservation = null; persistTableReservation(); renderProductFilters(); renderCartBar(); }
 function openTableReservation() {
+  // Keep the restaurant control in its reservation state even if the catalogue
+  // transition animation has not finished yet.
+  renderProductFilters();
   const name = state.user?.name || "الزبون";
   const saved = state.tableReservation || {};
   $("#tableReservationBody").innerHTML = `<button class="table-close" id="closeTableReservation">×</button><span class="eyebrow">حجز طاولة</span><h2>أهلاً ${escapeHtml(name)}</h2><label>عدد الأشخاص<input id="tablePeople" inputmode="numeric" maxlength="2" value="${escapeHtml(saved.people || "")}" placeholder="2"></label><section class="table-time"><h3>اختر وقت الحجز</h3><div class="time-fields"><label class="time-date">التاريخ<input id="tableDate" type="date" min="${dateInputValue()}" value="${escapeHtml(saved.date || dateInputValue())}"></label><label class="time-period">الفترة<select id="tablePeriod"><option value="am" ${saved.period === "am" ? "selected" : ""}>صباحاً</option><option value="pm" ${saved.period !== "am" ? "selected" : ""}>مساءً</option></select></label><label class="time-minute">الدقائق<select id="tableMinute"><option value="00">00</option><option value="30" ${saved.minute === "30" ? "selected" : ""}>30</option></select></label><label class="time-hour">الساعة<select id="tableHour">${Array.from({length:12},(_,i)=>i+1).map(x=>`<option ${String(saved.hour||"1")===String(x)?"selected":""}>${x}</option>`).join("")}</select></label></div></section><button class="primary" id="continueTableReservation">متابعة</button>`;
@@ -1204,6 +1207,7 @@ function setCatalogType(type) {
   if (next === "bakery" && tableReservationActive()) cancelTableReservation();
   state.catalogType = next;
   applyStoreAppearance(state.catalogAppearance);
+  renderProductFilters();
   state.activeCategory = "all";
   state.activeHeadingId = "";
   state.activeSubheadingId = "";
@@ -1966,7 +1970,7 @@ function renderCartBar() {
   $("#floatingCart").classList.toggle("hidden", !count);
   $("#cartBadge").textContent = count;
   $("#headerCount").textContent = count;
-  $("#cartTotal").textContent = money(subtotal());
+  $("#cartTotal").innerHTML = state.lang === "ar" ? `<span class="cart-amount">${Number(subtotal()).toFixed(3)}</span><span class="cart-currency">د.ك</span>` : money(subtotal());
   $("#checkoutBtn").textContent = tableReservationActive() ? "إتمام الحجز ←" : tr("checkout");
 }
 
