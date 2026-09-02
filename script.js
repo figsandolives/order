@@ -308,6 +308,26 @@ const state = {
   productFilters: [],
   activeProductFilterId: ""
 };
+state.tableReservation = readJson("figsOlivesTableReservation", null);
+function tableReservationActive() { return Boolean(state.tableReservation?.active); }
+function persistTableReservation() { localStorage.setItem("figsOlivesTableReservation", JSON.stringify(state.tableReservation || null)); }
+function cancelTableReservation() { state.tableReservation = null; persistTableReservation(); renderProductFilters(); renderCartBar(); }
+function openTableReservation() {
+  const name = state.user?.name || "الزبون";
+  const saved = state.tableReservation || {};
+  $("#tableReservationBody").innerHTML = `<button class="table-close" id="closeTableReservation">×</button><span class="eyebrow">حجز طاولة</span><h2>أهلاً ${escapeHtml(name)}</h2><label>عدد الأشخاص<input id="tablePeople" inputmode="numeric" maxlength="2" value="${escapeHtml(saved.people || "")}" placeholder="2"></label><section class="table-time"><h3>اختر وقت الحجز</h3><div class="time-fields"><label class="time-date">التاريخ<input id="tableDate" type="date" min="${dateInputValue()}" value="${escapeHtml(saved.date || dateInputValue())}"></label><label class="time-period">الفترة<select id="tablePeriod"><option value="am" ${saved.period === "am" ? "selected" : ""}>صباحاً</option><option value="pm" ${saved.period !== "am" ? "selected" : ""}>مساءً</option></select></label><label class="time-minute">الدقائق<select id="tableMinute"><option value="00">00</option><option value="30" ${saved.minute === "30" ? "selected" : ""}>30</option></select></label><label class="time-hour">الساعة<select id="tableHour">${Array.from({length:12},(_,i)=>i+1).map(x=>`<option ${String(saved.hour||"1")===String(x)?"selected":""}>${x}</option>`).join("")}</select></label></div></section><button class="primary" id="continueTableReservation">متابعة</button>`;
+  $("#tableReservationModal").classList.remove("hidden");
+  $("#closeTableReservation").onclick=()=>$("#tableReservationModal").classList.add("hidden");
+  $("#tablePeople").oninput=e=>{e.target.value=normalizeEnglishDigits(e.target.value).replace(/\D/g,"");};
+  $("#continueTableReservation").onclick=()=>{
+    const people=$("#tablePeople").value; if(!people || Number(people)<1) return toast("اكتب عدد الأشخاص");
+    state.tableReservation={active:true,people,date:$("#tableDate").value,period:$("#tablePeriod").value,hour:$("#tableHour").value,minute:$("#tableMinute").value}; persistTableReservation();
+    $("#tableReservationModal").classList.add("hidden"); renderProductFilters();
+    $("#checkoutModal").classList.remove("hidden"); $("#steps").classList.add("hidden"); $("#checkoutTitle").textContent="حجز طاولة";
+    $("#checkoutBody").innerHTML=`<section class="table-next"><span class="eyebrow">حجز طاولة</span><h2>يرجى اختيار الأصناف التي تريدها على طاولتك</h2><p>يمكنك إضافة الأصناف ثم الضغط على «إتمام الحجز».</p><button class="primary" id="browseTableProducts">تصفح المنتجات</button></section>`;
+    $("#browseTableProducts").onclick=()=>{const bakery=cartItems().some(({product})=>catalogTypeOf(product)==="bakery"); if(bakery&&!confirm("يوجد أصناف تخص المخبز في سلة.. هل تريد حذفها والمتابعة في حجز الطاولة في المطعم؟"))return; if(bakery){state.cart=Object.fromEntries(Object.entries(state.cart).filter(([key])=>catalogTypeOf(product(key.split("::")[0]))!=="bakery"));persistCart();renderCartBar();} $("#checkoutModal").classList.add("hidden"); if(state.catalogType!=="restaurant")setCatalogType("restaurant");};
+  };
+}
 
 let imageObserver;
 let scrollFrame;
@@ -488,6 +508,14 @@ function productDescription(product) {
 }
 function productBadge(product) {
   const filter = activeProductFilter();
+  const restaurantTable = state.catalogType === "restaurant";
+  toggle.classList.toggle("table-reservation-trigger", restaurantTable);
+  toggle.querySelector("b").textContent = restaurantTable ? "احجز طاولتك" : (filter ? filterLabel(filter) : (state.lang === "ar" ? "فلترة المنتجات" : "Filter products"));
+  toggle.querySelector("span").textContent = restaurantTable ? "⌂" : "⌘";
+  toggle.querySelector("i").textContent = restaurantTable ? "" : "⌄";
+  clear.classList.toggle("hidden", restaurantTable ? !tableReservationActive() : !filter);
+  clear.textContent = restaurantTable ? "إلغاء الحجز" : (state.lang === "ar" ? "حذف الفلتر" : "Clear filter");
+  if (restaurantTable) { menu.classList.add("hidden"); menu.innerHTML = ""; return; }
   if (filter && filter.products.some(entry => String(entry.productId) === String(product.id))) return state.lang === "ar" ? filter.nameAr : (filter.nameEn || filter.nameAr);
   return state.lang === "ar" ? (product.badgeAr || product.badgeEn || "") : (product.badgeEn || product.badgeAr || "");
 }
@@ -1162,8 +1190,6 @@ function renderProductFilters() {
   const menu = $("#productFilterMenu"), toggle = $("#productFilterToggle"), clear = $("#productFilterClear");
   if (!menu || !toggle || !clear) return;
   const filter = activeProductFilter();
-  toggle.querySelector("b").textContent = filter ? filterLabel(filter) : (state.lang === "ar" ? "فلترة المنتجات" : "Filter products");
-  clear.classList.toggle("hidden", !filter); clear.textContent = state.lang === "ar" ? "حذف الفلتر" : "Clear filter";
   menu.innerHTML = state.productFilters.filter(entry => entry.products.some(product => state.products.some(item => String(item.id) === String(product.productId) && isCurrentCatalog(item)))).map(entry => `<button type="button" data-product-filter="${escapeHtml(entry.id)}" class="${entry.id === state.activeProductFilterId ? "active" : ""}">${escapeHtml(filterLabel(entry))}<small>${entry.products.length}</small></button>`).join("") || `<span>${state.lang === "ar" ? "لا توجد فلاتر متاحة" : "No filters available"}</span>`;
 }
 
@@ -1174,6 +1200,8 @@ function cartHasRestaurantItems() {
 function setCatalogType(type) {
   const next = type === "restaurant" ? "restaurant" : "bakery";
   if (next === state.catalogType) return;
+  if (next === "bakery" && tableReservationActive() && !confirm("هل تريد إلغاء حجز الطاولة؟")) return;
+  if (next === "bakery" && tableReservationActive()) cancelTableReservation();
   state.catalogType = next;
   applyStoreAppearance(state.catalogAppearance);
   state.activeCategory = "all";
@@ -1936,6 +1964,7 @@ function renderCartBar() {
   $("#cartBadge").textContent = count;
   $("#headerCount").textContent = count;
   $("#cartTotal").textContent = money(subtotal());
+  $("#checkoutBtn").textContent = tableReservationActive() ? "إتمام الحجز ←" : tr("checkout");
 }
 
 function renderProductDetail(id) {
@@ -2697,7 +2726,7 @@ function renderReview() {
     if (cartItems().some(cartItemMinimumIssue)) return toast(state.lang === "ar" ? "ارجو إكمال كمية المنتج المطلوبة" : "Please complete the required product quantity", "error");
     if (cartItems().some(cartItemFillingIssue)) return toast(state.lang === "ar" ? "عدد الحشوات لا يطابق الحجم المختار. عدّل الصنف الظاهر بالتنبيه أولاً." : "The fillings count does not match the selected size. Please correct the highlighted item first.", "error");
     if (!hasMinimumOrderValue()) return toast(minimumOrderNotice(), "error");
-    state.step = 2;
+    state.step = tableReservationActive() ? 4 : 2;
     renderCheckout();
   };
 }
@@ -3009,14 +3038,13 @@ function renderConfirmation() {
       <div class="customer-summary">
         <div class="summary-box"><span class="summary-icon">${accountIcons.info}</span><span><small>${tr("customerName")}</small><strong>${escapeHtml(state.user.name)}</strong></span></div>
         <div class="summary-box"><span class="summary-icon">${accountIcons.phone}</span><span><small>${tr("phone")}</small><strong class="phone">${escapeHtml(state.user.phone)}</strong></span></div>
-        <div class="summary-box"><span class="summary-icon">${accountIcons.address}</span><span><small>${state.mode === "delivery" ? tr("deliveryAddress") : tr("pickupBranch")}</small><strong>${escapeHtml(deliverySummary())}</strong></span></div>
-        <div class="summary-box"><span class="summary-icon">${accountIcons.clock}</span><span><small>${state.mode === "pickup" ? tr("pickupTime") : tr("deliveryTime")}</small><strong class="delivery-time-lines">${deliveryTimeSummaryMarkup()}</strong></span></div>
+        ${tableReservationActive() ? `<div class="summary-box"><span class="summary-icon">⌂</span><span><small>حجز طاولة</small><strong>${escapeHtml(`${state.tableReservation.people} أشخاص — ${state.tableReservation.date} ${state.tableReservation.hour}:${state.tableReservation.minute} ${state.tableReservation.period === "am" ? "صباحاً" : "مساءً"}`)}</strong></span></div>` : `<div class="summary-box"><span class="summary-icon">${accountIcons.address}</span><span><small>${state.mode === "delivery" ? tr("deliveryAddress") : tr("pickupBranch")}</small><strong>${escapeHtml(deliverySummary())}</strong></span></div><div class="summary-box"><span class="summary-icon">${accountIcons.clock}</span><span><small>${state.mode === "pickup" ? tr("pickupTime") : tr("deliveryTime")}</small><strong class="delivery-time-lines">${deliveryTimeSummaryMarkup()}</strong></span></div>`}
       </div>
       <div class="price-summary">
         <button class="price-row products-toggle" id="productsToggle"><span><b class="arrow">‹</b> ${tr("productsTotal")}</span><strong>${money(subtotal())}</strong></button>
         <div class="confirmation-products hidden" id="confirmationProducts">${cartItems().map(({ product: item, quantity, options }) => `
           <div class="confirmation-product"><img src="${escapeHtml(productImages(item)[0] || "logo.png")}" alt=""><span>${escapeHtml(productName(item))} × ${quantity}</span><b>${money(unitPrice(item, options) * quantity)}</b></div>`).join("")}</div>
-        <div class="price-row"><span>${tr("deliveryFee")}</span><strong>${money(deliveryFee())}</strong></div>
+        ${tableReservationActive() ? "" : `<div class="price-row"><span>${tr("deliveryFee")}</span><strong>${money(deliveryFee())}</strong></div>`}
         <div class="price-row total-row"><span>${tr("total")}</span><strong>${money(total())}</strong></div>
       </div>
       <div class="confirmation-sticky-actions">${paymentChoices}<div class="actions"><button class="secondary" id="back2">${tr("back")}</button><button class="primary pay-now" id="finish" aria-label="${tr("payNow")}">${state.paymentMethod ? paymentMark(state.paymentMethod) : ""}<span>${tr("payNow")}</span></button></div></div>
@@ -3075,6 +3103,7 @@ function paymentPayload(paymentMethod = state.paymentMethod) {
     items: cartItems().map(({ product: item, quantity, note, options }) => ({ id: String(item.id), quantity, note, options })),
     delivery: { mode: state.mode, areaName: state.area?.name || "", branchId: state.branch || "", address: state.address || "" },
     paymentMethod,
+    tableReservation: tableReservationActive() ? state.tableReservation : null,
     deliveryTime: {
       type: state.deliveryTiming,
       scheduledAt: state.deliveryTiming === "scheduled" ? scheduledDateTime()?.toISOString() || "" : ""
@@ -3320,8 +3349,9 @@ function showSuccess() {
   persistCart();
   renderCartBar();
   syncAllProductQuantityControls();
-  $("#checkoutTitle").textContent = tr("received");
-  $("#checkoutBody").innerHTML = `<div class="success"><div class="check">✓</div><h3>${tr("received")}</h3><p>${tr("orderNumber")}</p><strong class="order-no">${escapeHtml(state.order)}</strong><div class="success-delivery-time"><small>${order.mode === "pickup" ? tr("pickupStatus") : tr("expectedDeliveryTime")}</small><strong>${escapeHtml(deliveryTimeSummary(order))}</strong></div><div class="actions" style="width:min(420px,100%)"><button class="secondary" id="newOrder">${tr("backStore")}</button><button class="primary" id="orderDetailsButton">${tr("viewOrderDetails")}</button></div></div>`;
+  const tableBooked = tableReservationActive();
+  $("#checkoutTitle").textContent = tableBooked ? "تم حجز الطاولة" : tr("received");
+  $("#checkoutBody").innerHTML = `<div class="success"><div class="check">✓</div><h3>${tableBooked ? "تم حجز الطاولة" : tr("received")}</h3><p>${tr("orderNumber")}</p><strong class="order-no">${escapeHtml(state.order)}</strong>${tableBooked ? `<div class="success-delivery-time"><small>موعد الحجز</small><strong>${escapeHtml(`${state.tableReservation.date} ${state.tableReservation.hour}:${state.tableReservation.minute}`)}</strong></div>` : `<div class="success-delivery-time"><small>${order.mode === "pickup" ? tr("pickupStatus") : tr("expectedDeliveryTime")}</small><strong>${escapeHtml(deliveryTimeSummary(order))}</strong></div>`}<div class="actions" style="width:min(420px,100%)"><button class="secondary" id="newOrder">${tr("backStore")}</button><button class="primary" id="orderDetailsButton">${tr("viewOrderDetails")}</button></div></div>`;
   $("#newOrder").onclick = () => {
     state.cart = {};
     persistCart();
@@ -3558,6 +3588,7 @@ function positionProductFilterMenu() {
 }
 $("#productFilterToggle").onclick = event => {
   event.stopPropagation();
+  if (state.catalogType === "restaurant") return openTableReservation();
   const menu = $("#productFilterMenu"), isNowHidden = menu.classList.toggle("hidden");
   if (!isNowHidden) positionProductFilterMenu();
   $("#productFilterToggle").setAttribute("aria-expanded", String(!isNowHidden));
@@ -3570,6 +3601,7 @@ $("#productFilterMenu").onclick = event => {
   renderProductFilters(); renderCategories(); renderProductSections(); window.scrollTo({ top: 0, behavior: "smooth" });
 };
 $("#productFilterClear").onclick = () => {
+  if (state.catalogType === "restaurant") return cancelTableReservation();
   state.activeProductFilterId = ""; state.activeCategory = "all"; state.activeHeadingId = ""; state.activeSubheadingId = "";
   renderProductFilters(); renderCategories(); renderProductSections();
 };
