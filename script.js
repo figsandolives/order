@@ -392,7 +392,8 @@ function applyStoreAppearance(value) {
   state.catalogAppearance = value || {};
   state.appearance = appearanceForCatalog(state.catalogAppearance);
   const hero = $("#storeHero");
-  if (!hero) return;
+  const heroImage = $("#storeHeroImage");
+  if (!hero || !heroImage) return;
   const storeName = $("#brandName");
   if (storeName) storeName.textContent = state.lang === "ar"
     ? (state.catalogType === "restaurant" ? "مطعم التين الطبيعي" : "مخبز التين والزيتون")
@@ -402,19 +403,9 @@ function applyStoreAppearance(value) {
   hero.style.setProperty("--hero-badge-text", state.appearance.badgeTextColor);
   hero.style.setProperty("--hero-position-x", `${state.appearance.heroPositionX}%`);
   hero.style.setProperty("--hero-position-y", `${state.appearance.heroPositionY}%`);
-  const title = $("h1", hero);
-  if (title) {
-    title.style.color = state.appearance.heroTextColor;
-    if (state.appearance.heroTitle) title.innerHTML = escapeHtml(state.appearance.heroTitle).replace(/\n/g, "<br>");
-  }
-  $$(".hero-badges span", hero).forEach((badge, index) => {
-    badge.style.backgroundColor = state.appearance.badgeBackgroundColor;
-    badge.style.color = state.appearance.badgeTextColor;
-    if (state.appearance.heroBadges[index]) badge.textContent = state.appearance.heroBadges[index];
-  });
   hero.classList.toggle("has-hero-image", Boolean(state.appearance.heroImage));
-  hero.style.backgroundImage = state.appearance.heroImage
-    ? `linear-gradient(rgba(8, 28, 20, .38), rgba(8, 28, 20, .38)), url(${JSON.stringify(state.appearance.heroImage)})`
+  heroImage.style.backgroundImage = state.appearance.heroImage
+    ? `url(${JSON.stringify(state.appearance.heroImage)})`
     : "";
 }
 
