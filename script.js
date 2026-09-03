@@ -313,11 +313,23 @@ if (state.tableReservation?.active) state.catalogType = "restaurant";
 function tableReservationActive() { return Boolean(state.tableReservation?.active); }
 function persistTableReservation() { localStorage.setItem("figsOlivesTableReservation", JSON.stringify(state.tableReservation || null)); }
 function cancelTableReservation() { state.tableReservation = null; persistTableReservation(); renderProductFilters(); renderCartBar(); }
+function showTableConfirmation({ title, message, confirmLabel = "نعم، متابعة", onConfirm, onCancel }) {
+  const modal = $("#tableReservationModal"), body = $("#tableReservationBody");
+  body.innerHTML = `<section class="table-confirm"><span class="eyebrow">حجز طاولة</span><h2>${escapeHtml(title)}</h2><p>${escapeHtml(message)}</p><div class="actions"><button class="secondary" id="cancelTableConfirmation">إلغاء</button><button class="primary" id="confirmTableConfirmation">${escapeHtml(confirmLabel)}</button></div></section>`;
+  modal.classList.add("table-confirm-active");
+  modal.classList.remove("hidden");
+  const close = () => { modal.classList.add("hidden"); modal.classList.remove("table-confirm-active"); };
+  $("#cancelTableConfirmation").onclick = () => { close(); onCancel?.(); };
+  $("#confirmTableConfirmation").onclick = () => { close(); onConfirm?.(); };
+}
 function showBakeryCartConfirmation(onConfirm) {
-  $("#tableReservationBody").innerHTML = `<section class="table-confirm"><span class="eyebrow">حجز طاولة</span><h2>تأكيد المتابعة</h2><p>يوجد أصناف تخص المخبز في سلة. هل تريد حذفها والمتابعة في حجز الطاولة في المطعم؟</p><div class="actions"><button class="secondary" id="cancelBakeryCart">إلغاء</button><button class="primary" id="confirmBakeryCart">نعم، متابعة</button></div></section>`;
-  $("#tableReservationModal").classList.remove("hidden");
-  $("#cancelBakeryCart").onclick=()=>$("#tableReservationModal").classList.add("hidden");
-  $("#confirmBakeryCart").onclick=()=>{$("#tableReservationModal").classList.add("hidden");onConfirm();};
+  $("#checkoutModal").classList.add("table-confirm-underlay");
+  showTableConfirmation({
+    title: "تأكيد المتابعة",
+    message: "يوجد أصناف تخص المخبز في سلة. هل تريد حذفها والمتابعة في حجز الطاولة في المطعم؟",
+    onCancel: () => $("#checkoutModal").classList.remove("table-confirm-underlay"),
+    onConfirm: () => { $("#checkoutModal").classList.remove("table-confirm-underlay"); onConfirm(); }
+  });
 }
 function openTableReservation() {
   // Keep the restaurant control in its reservation state even if the catalogue
@@ -325,9 +337,7 @@ function openTableReservation() {
   renderProductFilters();
   const name = state.user?.name || "الزبون";
   const saved = state.tableReservation || {};
-  const [year, month, day] = String(saved.date || dateInputValue()).split("-");
-  const years = Array.from({ length: 3 }, (_, index) => new Date().getFullYear() + index);
-  $("#tableReservationBody").innerHTML = `<button class="table-close" id="closeTableReservation">×</button><span class="eyebrow">حجز طاولة</span><h2>أهلاً ${escapeHtml(name)}</h2><label>عدد الأشخاص<input id="tablePeople" inputmode="numeric" maxlength="2" value="" placeholder="اكتب عدد الأشخاص هنا"></label><section class="table-time"><h3>اختر وقت الحجز</h3><div class="time-fields"><label class="time-date">التاريخ<span class="table-date-selects"><select id="tableDateDay">${Array.from({length:31},(_,i)=>i+1).map(x=>`<option value="${String(x).padStart(2,"0")}" ${String(day)===String(x).padStart(2,"0")?"selected":""}>${x}</option>`).join("")}</select><select id="tableDateMonth">${Array.from({length:12},(_,i)=>i+1).map(x=>`<option value="${String(x).padStart(2,"0")}" ${String(month)===String(x).padStart(2,"0")?"selected":""}>${x}</option>`).join("")}</select><select id="tableDateYear">${years.map(x=>`<option value="${x}" ${String(year)===String(x)?"selected":""}>${x}</option>`).join("")}</select></span></label><p class="table-hours-note">أوقات الحجز من ٨ صباحاً إلى ٩ مساءً</p><label class="time-period">الفترة<select id="tablePeriod"><option value="am" ${saved.period === "am" ? "selected" : ""}>صباحاً</option><option value="pm" ${saved.period !== "am" ? "selected" : ""}>مساءً</option></select></label><label class="time-minute">الدقائق<select id="tableMinute"><option value="00">00</option><option value="30" ${saved.minute === "30" ? "selected" : ""}>30</option></select></label><label class="time-hour">الساعة<select id="tableHour">${Array.from({length:12},(_,i)=>i+1).map(x=>`<option ${String(saved.hour||"1")===String(x)?"selected":""}>${x}</option>`).join("")}</select></label></div></section><button class="primary" id="continueTableReservation">متابعة</button>`;
+  $("#tableReservationBody").innerHTML = `<button class="table-close" id="closeTableReservation">×</button><span class="eyebrow">حجز طاولة</span><h2>أهلاً ${escapeHtml(name)}</h2><label>عدد الأشخاص<input id="tablePeople" inputmode="numeric" maxlength="2" value="" placeholder="اكتب عدد الأشخاص هنا"></label><section class="table-time"><h3>اختر وقت الحجز</h3><div class="time-fields"><label class="time-date">التاريخ<input id="tableDate" type="date" lang="en-GB" min="${dateInputValue()}" value="${escapeHtml(saved.date || dateInputValue())}"></label><p class="table-hours-note">أوقات الحجز من ٨ صباحاً إلى ٩ مساءً</p><label class="time-period">الفترة<select id="tablePeriod"><option value="am" ${saved.period === "am" ? "selected" : ""}>صباحاً</option><option value="pm" ${saved.period !== "am" ? "selected" : ""}>مساءً</option></select></label><label class="time-minute">الدقائق<select id="tableMinute"><option value="00">00</option><option value="30" ${saved.minute === "30" ? "selected" : ""}>30</option></select></label><label class="time-hour">الساعة<select id="tableHour">${Array.from({length:12},(_,i)=>i+1).map(x=>`<option ${String(saved.hour||"1")===String(x)?"selected":""}>${x}</option>`).join("")}</select></label></div></section><button class="primary" id="continueTableReservation">متابعة</button>`;
   $("#tableReservationModal").classList.remove("hidden");
   $("#closeTableReservation").onclick=()=>$("#tableReservationModal").classList.add("hidden");
   $("#tablePeople").oninput=e=>{e.target.value=normalizeEnglishDigits(e.target.value).replace(/\D/g,"");};
@@ -335,7 +345,7 @@ function openTableReservation() {
     const people=$("#tablePeople").value; if(!people || Number(people)<1) return toast("اكتب عدد الأشخاص");
     let reservationHour = Number($("#tableHour").value); if ($("#tablePeriod").value === "pm" && reservationHour !== 12) reservationHour += 12; if ($("#tablePeriod").value === "am" && reservationHour === 12) reservationHour = 0;
     if (reservationHour < 8 || reservationHour > 21 || (reservationHour === 21 && $("#tableMinute").value !== "00")) return toast("الحجز متاح من ٨ صباحاً إلى ٩ مساءً", "error");
-    const reservationDate = `${$("#tableDateYear").value}-${$("#tableDateMonth").value}-${$("#tableDateDay").value}`;
+    const reservationDate = $("#tableDate").value;
     if (reservationDate < dateInputValue()) return toast("اختر تاريخًا قادمًا للحجز", "error");
     state.tableReservation={active:true,people,date:reservationDate,period:$("#tablePeriod").value,hour:$("#tableHour").value,minute:$("#tableMinute").value}; persistTableReservation();
     $("#tableReservationModal").classList.add("hidden"); renderProductFilters();
@@ -1216,8 +1226,15 @@ function cartHasRestaurantItems() {
 function setCatalogType(type) {
   const next = type === "restaurant" ? "restaurant" : "bakery";
   if (next === state.catalogType) return;
-  if (next === "bakery" && tableReservationActive() && !confirm("هل تريد إلغاء حجز الطاولة؟")) return;
-  if (next === "bakery" && tableReservationActive()) cancelTableReservation();
+  if (next === "bakery" && tableReservationActive()) {
+    showTableConfirmation({
+      title: "إلغاء حجز الطاولة",
+      message: "هل تريد إلغاء حجز الطاولة؟",
+      confirmLabel: "نعم، إلغاء الحجز",
+      onConfirm: () => { cancelTableReservation(); setCatalogType(next); }
+    });
+    return;
+  }
   state.catalogType = next;
   applyStoreAppearance(state.catalogAppearance);
   renderProductFilters();
