@@ -309,6 +309,7 @@ const state = {
   activeProductFilterId: ""
 };
 state.tableReservation = readJson("figsOlivesTableReservation", null);
+if (state.tableReservation?.active) state.catalogType = "restaurant";
 function tableReservationActive() { return Boolean(state.tableReservation?.active); }
 function persistTableReservation() { localStorage.setItem("figsOlivesTableReservation", JSON.stringify(state.tableReservation || null)); }
 function cancelTableReservation() { state.tableReservation = null; persistTableReservation(); renderProductFilters(); renderCartBar(); }
@@ -324,7 +325,9 @@ function openTableReservation() {
   renderProductFilters();
   const name = state.user?.name || "الزبون";
   const saved = state.tableReservation || {};
-  $("#tableReservationBody").innerHTML = `<button class="table-close" id="closeTableReservation">×</button><span class="eyebrow">حجز طاولة</span><h2>أهلاً ${escapeHtml(name)}</h2><label>عدد الأشخاص<input id="tablePeople" inputmode="numeric" maxlength="2" value="" placeholder="اكتب عدد الأشخاص هنا"></label><section class="table-time"><h3>اختر وقت الحجز</h3><div class="time-fields"><label class="time-date">التاريخ<input id="tableDate" type="date" lang="en" dir="ltr" min="${dateInputValue()}" value="${escapeHtml(saved.date || dateInputValue())}"></label><p class="table-hours-note">أوقات الحجز من ٨ صباحاً إلى ٩ مساءً</p><label class="time-period">الفترة<select id="tablePeriod"><option value="am" ${saved.period === "am" ? "selected" : ""}>صباحاً</option><option value="pm" ${saved.period !== "am" ? "selected" : ""}>مساءً</option></select></label><label class="time-minute">الدقائق<select id="tableMinute"><option value="00">00</option><option value="30" ${saved.minute === "30" ? "selected" : ""}>30</option></select></label><label class="time-hour">الساعة<select id="tableHour">${Array.from({length:12},(_,i)=>i+1).map(x=>`<option ${String(saved.hour||"1")===String(x)?"selected":""}>${x}</option>`).join("")}</select></label></div></section><button class="primary" id="continueTableReservation">متابعة</button>`;
+  const [year, month, day] = String(saved.date || dateInputValue()).split("-");
+  const years = Array.from({ length: 3 }, (_, index) => new Date().getFullYear() + index);
+  $("#tableReservationBody").innerHTML = `<button class="table-close" id="closeTableReservation">×</button><span class="eyebrow">حجز طاولة</span><h2>أهلاً ${escapeHtml(name)}</h2><label>عدد الأشخاص<input id="tablePeople" inputmode="numeric" maxlength="2" value="" placeholder="اكتب عدد الأشخاص هنا"></label><section class="table-time"><h3>اختر وقت الحجز</h3><div class="time-fields"><label class="time-date">التاريخ<span class="table-date-selects"><select id="tableDateDay">${Array.from({length:31},(_,i)=>i+1).map(x=>`<option value="${String(x).padStart(2,"0")}" ${String(day)===String(x).padStart(2,"0")?"selected":""}>${x}</option>`).join("")}</select><select id="tableDateMonth">${Array.from({length:12},(_,i)=>i+1).map(x=>`<option value="${String(x).padStart(2,"0")}" ${String(month)===String(x).padStart(2,"0")?"selected":""}>${x}</option>`).join("")}</select><select id="tableDateYear">${years.map(x=>`<option value="${x}" ${String(year)===String(x)?"selected":""}>${x}</option>`).join("")}</select></span></label><p class="table-hours-note">أوقات الحجز من ٨ صباحاً إلى ٩ مساءً</p><label class="time-period">الفترة<select id="tablePeriod"><option value="am" ${saved.period === "am" ? "selected" : ""}>صباحاً</option><option value="pm" ${saved.period !== "am" ? "selected" : ""}>مساءً</option></select></label><label class="time-minute">الدقائق<select id="tableMinute"><option value="00">00</option><option value="30" ${saved.minute === "30" ? "selected" : ""}>30</option></select></label><label class="time-hour">الساعة<select id="tableHour">${Array.from({length:12},(_,i)=>i+1).map(x=>`<option ${String(saved.hour||"1")===String(x)?"selected":""}>${x}</option>`).join("")}</select></label></div></section><button class="primary" id="continueTableReservation">متابعة</button>`;
   $("#tableReservationModal").classList.remove("hidden");
   $("#closeTableReservation").onclick=()=>$("#tableReservationModal").classList.add("hidden");
   $("#tablePeople").oninput=e=>{e.target.value=normalizeEnglishDigits(e.target.value).replace(/\D/g,"");};
@@ -332,11 +335,13 @@ function openTableReservation() {
     const people=$("#tablePeople").value; if(!people || Number(people)<1) return toast("اكتب عدد الأشخاص");
     let reservationHour = Number($("#tableHour").value); if ($("#tablePeriod").value === "pm" && reservationHour !== 12) reservationHour += 12; if ($("#tablePeriod").value === "am" && reservationHour === 12) reservationHour = 0;
     if (reservationHour < 8 || reservationHour > 21 || (reservationHour === 21 && $("#tableMinute").value !== "00")) return toast("الحجز متاح من ٨ صباحاً إلى ٩ مساءً", "error");
-    state.tableReservation={active:true,people,date:$("#tableDate").value,period:$("#tablePeriod").value,hour:$("#tableHour").value,minute:$("#tableMinute").value}; persistTableReservation();
+    const reservationDate = `${$("#tableDateYear").value}-${$("#tableDateMonth").value}-${$("#tableDateDay").value}`;
+    if (reservationDate < dateInputValue()) return toast("اختر تاريخًا قادمًا للحجز", "error");
+    state.tableReservation={active:true,people,date:reservationDate,period:$("#tablePeriod").value,hour:$("#tableHour").value,minute:$("#tableMinute").value}; persistTableReservation();
     $("#tableReservationModal").classList.add("hidden"); renderProductFilters();
-    $("#checkoutModal").classList.remove("hidden"); $("#checkoutModal").dataset.tableFlow="choice"; $("#steps").classList.add("hidden"); $("#checkoutTitle").textContent="حجز طاولة"; $("#closeCheckout").textContent="← رجوع"; $("#closeCheckout").setAttribute("aria-label","رجوع إلى بيانات الحجز");
+    $("#checkoutModal").classList.remove("hidden"); $("#checkoutModal").dataset.tableFlow="choice"; $("#steps").classList.add("hidden"); $("#checkoutTitle").textContent="حجز طاولة"; $("#closeCheckout").textContent="رجوع"; $("#closeCheckout").classList.add("table-back-button"); $("#closeCheckout").setAttribute("aria-label","رجوع إلى بيانات الحجز");
     $("#checkoutBody").innerHTML=`<section class="table-next"><span class="eyebrow">حجز طاولة</span><h2>يرجى اختيار الأصناف التي تريدها على طاولتك</h2><p>يمكنك إضافة الأصناف ثم الضغط على «إتمام الحجز».</p><button class="primary" id="browseTableProducts">تصفح المنتجات</button></section>`;
-    $("#browseTableProducts").onclick=()=>{const proceed=()=>{$("#checkoutModal").classList.add("hidden");delete $("#checkoutModal").dataset.tableFlow;$("#closeCheckout").textContent="×";if(state.catalogType!=="restaurant")setCatalogType("restaurant");};const bakery=cartItems().some(({product})=>catalogTypeOf(product)==="bakery");if(!bakery)return proceed();showBakeryCartConfirmation(()=>{state.cart=Object.fromEntries(Object.entries(state.cart).filter(([key])=>catalogTypeOf(product(key.split("::")[0]))!=="bakery"));persistCart();renderCartBar();proceed();});};
+    $("#browseTableProducts").onclick=()=>{const proceed=()=>{$("#checkoutModal").classList.add("hidden");delete $("#checkoutModal").dataset.tableFlow;$("#closeCheckout").textContent="×";$("#closeCheckout").classList.remove("table-back-button");if(state.catalogType!=="restaurant")setCatalogType("restaurant");};const bakery=cartItems().some(({product})=>catalogTypeOf(product)==="bakery");if(!bakery)return proceed();showBakeryCartConfirmation(()=>{state.cart=Object.fromEntries(Object.entries(state.cart).filter(([key])=>catalogTypeOf(product(key.split("::")[0]))!=="bakery"));persistCart();renderCartBar();proceed();});};
   };
 }
 
@@ -2690,6 +2695,7 @@ function openCheckout() {
   state.step = 1;
   delete $("#checkoutModal").dataset.tableFlow;
   $("#closeCheckout").textContent = "×";
+  $("#closeCheckout").classList.remove("table-back-button");
   $("#steps").classList.remove("hidden");
   $("#checkoutModal").classList.remove("hidden");
   renderCheckout();
@@ -3751,6 +3757,7 @@ $("#closeCheckout").onclick = () => {
     $("#checkoutModal").classList.add("hidden");
     delete $("#checkoutModal").dataset.tableFlow;
     $("#closeCheckout").textContent = "×";
+    $("#closeCheckout").classList.remove("table-back-button");
     openTableReservation();
     return;
   }
