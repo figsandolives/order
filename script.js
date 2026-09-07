@@ -308,11 +308,16 @@ const state = {
   productFilters: [],
   activeProductFilterId: ""
 };
+let directFilterWasApplied = false;
 state.tableReservation = readJson("figsOlivesTableReservation", null);
 if (state.tableReservation?.active) state.catalogType = "restaurant";
 function tableReservationActive() { return Boolean(state.tableReservation?.active); }
 function persistTableReservation() { localStorage.setItem("figsOlivesTableReservation", JSON.stringify(state.tableReservation || null)); }
 function cancelTableReservation() { state.tableReservation = null; persistTableReservation(); renderProductFilters(); renderCartBar(); }
+function formatTableDate(value) {
+  const [year, month, day] = String(value || "").split("-");
+  return year && month && day ? `${day} / ${month} / ${year}` : "";
+}
 function showTableConfirmation({ title, message, confirmLabel = "نعم، متابعة", onConfirm, onCancel }) {
   const modal = $("#tableReservationModal"), body = $("#tableReservationBody");
   body.innerHTML = `<section class="table-confirm"><span class="eyebrow">حجز طاولة</span><h2>${escapeHtml(title)}</h2><p>${escapeHtml(message)}</p><div class="actions"><button class="secondary" id="cancelTableConfirmation">إلغاء</button><button class="primary" id="confirmTableConfirmation">${escapeHtml(confirmLabel)}</button></div></section>`;
@@ -337,10 +342,12 @@ function openTableReservation() {
   renderProductFilters();
   const name = state.user?.name || "الزبون";
   const saved = state.tableReservation || {};
-  $("#tableReservationBody").innerHTML = `<button class="table-close" id="closeTableReservation">×</button><span class="eyebrow">حجز طاولة</span><h2>أهلاً ${escapeHtml(name)}</h2><label>عدد الأشخاص<input id="tablePeople" inputmode="numeric" maxlength="2" value="" placeholder="اكتب عدد الأشخاص هنا"></label><section class="table-time"><h3>اختر وقت الحجز</h3><div class="time-fields"><label class="time-date">التاريخ<input id="tableDate" type="date" lang="en-GB" min="${dateInputValue()}" value="${escapeHtml(saved.date || dateInputValue())}"></label><p class="table-hours-note">أوقات الحجز من ٨ صباحاً إلى ٩ مساءً</p><label class="time-period">الفترة<select id="tablePeriod"><option value="am" ${saved.period === "am" ? "selected" : ""}>صباحاً</option><option value="pm" ${saved.period !== "am" ? "selected" : ""}>مساءً</option></select></label><label class="time-minute">الدقائق<select id="tableMinute"><option value="00">00</option><option value="30" ${saved.minute === "30" ? "selected" : ""}>30</option></select></label><label class="time-hour">الساعة<select id="tableHour">${Array.from({length:12},(_,i)=>i+1).map(x=>`<option ${String(saved.hour||"1")===String(x)?"selected":""}>${x}</option>`).join("")}</select></label></div></section><button class="primary" id="continueTableReservation">متابعة</button>`;
+  const initialDate = saved.date || dateInputValue();
+  $("#tableReservationBody").innerHTML = `<button class="table-close" id="closeTableReservation">×</button><span class="eyebrow">حجز طاولة</span><h2>أهلاً ${escapeHtml(name)}</h2><label>عدد الأشخاص<input id="tablePeople" inputmode="numeric" maxlength="2" value="" placeholder="اكتب عدد الأشخاص هنا"></label><section class="table-time"><h3>اختر وقت الحجز</h3><div class="time-fields"><label class="time-date"><span>التاريخ</span><span class="table-date-control"><input id="tableDate" type="date" lang="en-GB" min="${dateInputValue()}" value="${escapeHtml(initialDate)}" aria-label="تاريخ الحجز"><output id="tableDateDisplay">${formatTableDate(initialDate)}</output></span></label><p class="table-hours-note">أوقات الحجز من ٨ صباحاً إلى ٩ مساءً</p><label class="time-period">الفترة<select id="tablePeriod"><option value="am" ${saved.period === "am" ? "selected" : ""}>صباحاً</option><option value="pm" ${saved.period !== "am" ? "selected" : ""}>مساءً</option></select></label><label class="time-minute">الدقائق<select id="tableMinute"><option value="00">00</option><option value="30" ${saved.minute === "30" ? "selected" : ""}>30</option></select></label><label class="time-hour">الساعة<select id="tableHour">${Array.from({length:12},(_,i)=>i+1).map(x=>`<option ${String(saved.hour||"1")===String(x)?"selected":""}>${x}</option>`).join("")}</select></label></div></section><button class="primary" id="continueTableReservation">متابعة</button>`;
   $("#tableReservationModal").classList.remove("hidden");
   $("#closeTableReservation").onclick=()=>$("#tableReservationModal").classList.add("hidden");
   $("#tablePeople").oninput=e=>{e.target.value=normalizeEnglishDigits(e.target.value).replace(/\D/g,"");};
+  $("#tableDate").onchange = event => { $("#tableDateDisplay").textContent = formatTableDate(event.target.value); };
   $("#continueTableReservation").onclick=()=>{
     const people=$("#tablePeople").value; if(!people || Number(people)<1) return toast("اكتب عدد الأشخاص");
     let reservationHour = Number($("#tableHour").value); if ($("#tablePeriod").value === "pm" && reservationHour !== 12) reservationHour += 12; if ($("#tablePeriod").value === "am" && reservationHour === 12) reservationHour = 0;
@@ -1195,6 +1202,11 @@ function categoryProducts(categoryId) {
 }
 
 function activeProductFilter() { return state.productFilters.find(filter => filter.id === state.activeProductFilterId) || null; }
+function directProductFilterId() {
+  const value = String(new URLSearchParams(location.search).get("filter") || "").trim();
+  if (value === "al-tayyibat-diet") return "filter-mt8zswyi";
+  return value;
+}
 function productMatchesActiveFilter(item) { const filter = activeProductFilter(); return !filter || filter.products.some(entry => String(entry.productId) === String(item.id)); }
 function filterOptionIds(productId, stepId) {
   const entry = activeProductFilter()?.products.find(item => String(item.productId) === String(productId));
@@ -1396,9 +1408,9 @@ function renderProductSections() {
       const sectionImage = String(category.sectionImage || "").trim();
       sections.push(`
         <section class="category-section" id="category-${encodeURIComponent(category.id)}" data-category-section="${escapeHtml(category.id)}">
-          <div class="section-heading"><h2>${escapeHtml(categoryName(category))}</h2></div>
+          <div class="section-heading"><h2>${escapeHtml(categoryName(category))}</h2></div>${restaurantImageNotice}
           ${sectionImage ? `<button type="button" class="category-illustration" data-category-illustration="${escapeHtml(sectionImage)}" aria-label="تكبير الصورة التوضيحية لقسم ${escapeHtml(categoryName(category))}"><img src="${escapeHtml(sectionImage)}" alt="${escapeHtml(categoryName(category))}" loading="lazy"></button>` : ""}
-          <div class="product-grid">${matches.map(item => productCard(item, category)).join("")}</div>${restaurantImageNotice}
+          <div class="product-grid">${matches.map(item => productCard(item, category)).join("")}</div>
         </section>`);
     });
     $("#productSections").innerHTML = sections.length ? sections.join("") : `<div class="loading">${tr("noResults")}</div>`;
@@ -1414,9 +1426,9 @@ function renderProductSections() {
     const sectionImage = String(category.sectionImage || "").trim();
     return `
       <section class="category-section" id="category-${encodeURIComponent(category.id)}" data-category-section="${escapeHtml(category.id)}">
-        <div class="section-heading"><h2>${escapeHtml(categoryName(category))}</h2></div>
+        <div class="section-heading"><h2>${escapeHtml(categoryName(category))}</h2></div>${restaurantImageNotice}
         ${sectionImage ? `<button type="button" class="category-illustration" data-category-illustration="${escapeHtml(sectionImage)}" aria-label="تكبير الصورة التوضيحية لقسم ${escapeHtml(categoryName(category))}"><img src="${escapeHtml(sectionImage)}" alt="${escapeHtml(categoryName(category))}" loading="lazy"></button>` : ""}
-        <div class="product-grid">${matches.map(item => productCard(item, category)).join("")}</div>${restaurantImageNotice}
+        <div class="product-grid">${matches.map(item => productCard(item, category)).join("")}</div>
       </section>`;
   };
   const entries = [
@@ -2719,8 +2731,11 @@ function openCheckout() {
 }
 
 function setSteps() {
+  const tableBooking = tableReservationActive();
+  $("#steps").classList.toggle("table-booking-steps", tableBooking);
   $$(".steps [data-step]").forEach(element => {
     const step = Number(element.dataset.step);
+    element.hidden = tableBooking && (step === 2 || step === 3);
     element.classList.toggle("active", step === state.step);
     element.classList.toggle("done", step < state.step);
     if (step === 3) {
@@ -3848,6 +3863,11 @@ function applyCatalog(catalog, cache = true) {
   renderCatalogSwitch();
   state.headings = Array.isArray(catalog.headings) ? catalog.headings : [];
   state.productFilters = Array.isArray(catalog.productFilters) ? catalog.productFilters.map((filter, index) => ({ id: String(filter.id || `filter-${index}`), nameAr: String(filter.nameAr || filter.name || ""), nameEn: String(filter.nameEn || filter.nameAr || filter.name || ""), products: (Array.isArray(filter.products) ? filter.products : []).map(entry => ({ productId: String(entry?.productId || entry?.id || entry || ""), firstStepId: String(entry?.firstStepId || ""), optionIds: Array.isArray(entry?.optionIds) ? entry.optionIds.map(String) : [], steps: (Array.isArray(entry?.steps) ? entry.steps : []).map(step => ({ stepId: String(step?.stepId || step?.id || ""), optionIds: Array.isArray(step?.optionIds) ? step.optionIds.map(String) : [] })).filter(step => step.stepId) })) })) : [];
+  const directFilterId = directProductFilterId();
+  if (!directFilterWasApplied && directFilterId && state.productFilters.some(filter => filter.id === directFilterId)) {
+    state.activeProductFilterId = directFilterId;
+    directFilterWasApplied = true;
+  }
   if (!state.productFilters.some(filter => filter.id === state.activeProductFilterId)) state.activeProductFilterId = "";
   state.products = applyRestaurantProductImages(visibleProducts);
   state.areas = Array.isArray(catalog?.deliveryAreas) ? catalog.deliveryAreas : [];
