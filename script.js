@@ -6,6 +6,7 @@ let firebaseAuthUser = null;
 let firebaseProfileHydrated = false;
 let customerProfileRef = null;
 let customerProfileListener = null;
+let catalogRefreshPromise = null;
 
 // نطلب من المتصفح حفظ مساحة الموقع بشكل دائم قدر الإمكان. هذا مهم خصوصاً
 // في iPhone/Safari حتى لا تُعامل بيانات تسجيل الدخول كتخزين مؤقت.
@@ -767,6 +768,35 @@ function selectedFlowQuantity(flow, selections) {
   return Math.max(1, Number(selected?.quantity) || 1);
 }
 
+// في الحجم الوسط والكبير تكون كل كمية حبة مستقلة. نفصل الحشوات إلى أسطر
+// مستقلة قبل حفظها في السلة، حتى لا تنتقل تكلفة حشوة واحدة إلى كل الحبات.
+// أما أحجام الدزن فتظل سطراً واحداً لأن الحشوة تخص المجموعة كاملة.
+function fatayerPieceOptionSets(item, selectedOptions = [], quantity = 1) {
+  if (!isFatayerSelectionProduct(item)) return null;
+  const options = Array.isArray(selectedOptions) ? selectedOptions : [];
+  const selectedSize = options.find(option => option?.flowStepId === "size");
+  if (!selectedSize || Number(selectedSize.pieces) !== 1) return null;
+  const fillings = options.filter(option => option?.isFilling || option?.flowStepId === "fillings");
+  const fillingCount = fillings.reduce((sum, option) => sum + Math.max(1, Number(option.quantity) || 1), 0);
+  const requestedQuantity = Math.max(1, Number(quantity) || 1);
+  if (!fillings.length || fillingCount !== requestedQuantity) return null;
+
+  const sharedOptions = options.filter(option => !(option?.isFilling || option?.flowStepId === "fillings"));
+  const onePieceSharedOptions = sharedOptions.map(option => (
+    option?.flowStepId === "size" ? { ...option, quantity: 1 } : { ...option }
+  ));
+  return fillings.flatMap(filling => Array.from(
+    { length: Math.max(1, Number(filling.quantity) || 1) },
+    () => [...onePieceSharedOptions.map(option => ({ ...option })), { ...filling, quantity: 1 }]
+  ));
+}
+
+function selectionFlowTotal(item, selectedOptions = [], quantity = 1) {
+  const pieceOptionSets = fatayerPieceOptionSets(item, selectedOptions, quantity);
+  if (pieceOptionSets) return pieceOptionSets.reduce((sum, options) => sum + unitPrice(item, options), 0);
+  return unitPrice(item, selectedOptions) * Math.max(1, Number(quantity) || 1);
+}
+
 function productPriceLabel(item) {
   const config = productOptions(item);
   if (!config?.priceBased && !productSelectionFlow(item)) return money(item.price);
@@ -925,12 +955,21 @@ function cartLineKey(productId, options = []) {
   return `${productId}::${(hash >>> 0).toString(36)}`;
 }
 
+function cartPieceLineKey(productId, options = []) {
+  const base = cartLineKey(productId, options);
+  let key;
+  do {
+    key = `${base}::piece-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  } while (state.cart[key]);
+  return key;
+}
+
 function cartCount() {
   return cartItems().reduce((sum, item) => sum + item.quantity, 0);
 }
 
 function subtotal() {
-  return cartItems().reduce((sum, item) => sum + unitPrice(item.product, item.options) * item.quantity, 0);
+  return cartItems().reduce((sum, item) => sum + selectionFlowTotal(item.product, item.options, item.quantity), 0);
 }
 
 function deliveryFee() {
@@ -985,7 +1024,7 @@ function analyticsCartSnapshot() {
     cartItems: cartItems().map(({ product: item, quantity, options }) => ({
       // التقارير الإدارية تعتمد الاسم العربي دائماً، بغض النظر عن لغة العميل.
       id: String(item.id), name: String(item.name || item.nameAr || item.nameEn || ""), quantity,
-      total: Number((unitPrice(item, options) * quantity).toFixed(3))
+      total: Number(selectionFlowTotal(item, options, quantity).toFixed(3))
     })),
     cartValue: Number(subtotal().toFixed(3))
   };
@@ -1618,6 +1657,20 @@ function updateCategoryFromScroll() {
 function changeQuantity(id, difference) {
   const wasEmpty = cartCount() === 0;
   const existing = typeof state.cart[id] === "object" && state.cart[id] ? state.cart[id] : { quantity: state.cart[id] || 0, note: "" };
+  const item = product(existing.productId || id.split("::")[0]);
+  if (difference > 0 && fatayerPieceOptionSets(item, existing.options || [], 1)) {
+    state.cart[cartPieceLineKey(existing.productId || item.id, existing.options || [])] = {
+      ...existing,
+      productId: String(existing.productId || item.id),
+      quantity: 1
+    };
+    state.paymentRequestId = "";
+    persistCart();
+    renderCartBar();
+    syncProductQuantityControls(item.id);
+    if (!$("#checkoutModal").classList.contains("hidden")) renderCheckout();
+    return;
+  }
   const nextQuantity = Math.max(0, Number(existing.quantity || 0) + difference);
   if (!nextQuantity) delete state.cart[id];
   else state.cart[id] = { ...existing, quantity: nextQuantity };
@@ -1745,7 +1798,8 @@ function renderSelectionFlowStep() {
     ? (state.lang === "ar" ? `وزّع ${new Intl.NumberFormat("ar-KW").format(fillingRequirement)} حبة على الحشوات` : `Distribute ${fillingRequirement} pieces across fillings`)
     : (step.multiple ? (state.lang === "ar" ? `يمكنك اختيار حتى ${new Intl.NumberFormat("ar-KW").format(limit)} خيارات` : `Choose up to ${limit} options`) : "");
   const isLast = pendingFlowStep === flow.steps.length - 1;
-  const currentPrice = unitPrice(item, flow.steps.flatMap(flowStep => pendingFlowSelections[flowStep.id] || [])) * selectedFlowQuantity(flow, pendingFlowSelections);
+  const selectedOptions = flow.steps.flatMap(flowStep => pendingFlowSelections[flowStep.id] || []);
+  const currentPrice = selectionFlowTotal(item, selectedOptions, selectedFlowQuantity(flow, pendingFlowSelections));
   const listScrollTop = productOptionsPopover.querySelector(".product-options-list")?.scrollTop || 0;
   const fillingStatus = fillingRequirement ? `<div class="filling-progress">${state.lang === "ar" ? "الحشوات المختارة" : "Selected fillings"}: <b class="${selectedFillingQuantity === fillingRequirement ? "complete" : ""}">${new Intl.NumberFormat(state.lang === "ar" ? "ar-KW" : "en").format(selectedFillingQuantity)} / ${new Intl.NumberFormat(state.lang === "ar" ? "ar-KW" : "en").format(fillingRequirement)}</b></div>` : "";
   const previousSurcharge = step.id === "size" ? selectionFlowPreviousSurcharge(flow, pendingFlowStep) : 0;
@@ -1972,9 +2026,15 @@ function confirmProductOptions() {
 function addSelectedOptionsToCart(id, selected, quantity = 1) {
   const wasEmpty = cartCount() === 0;
   const options = JSON.parse(JSON.stringify(Array.isArray(selected) ? selected : []));
-  const lineKey = cartLineKey(id, options);
-  const existing = typeof state.cart[lineKey] === "object" && state.cart[lineKey] ? state.cart[lineKey] : { quantity: 0, note: "", productId: String(id) };
-  state.cart[lineKey] = { ...existing, productId: String(id), options, quantity: Number(existing.quantity || 0) + Math.max(1, Number(quantity) || 1) };
+  const item = product(id);
+  const pieceOptionSets = fatayerPieceOptionSets(item, options, quantity);
+  const lines = pieceOptionSets || [options];
+  const lineQuantity = pieceOptionSets ? 1 : Math.max(1, Number(quantity) || 1);
+  lines.forEach(lineOptions => {
+    const lineKey = pieceOptionSets ? cartPieceLineKey(id, lineOptions) : cartLineKey(id, lineOptions);
+    const existing = typeof state.cart[lineKey] === "object" && state.cart[lineKey] ? state.cart[lineKey] : { quantity: 0, note: "", productId: String(id) };
+    state.cart[lineKey] = { ...existing, productId: String(id), options: lineOptions, quantity: Number(existing.quantity || 0) + lineQuantity };
+  });
   state.paymentRequestId = "";
   persistCart();
   renderCartBar();
@@ -2772,7 +2832,7 @@ function renderReview() {
   $("#checkoutBody").innerHTML = `
     <section class="checkout-review"><div class="cart-list">${cartItems().map(({ cartKey, product: item, quantity, note, options }) => { const minimumIssue = cartItemMinimumIssue({ product: item, quantity, options }); const fillingIssue = cartItemFillingIssue({ product: item, quantity, options }); return `
       <div class="cart-row ${minimumIssue || fillingIssue ? "minimum-order-warning" : ""}"><img src="${escapeHtml(productImages(item)[0] || "logo.png")}" alt="">
-        <div class="cart-copy"><h4>${escapeHtml(cartDisplayName(item, options))}</h4>${cartDetailOptions(item, options).length ? `<small class="cart-options">${escapeHtml(cartDetailOptions(item, options).map(optionSummary).join("، "))}</small>` : ""}${minimumIssue ? `<small class="minimum-order-warning-note">${escapeHtml(minimumOrderText(minimumIssue.minimum))}</small>` : ""}${fillingIssue ? `<small class="minimum-order-warning-note">${escapeHtml(state.lang === "ar" ? `الحشوات: ${new Intl.NumberFormat("ar-KW").format(fillingIssue.selectedQuantity)} من ${new Intl.NumberFormat("ar-KW").format(fillingIssue.required)}. احذف هذا الصنف وأضفه مجدداً لتوزيع الحشوات بدقة.` : `Fillings: ${fillingIssue.selectedQuantity} of ${fillingIssue.required}. Remove this item and add it again to distribute fillings correctly.`)}</small>` : ""}<strong>${money(unitPrice(item, options) * quantity)}</strong></div><label class="cart-note-label"><textarea aria-label="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}" data-cart-note="${escapeHtml(cartKey)}" maxlength="240" placeholder="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}">${escapeHtml(note)}</textarea></label>
+        <div class="cart-copy"><h4>${escapeHtml(cartDisplayName(item, options))}</h4>${cartDetailOptions(item, options).length ? `<small class="cart-options">${escapeHtml(cartDetailOptions(item, options).map(optionSummary).join("، "))}</small>` : ""}${minimumIssue ? `<small class="minimum-order-warning-note">${escapeHtml(minimumOrderText(minimumIssue.minimum))}</small>` : ""}${fillingIssue ? `<small class="minimum-order-warning-note">${escapeHtml(state.lang === "ar" ? `الحشوات: ${new Intl.NumberFormat("ar-KW").format(fillingIssue.selectedQuantity)} من ${new Intl.NumberFormat("ar-KW").format(fillingIssue.required)}. احذف هذا الصنف وأضفه مجدداً لتوزيع الحشوات بدقة.` : `Fillings: ${fillingIssue.selectedQuantity} of ${fillingIssue.required}. Remove this item and add it again to distribute fillings correctly.`)}</small>` : ""}<strong>${money(selectionFlowTotal(item, options, quantity))}</strong></div><label class="cart-note-label"><textarea aria-label="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}" data-cart-note="${escapeHtml(cartKey)}" maxlength="240" placeholder="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}">${escapeHtml(note)}</textarea></label>
         <div class="qty"><button data-plus="${escapeHtml(cartKey)}">+</button><span>${quantity}</span><button data-minus="${escapeHtml(cartKey)}">${quantity === 1 ? "×" : "−"}</button></div>
       </div>`; }).join("")}</div><div class="checkout-sticky-actions">${cartHasLongPreparationItems() ? `<p class="long-preparation-notice">${state.lang === "ar" ? "ملاحظة: يوجد في طلبك أصناف تأخذ وقت للتجهيز.. لذا يرجى العلم أنه قد يتأخر طلبك أو يتم تأجيله." : "Note: Your order includes items that need extra preparation time, so it may be delayed or rescheduled."}</p>` : ""}${totalsHtml()}<button class="primary" id="next1">${tr("confirmContinue")}</button></div></section>`;
   $$('[data-cart-note]').forEach(input => input.onchange = () => updateCartNote(input.dataset.cartNote, input.value));
@@ -3098,7 +3158,7 @@ function renderConfirmation() {
       <div class="price-summary">
         <button class="price-row products-toggle" id="productsToggle"><span><b class="arrow">‹</b> ${tr("productsTotal")}</span><strong>${money(subtotal())}</strong></button>
         <div class="confirmation-products hidden" id="confirmationProducts">${cartItems().map(({ product: item, quantity, options }) => `
-          <div class="confirmation-product"><img src="${escapeHtml(productImages(item)[0] || "logo.png")}" alt=""><span>${escapeHtml(productName(item))} × ${quantity}</span><b>${money(unitPrice(item, options) * quantity)}</b></div>`).join("")}</div>
+          <div class="confirmation-product"><img src="${escapeHtml(productImages(item)[0] || "logo.png")}" alt=""><span>${escapeHtml(productName(item))} × ${quantity}</span><b>${money(selectionFlowTotal(item, options, quantity))}</b></div>`).join("")}</div>
         ${tableReservationActive() ? "" : `<div class="price-row"><span>${tr("deliveryFee")}</span><strong>${money(deliveryFee())}</strong></div>`}
         <div class="price-row total-row"><span>${tr("total")}</span><strong>${money(total())}</strong></div>
       </div>
@@ -3256,7 +3316,7 @@ async function watchPayment(pending) {
   const started = Date.now();
   let errors = 0;
   let firstCheck = true;
-  while (version === paymentWatchVersion && Date.now() - started < 30 * 60 * 1000) {
+  while (version === paymentWatchVersion && Date.now() - started < 5 * 60 * 1000) {
     if (!firstCheck) await delay(5000);
     firstCheck = false;
     try {
@@ -3924,6 +3984,22 @@ async function loadLocalCatalog() {
   return { products, categories, deliveryAreas };
 }
 
+function catalogVersion(catalog) {
+  const value = catalog?.version ?? catalog?.updatedAt;
+  return value === undefined || value === null || value === "" ? "" : String(value);
+}
+
+async function refreshCatalogFromFirebase(catalogRef) {
+  if (catalogRefreshPromise) return catalogRefreshPromise;
+  catalogRefreshPromise = catalogRef.once("value")
+    .then(snapshot => {
+      if (snapshot.exists()) applyCatalog(snapshot.val());
+    })
+    .catch(error => console.error("Firebase catalog refresh failed", error))
+    .finally(() => { catalogRefreshPromise = null; });
+  return catalogRefreshPromise;
+}
+
 async function initializeStoreData() {
   // Do not restore the previously viewed catalogue after a refresh. Cart data
   // lives in its own local-storage key and is intentionally left unchanged.
@@ -3945,10 +4021,15 @@ async function initializeStoreData() {
   trackStoreEvent("visit");
   if (firebaseServices) {
     const catalogRef = firebaseServices.database.ref("orderingPlatform/catalog");
-    catalogRef.on("value", liveSnapshot => {
-      if (!liveSnapshot.exists()) return;
-      applyCatalog(liveSnapshot.val());
-    }, error => console.error("Firebase catalog listener failed", error));
+    const cachedVersion = catalogVersion(cachedCatalog);
+    // نراقب قيمة صغيرة بدلاً من تنزيل كتالوج المنتجات كاملاً عند كل زيارة.
+    // لا ينزّل الكتالوج من Firebase إلا عند أول زيارة أو عند تغير رقمه.
+    firebaseServices.database.ref("orderingPlatform/catalog/version").on("value", snapshot => {
+      const remoteVersion = snapshot.exists() ? String(snapshot.val()) : "";
+      if (!remoteVersion ? !cachedVersion : remoteVersion !== cachedVersion) {
+        refreshCatalogFromFirebase(catalogRef);
+      }
+    }, error => console.error("Firebase catalog version listener failed", error));
   }
 }
 
