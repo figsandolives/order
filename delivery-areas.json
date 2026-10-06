@@ -1,342 +1,348 @@
 [
   {
     "name": "ابو فطيرة",
-    "price": 3.0
+    "price": 3
   },
   {
     "name": "اشبيليا",
-    "price": 2.0
+    "price": 2
   },
   {
     "name": "الاحمدي",
-    "price": 3.0
+    "price": 3
   },
   {
     "name": "الاندلس",
-    "price": 2.0
+    "price": 2
   },
   {
     "name": "الجابرية",
-    "price": 1.0
+    "price": 1
   },
   {
     "name": "الجهراء",
-    "price": 3.0
+    "price": 3
   },
   {
     "name": "الخالدية",
-    "price": 1.0
+    "price": 1
   },
   {
     "name": "الدسمة",
-    "price": 2.0
+    "price": 2
   },
   {
     "name": "الدعية",
-    "price": 1.0
+    "price": 1
   },
   {
     "name": "الرابية",
-    "price": 2.0
+    "price": 2
   },
   {
     "name": "الرحاب",
-    "price": 2.0
+    "price": 2
   },
   {
     "name": "الرقة",
-    "price": 2.0
+    "price": 2
   },
   {
     "name": "الرقعي",
-    "price": 2.0
+    "price": 2
   },
   {
     "name": "الرميثية",
-    "price": 1.0
+    "price": 1
   },
   {
     "name": "الروضة",
-    "price": 1.0
+    "price": 1
   },
   {
     "name": "الزهراء",
-    "price": 1.0
+    "price": 1
   },
   {
     "name": "السالمية",
-    "price": 2.0
+    "price": 2
   },
   {
     "name": "السرة",
-    "price": 1.0
+    "price": 1
   },
   {
     "name": "السلام",
-    "price": 1.0
+    "price": 1
   },
   {
     "name": "الشامية",
-    "price": 1.0
+    "price": 1
   },
   {
     "name": "الشعب",
-    "price": 2.0
+    "price": 2
   },
   {
     "name": "الشعب البحري",
-    "price": 2.0
+    "price": 2
   },
   {
     "name": "الشهداء",
-    "price": 1.0
+    "price": 1
   },
   {
     "name": "الشويخ",
-    "price": 0.0
+    "price": 0
   },
   {
     "name": "الصباحية",
-    "price": 3.0
+    "price": 3
   },
   {
     "name": "الصديق",
-    "price": 1.0
+    "price": 1
   },
   {
     "name": "الصليبية",
-    "price": 3.0
+    "price": 3
   },
   {
     "name": "الصليبيخات",
-    "price": 3.0
+    "price": 3
   },
   {
     "name": "الظهر",
-    "price": 3.0
+    "price": 3
   },
   {
     "name": "العارضية",
-    "price": 2.0
+    "price": 2
   },
   {
     "name": "العدان",
-    "price": 2.0
+    "price": 2
   },
   {
     "name": "العديلية",
-    "price": 1.0
+    "price": 1
   },
   {
     "name": "العقيلة",
-    "price": 3.0
+    "price": 3
   },
   {
     "name": "العمرية",
-    "price": 2.0
+    "price": 2
   },
   {
     "name": "الفححيل",
-    "price": 3.0
+    "price": 3
   },
   {
     "name": "الفحيحيل",
-    "price": 3.0
+    "price": 3
   },
   {
     "name": "الفردوس",
-    "price": 2.0
+    "price": 2
   },
   {
     "name": "الفنطاس",
-    "price": 3.0
+    "price": 3
   },
   {
     "name": "الفنيطيس",
-    "price": 3.0
+    "price": 3
   },
   {
     "name": "الفيحاء",
-    "price": 1.0
+    "price": 1
   },
   {
     "name": "القادسية",
-    "price": 1.0
+    "price": 1
   },
   {
     "name": "القرين",
-    "price": 2.0
+    "price": 2
   },
   {
     "name": "القصر",
-    "price": 3.0
+    "price": 3
   },
   {
     "name": "القصور",
-    "price": 2.0
+    "price": 2
   },
   {
     "name": "القيروان",
-    "price": 3.0
+    "price": 3
   },
   {
     "name": "المسايل",
-    "price": 2.0
+    "price": 2
   },
   {
     "name": "المطلاع",
-    "price": 5.0
+    "price": 5
   },
   {
     "name": "المنصورية",
-    "price": 1.0
+    "price": 1
   },
   {
     "name": "المنقف",
-    "price": 3.0
+    "price": 3
   },
   {
     "name": "المهبولة",
-    "price": 3.0
+    "price": 3
   },
   {
     "name": "النزهة",
-    "price": 1.0
+    "price": 1
   },
   {
     "name": "النعيم",
-    "price": 3.0
+    "price": 3
   },
   {
     "name": "النهضة",
-    "price": 3.0
+    "price": 3
   },
   {
     "name": "الواحة",
-    "price": 3.0
+    "price": 3
   },
   {
     "name": "اليرموك",
-    "price": 1.0
+    "price": 1
   },
   {
     "name": "ام الهيمان",
-    "price": 4.0
+    "price": 4
   },
   {
     "name": "بيان",
-    "price": 1.0
+    "price": 1
   },
   {
     "name": "تيماء",
-    "price": 3.0
+    "price": 3
   },
   {
     "name": "جابر الاحمد",
-    "price": 3.0
+    "price": 3
   },
   {
     "name": "جابر العلي",
-    "price": 3.0
+    "price": 3
   },
   {
     "name": "جنوب عبدالله المبارك",
-    "price": 3.0
+    "price": 3
   },
   {
     "name": "حطين",
-    "price": 1.0
+    "price": 1
   },
   {
     "name": "حولي",
-    "price": 1.0
+    "price": 1
   },
   {
     "name": "خيطان",
-    "price": 2.0
+    "price": 2
   },
   {
     "name": "سعد العبدالله",
-    "price": 3.0
+    "price": 3
   },
   {
     "name": "سلوى",
-    "price": 2.0
+    "price": 2
   },
   {
     "name": "شرق",
-    "price": 2.0
+    "price": 2
   },
   {
     "name": "شمال غرب الصليبخات",
-    "price": 3.0
+    "price": 3
   },
   {
     "name": "صباح الاحمد",
-    "price": 6.0
+    "price": 6
   },
   {
     "name": "صباح السالم",
-    "price": 2.0
+    "price": 2
   },
   {
     "name": "صباح الناصر",
-    "price": 2.0
+    "price": 2
   },
   {
     "name": "عبدالله السالم",
-    "price": 1.0
+    "price": 1
   },
   {
     "name": "عبدالله مبارك",
-    "price": 3.0
+    "price": 3
   },
   {
     "name": "غرب عبد الله مبارك",
-    "price": 3.0
+    "price": 3
   },
   {
     "name": "غرب عبداللة مبارك",
-    "price": 3.0
+    "price": 3
   },
   {
     "name": "غرب عبدالله المبارك",
-    "price": 3.0
+    "price": 3
   },
   {
     "name": "غرب عبدالله مبارك",
-    "price": 3.0
+    "price": 3
   },
   {
     "name": "غرناطة",
-    "price": 2.0
+    "price": 2
   },
   {
     "name": "فهد الاحمد",
-    "price": 3.0
+    "price": 3
   },
   {
     "name": "قرطبة",
-    "price": 1.0
+    "price": 1
   },
   {
     "name": "كيفان",
-    "price": 1.0
+    "price": 1
   },
   {
     "name": "مبارك الكبير",
-    "price": 2.0
+    "price": 2
   },
   {
     "name": "مشرف",
-    "price": 1.0
+    "price": 1
   },
   {
     "name": "ميدان حولي",
-    "price": 2.0
+    "price": 2
   },
   {
     "name": "هدية",
-    "price": 3.0
+    "price": 3
+  },
+  {
+    "name": "غرب مشرف (مبارك العبدالله)",
+    "nameAr": "غرب مشرف (مبارك العبدالله)",
+    "nameEn": "غرب مشرف (مبارك العبدالله)",
+    "price": 2
   }
 ]
