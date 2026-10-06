@@ -4010,6 +4010,23 @@ async function initializeStoreData() {
     const localCatalog = await loadLocalCatalog();
     hasCatalog = applyCatalog(localCatalog);
   }
+  // Refresh delivery areas independently of the cached catalogue and optional SDK.
+  try {
+    const response = await fetch("https://menassafigs-default-rtdb.firebaseio.com/orderingPlatform/catalog/deliveryAreas.json", { cache: "no-store" });
+    if (!response.ok) throw new Error("Delivery areas: " + response.status);
+    const areas = await response.json();
+    if (Array.isArray(areas)) {
+      state.areas = areas.filter(Boolean);
+      if (state.area) state.area = state.areas.find(area => area.name === state.area.name) || state.area;
+      const cached = readJson(CATALOG_CACHE_KEY, null);
+      if (cached) {
+        cached.deliveryAreas = state.areas;
+        try { localStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(cached)); } catch {}
+      }
+      const areaSearch = $("#addressAreaSearch");
+      if (areaSearch) areaSearch.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  } catch (error) { console.error("Delivery areas refresh failed", error); }
   if (hasCatalog) resumePendingPayment();
   if (state.user?.phone) {
     rememberSession(state.user.phone);
