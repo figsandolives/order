@@ -486,9 +486,9 @@ function showAdvertisement(value) {
 }
 
 // The selected catalogue is deliberately view-only: a full page load always
-// starts at the bakery and never touches the user's saved cart.
+// starts at the catalogue selected by the entry URL and preserves the saved cart.
 function resetCatalogToBakery() {
-  state.catalogType = "bakery";
+  state.catalogType = /^\/rest(?:\/|$)/.test(window.location.pathname) ? "restaurant" : "bakery";
   state.activeCategory = "all";
   applyStoreAppearance(state.catalogAppearance);
 }
