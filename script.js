@@ -3884,7 +3884,17 @@ syncPageScrollLock();
 document.addEventListener("gesturechange", event => event.preventDefault(), { passive: false });
 document.addEventListener("gestureend", event => event.preventDefault(), { passive: false });
 document.addEventListener("touchmove", event => { if (event.touches.length > 1) event.preventDefault(); }, { passive: false });
-window.addEventListener("pageshow", () => {
+window.addEventListener("pageshow", event => {
+  // A restored browser page keeps JavaScript state, including its old filter.
+  if (event.persisted) {
+    state.activeProductFilterId = "";
+    state.activeCategory = "all";
+    state.activeHeadingId = "";
+    state.activeSubheadingId = "";
+    $("#productFilterMenu").classList.add("hidden");
+    $("#productFilterToggle").setAttribute("aria-expanded", "false");
+    renderProductFilters(); renderCategories(); renderProductSections();
+  }
   if (paymentReturnResult() === "success") return;
   const pending = readPendingPayment();
   if (pending) showReturnedPaymentFailure(pending);
@@ -4003,6 +4013,9 @@ async function refreshCatalogFromFirebase(catalogRef) {
 async function initializeStoreData() {
   // Do not restore the previously viewed catalogue after a refresh. Cart data
   // lives in its own local-storage key and is intentionally left unchanged.
+  state.activeProductFilterId = "";
+  state.activeHeadingId = "";
+  state.activeSubheadingId = "";
   resetCatalogToBakery();
   const cachedCatalog = readJson(CATALOG_CACHE_KEY, null);
   let hasCatalog = applyCatalog(cachedCatalog, false);
