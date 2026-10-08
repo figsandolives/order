@@ -297,7 +297,7 @@ const DEFAULT_APPEARANCE = Object.freeze({
 });
 const state = {
   products: [], categories: [], headings: [], areas: [], cart: loadUserCart(initialUser), search: "", activeCategory: "all", activeHeadingId: "", activeSubheadingId: "",
-  catalogType: "bakery",
+  catalogType: /^\/rest(?:\/|$)/.test(window.location.pathname) ? "restaurant" : "bakery",
   restaurantEnabled: true,
   lang: localStorage.getItem("storeLanguage") === "en" ? "en" : "ar",
   step: 1, mode: "delivery", area: null, branch: "", addressId: "", address: "",
