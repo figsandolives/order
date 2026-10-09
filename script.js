@@ -1,12 +1,25 @@
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const orderingConfig = window.ORDERING_CONFIG || {};
-const firebaseServices = window.ORDERING_FIREBASE;
-let firebaseAuthUser = null;
-let firebaseProfileHydrated = false;
-let customerProfileRef = null;
-let customerProfileListener = null;
-let catalogRefreshPromise = null;
+const orderingApiBaseUrl = String(orderingConfig.apiBaseUrl || "").replace(/\/+$/, "");
+let customerSessionToken = localStorage.getItem("figsOlivesCustomerSession") || "";
+
+function orderingApiUrl(path) {
+  if (!orderingApiBaseUrl) throw new Error("خدمة المنصة غير مهيأة");
+  return `${orderingApiBaseUrl}${path}`;
+}
+
+async function orderingApi(path, options = {}, requireSession = false) {
+  const headers = { "Accept": "application/json", ...(options.headers || {}) };
+  if (requireSession) {
+    if (!customerSessionToken) throw new Error("سجّل دخولك أولاً");
+    headers.Authorization = `Bearer ${customerSessionToken}`;
+  }
+  const response = await fetch(orderingApiUrl(path), { ...options, headers, cache: "no-store" });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || data.message || "تعذر الاتصال بخدمة المنصة");
+  return data;
+}
 
 // نطلب من المتصفح حفظ مساحة الموقع بشكل دائم قدر الإمكان. هذا مهم خصوصاً
 // في iPhone/Safari حتى لا تُعامل بيانات تسجيل الدخول كتخزين مؤقت.
@@ -23,39 +36,6 @@ async function requestPersistentStorage() {
 }
 
 const persistentStorageReady = requestPersistentStorage();
-
-// Safari قد يتعامل مع الجلسة كجلسة مؤقتة إن لم نطلب التخزين الدائم صراحةً.
-// نضبطها قبل أي تسجيل دخول، ولا تُمسح إلا عند اختيار العميل «تسجيل خروج».
-const firebasePersistenceReady = (async () => {
-  if (!firebaseServices?.auth || !window.firebase?.auth?.Auth?.Persistence?.LOCAL) return null;
-  try {
-    await firebaseServices.auth.setPersistence(window.firebase.auth.Auth.Persistence.LOCAL);
-  } catch (error) {
-    console.error("Firebase local persistence setup failed", error);
-  }
-  return null;
-})();
-
-const firebaseIdentityReady = new Promise(resolve => {
-  if (!firebaseServices) return resolve(null);
-  let unsubscribe = null;
-  unsubscribe = firebaseServices.auth.onAuthStateChanged(async user => {
-    if (!user) {
-      try {
-        await firebasePersistenceReady;
-        await firebaseServices.auth.signInAnonymously();
-      } catch (error) {
-        console.error("Firebase anonymous sign-in failed", error);
-        unsubscribe?.();
-        resolve(null);
-      }
-      return;
-    }
-    firebaseAuthUser = user;
-    unsubscribe?.();
-    resolve(user);
-  });
-});
 
 const translations = {
   ar: {
@@ -249,10 +229,9 @@ function normalizeLegacyOrder(order) {
 // The order tracker and the customer's invoice must always use the same
 // completed-order record. Local storage is only a fallback for offline use.
 async function canonicalOnlineOrder(order) {
-  if (!order?.orderId || !firebaseServices?.database) return order;
+  if (!order?.orderId || !customerSessionToken) return order;
   try {
-    const snapshot = await firebaseServices.database.ref(`orderingPlatform/onlineOrders/${order.orderId}`).once("value");
-    const remote = snapshot.val();
+    const remote = await orderingApi(`/customer/orders/${encodeURIComponent(order.orderId)}`, {}, true);
     if (!remote) return order;
     const merged = { ...order, ...remote, items: Array.isArray(remote.items) ? remote.items : (order.items || []) };
     if (state.user?.orders) {
@@ -264,6 +243,20 @@ async function canonicalOnlineOrder(order) {
   } catch (error) {
     console.warn("Could not refresh completed order", error);
     return order;
+  }
+}
+
+async function refreshCustomerOrders() {
+  if (!customerSessionToken || !state.user?.phone) return false;
+  try {
+    const remote = await orderingApi("/customer/orders", {}, true);
+    if (!Array.isArray(remote)) return false;
+    state.user.orders = remote.map(normalizeLegacyOrder);
+    persistUser();
+    return true;
+  } catch (error) {
+    console.warn("Could not refresh customer orders", error);
+    return false;
   }
 }
 
@@ -295,9 +288,13 @@ const DEFAULT_APPEARANCE = Object.freeze({
   heroTitle: "",
   heroBadges: []
 });
+function entryCatalogType() {
+  return /^\/rest(?:\/|$)/.test(window.location.pathname) ? "restaurant" : "bakery";
+}
+
 const state = {
   products: [], categories: [], headings: [], areas: [], cart: loadUserCart(initialUser), search: "", activeCategory: "all", activeHeadingId: "", activeSubheadingId: "",
-  catalogType: /^\/rest(?:\/|$)/.test(window.location.pathname) ? "restaurant" : "bakery",
+  catalogType: entryCatalogType(),
   restaurantEnabled: true,
   lang: localStorage.getItem("storeLanguage") === "en" ? "en" : "ar",
   step: 1, mode: "delivery", area: null, branch: "", addressId: "", address: "",
@@ -384,9 +381,6 @@ let pendingFlowSelections = {};
 let pendingFlowStep = 0;
 let authMode = "login";
 let authPhone = "";
-// تفعيل مؤقت إلى أن يكتمل ربط WhatsApp Business Platform الرسمي.
-// أعدها إلى false لإرجاع التحقق برمز واتساب.
-const TEMPORARY_PHONE_CONFIRMATION_LOGIN = true;
 let accountReturnToCheckout = false;
 let catalogScrollPosition = 0;
 let userSyncTimer;
@@ -485,10 +479,10 @@ function showAdvertisement(value) {
   modal.classList.remove("hidden"); modal.setAttribute("aria-hidden", "false");
 }
 
-// The selected catalogue is deliberately view-only: a full page load always
-// starts at the catalogue selected by the entry URL and preserves the saved cart.
-function resetCatalogToBakery() {
-  state.catalogType = /^\/rest(?:\/|$)/.test(window.location.pathname) ? "restaurant" : "bakery";
+// The selected catalogue comes from the entry URL and never touches the user's
+// saved cart.
+function resetCatalogToEntry() {
+  state.catalogType = entryCatalogType();
   state.activeCategory = "all";
   applyStoreAppearance(state.catalogAppearance);
 }
@@ -998,7 +992,7 @@ function persistCart() {
 function reportVisitorPresence() {
   const endpoint = orderingConfig.visitorPresenceWebhookUrl;
   if (!endpoint) return;
-  fetch(endpoint, {
+  fetch(orderingApiUrl(endpoint), {
     method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/json" },
     body: JSON.stringify({ visitorId, visitorType: state.user?.phone ? "registered" : "new", customer: state.user?.phone ? { name: state.user.name, phone: state.user.phone } : null }),
     cache: "no-store", keepalive: true
@@ -1011,7 +1005,7 @@ function trackStoreEvent(type, details = {}) {
   const onceKey = `figsOlivesEvent:${type}:${new Date().toISOString().slice(0, 10)}`;
   if (type === "visit" && sessionStorage.getItem(onceKey)) return;
   if (type === "visit") sessionStorage.setItem(onceKey, "1");
-  fetch(endpoint, {
+  fetch(orderingApiUrl(endpoint), {
     method: "POST",
     headers: { "Content-Type": "application/json", "Accept": "application/json" },
     body: JSON.stringify({ type, visitorId, customer: state.user?.name ? { name: state.user.name, phone: state.user.phone } : null, details }),
@@ -1033,7 +1027,7 @@ function analyticsCartSnapshot() {
 function queueUserSync() {
   clearTimeout(userSyncTimer);
   userSyncTimer = setTimeout(() => {
-    syncUserToFirebase().catch(error => console.error("Firebase profile sync failed", error));
+    syncUserToServer().catch(error => console.error("Server profile sync failed", error));
   }, 500);
 }
 
@@ -1051,55 +1045,27 @@ function persistUser() {
   queueUserSync();
 }
 
-async function authenticateFirebaseCustomer(authResult, phone) {
-  if (!firebaseServices) return null;
-  const customToken = String(authResult?.customToken || "");
-  if (!customToken || normalizePhone(phone).length !== 8) {
-    throw new Error(tr("accountSyncFailed"));
-  }
-
-  try {
-    await firebasePersistenceReady;
-    const signedIn = await firebaseServices.auth.signInWithCustomToken(customToken);
-    firebaseAuthUser = signedIn.user;
-    return signedIn.user;
-  } catch {
-    throw new Error(tr("accountSyncFailed"));
-  }
+function saveCustomerSession(authResult, phone) {
+  const token = String(authResult?.sessionToken || "");
+  if (!token || normalizePhone(phone).length !== 8) throw new Error(tr("accountSyncFailed"));
+  customerSessionToken = token;
+  localStorage.setItem("figsOlivesCustomerSession", token);
 }
 
-async function syncUserToFirebase() {
-  const identity = firebaseAuthUser || await firebaseIdentityReady;
-  if (!identity || !state.user?.phone || !state.user?.name) return;
-  const profile = state.user;
-  const phone = normalizePhone(profile.phone);
-  // A browser can briefly restore an old local profile before its cloud copy
-  // finishes loading. Never let that empty copy erase saved orders/addresses.
-  await firebaseServices.database.ref(`orderingPlatform/customers/${identity.uid}`).transaction(current => {
-    const remote = current && typeof current === "object" ? current : {};
-    const localAddresses = Array.isArray(profile.addresses) ? profile.addresses : [];
-    const localOrders = Array.isArray(profile.orders) ? profile.orders : [];
-    return {
-      ...remote,
-      phone,
-      name: String(profile.name || remote.name || "").slice(0, 80),
-      addresses: !firebaseProfileHydrated && !localAddresses.length && Array.isArray(remote.addresses) ? remote.addresses : localAddresses,
-      orders: !firebaseProfileHydrated && !localOrders.length && Array.isArray(remote.orders) ? remote.orders : localOrders,
-      cart: state.cart && typeof state.cart === "object" ? state.cart : (remote.cart || {}),
-      updatedAt: firebase.database.ServerValue.TIMESTAMP
-    };
-  });
-  firebaseProfileHydrated = true;
+async function syncUserToServer() {
+  if (!customerSessionToken || !state.user?.phone || !state.user?.name) return;
+  await orderingApi("/customer/profile", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: String(state.user.name).slice(0, 80), addresses: Array.isArray(state.user.addresses) ? state.user.addresses : [], cart: state.cart && typeof state.cart === "object" ? state.cart : {} })
+  }, true);
 }
 
-async function hydrateUserFromFirebase() {
-  const identity = firebaseAuthUser || await firebaseIdentityReady;
-  if (!identity || !state.user?.phone) return;
+async function hydrateUserFromServer() {
+  if (!customerSessionToken || !state.user?.phone) return;
   try {
-    const snapshot = await firebaseServices.database.ref(`orderingPlatform/customers/${identity.uid}`).once("value");
-    const remote = snapshot.val();
+    const remote = await orderingApi("/customer/profile", {}, true);
     if (!remote || normalizePhone(remote.phone) !== normalizePhone(state.user.phone)) {
-      await syncUserToFirebase();
+      await syncUserToServer();
       return;
     }
     state.user = {
@@ -1107,7 +1073,7 @@ async function hydrateUserFromFirebase() {
       ...remote,
       phone: normalizePhone(remote.phone),
       addresses: Array.isArray(remote.addresses) ? remote.addresses : [],
-      orders: Array.isArray(remote.orders) ? remote.orders : []
+      orders: Array.isArray(state.user.orders) ? state.user.orders : []
     };
     if (remote.cart && typeof remote.cart === "object") {
       state.cart = remote.cart;
@@ -1120,24 +1086,18 @@ async function hydrateUserFromFirebase() {
     localStorage.setItem(PROFILE_KEY, JSON.stringify(profiles));
     state.name = state.user.name;
     state.phone = state.user.phone;
-    firebaseProfileHydrated = true;
     updateAccountButton();
-    watchCustomerCart(identity.uid);
+    await refreshCustomerOrders();
   } catch (error) {
-    console.error("Firebase profile load failed", error);
+    console.error("Server profile load failed", error);
   }
 }
 
-// حتى لو حُذفت نسخة الجلسة المحلية أو انتهت بعد فترة، Firebase يعيد جلسة
-// العميل المعتمدة تلقائياً. نسترجع ملفه من UID نفسه بدل إجباره على طلب رمز OTP.
 async function restoreSavedCustomerSession() {
-  if (state.user?.phone || !firebaseServices?.database) return;
+  if (state.user?.phone || !customerSessionToken) return;
   try {
     await persistentStorageReady;
-    const identity = firebaseAuthUser || await firebaseIdentityReady;
-    if (!identity || identity.isAnonymous) return;
-    const snapshot = await firebaseServices.database.ref(`orderingPlatform/customers/${identity.uid}`).once("value");
-    const profile = snapshot.val();
+    const profile = await orderingApi("/customer/profile", {}, true);
     if (!profile || normalizePhone(profile.phone).length !== 8 || !String(profile.name || "").trim()) return;
     state.user = {
       ...profile,
@@ -1149,34 +1109,16 @@ async function restoreSavedCustomerSession() {
     state.cart = profile.cart && typeof profile.cart === "object" ? profile.cart : loadUserCart(state.user);
     localStorage.setItem(cartStorageKey(state.user.phone), JSON.stringify(state.cart));
     persistUser();
-    firebaseProfileHydrated = true;
-    watchCustomerCart(identity.uid);
     updateAccountButton();
     renderCartBar();
     syncAllProductQuantityControls();
+    await refreshCustomerOrders();
     reportVisitorPresence();
   } catch (error) {
+    customerSessionToken = "";
+    localStorage.removeItem("figsOlivesCustomerSession");
     console.warn("Saved customer session could not be restored", error);
   }
-}
-
-// الحساب نفسه يملك نسخة سلة واحدة في Firebase. عند فتحه من جهاز آخر، نأخذ
-// آخر نسخة محفوظة فوراً بدلاً من إبقاء نسخة محلية قديمة كسلة مستقلة.
-function watchCustomerCart(uid) {
-  if (!uid || !state.user?.phone) return;
-  if (customerProfileRef && customerProfileListener) customerProfileRef.off("value", customerProfileListener);
-  customerProfileRef = firebaseServices.database.ref(`orderingPlatform/customers/${uid}`);
-  customerProfileListener = snapshot => {
-    const remote = snapshot.val();
-    if (!remote || normalizePhone(remote.phone) !== normalizePhone(state.user?.phone) || !remote.cart || typeof remote.cart !== "object") return;
-    const remoteCart = remote.cart;
-    if (JSON.stringify(remoteCart) === JSON.stringify(state.cart)) return;
-    state.cart = remoteCart;
-    localStorage.setItem(cartStorageKey(state.user.phone), JSON.stringify(state.cart));
-    renderCartBar();
-    syncAllProductQuantityControls();
-  };
-  customerProfileRef.on("value", customerProfileListener);
 }
 
 function updateAccountButton() {
@@ -1229,7 +1171,7 @@ function sortedCategories() {
   return state.categories.filter(isCurrentCatalog).slice().sort((a, b) => Number(a.order) - Number(b.order));
 }
 
-// Category IDs come from Firebase and may be numeric in older records and
+// Category IDs may be numeric in records imported from the previous platform and
 // strings in newer ones.  Compare their canonical value so a filtered product
 // can never be matched to a different section because of an ID type mismatch.
 function sameCatalogId(first, second) {
@@ -2199,66 +2141,9 @@ function renderPhoneAuth() {
     event.preventDefault();
     authPhone = normalizePhone(authPhone || $("#loginPhone")?.value);
     if (authPhone.length !== 8) return setAuthMessage(tr("invalidPhone"));
-    if (TEMPORARY_PHONE_CONFIRMATION_LOGIN) return renderPhoneConfirmation();
     sendLoginCode();
   };
   setTimeout(() => input.focus(), 60);
-}
-
-function renderPhoneConfirmation() {
-  const arabic = state.lang === "ar";
-  const title = arabic ? "هل أنت متأكد من رقم الهاتف؟" : "Is this phone number correct?";
-  const hint = arabic ? "سيتم الدخول باستخدام هذا الرقم" : "You will sign in with this number";
-  const yes = arabic ? "نعم، الرقم صحيح" : "Yes, this is correct";
-  const no = arabic ? "تعديل الرقم" : "Edit number";
-  $("#authBody").innerHTML = `${authBrand(title, hint)}
-    <div class="auth-form phone-confirmation">
-      <strong class="phone-confirmation-number">${escapeHtml(authPhone)}</strong>
-      <button class="primary" id="confirmPhoneLogin" type="button">${yes}</button>
-      <button class="secondary" id="editPhoneLogin" type="button">${no}</button>
-    </div>`;
-  $("#confirmPhoneLogin").onclick = completePhoneConfirmationLogin;
-  $("#editPhoneLogin").onclick = renderPhoneAuth;
-}
-
-async function completePhoneConfirmationLogin() {
-  const button = $("#confirmPhoneLogin");
-  if (button) { button.disabled = true; button.innerHTML = `<span class="auth-loader"></span>`; }
-  let authResult;
-  try {
-    const response = await fetch(orderingConfig.temporaryPhoneConfirmationWebhookUrl, {
-      method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/json" },
-      body: JSON.stringify({ phone: authPhone }), cache: "no-store"
-    });
-    authResult = await response.json().catch(() => ({}));
-    if (!response.ok || !authResult.ok) throw new Error(authResult.message || tr("loginServiceUnavailable"));
-    await authenticateFirebaseCustomer(authResult, authPhone);
-  } catch (error) {
-    if (button) { button.disabled = false; button.textContent = state.lang === "ar" ? "نعم، الرقم صحيح" : "Yes, this is correct"; }
-    return setAuthMessage(error.message || tr("loginServiceUnavailable"));
-  }
-  const profiles = readJson(PROFILE_KEY, {});
-  if (authMode === "changePhone" && state.user) {
-    const previousPhone = state.user.phone;
-    const previousCart = { ...state.cart };
-    state.user.phone = authPhone;
-    if (profiles[previousPhone]) delete profiles[previousPhone];
-    localStorage.setItem(PROFILE_KEY, JSON.stringify(profiles));
-    localStorage.setItem(cartStorageKey(authPhone), JSON.stringify(previousCart));
-    persistUser();
-    closeAuth();
-    openAccountDrawer("info");
-    return toast(tr("infoSaved"));
-  }
-  const profile = profiles[authPhone] || { phone: authPhone, name: "", addresses: [], orders: [] };
-  state.user = { ...profile, phone: authPhone, addresses: profile.addresses || [], orders: profile.orders || [] };
-  state.cart = loadUserCart(state.user);
-  await hydrateUserFromFirebase();
-  state.name = state.user.name;
-  state.phone = state.user.phone;
-  if (!state.user.name) return renderUsernameAuth();
-  persistUser();
-  completeLogin();
 }
 
 async function sendLoginCode(isResend = false) {
@@ -2271,15 +2156,9 @@ async function sendLoginCode(isResend = false) {
     button.innerHTML = `<span class="auth-loader"></span>`;
   }
   try {
-    const response = await fetch(orderingConfig.sendLoginCodeWebhookUrl, {
-      method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/json" },
-      body: JSON.stringify({ phone: authPhone }), cache: "no-store"
+    const data = await orderingApi(orderingConfig.sendLoginCodeWebhookUrl, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone: authPhone })
     });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || !data.ok) {
-      if (data.retryAfter && $("#otpInput")) startResendCountdown(Number(data.retryAfter));
-      throw new Error(data.message || tr("sendFailed"));
-    }
     if (!isResend || !$("#otpInput")) renderOtpAuth();
     else {
       setAuthMessage(tr("codeSent"), true);
@@ -2338,19 +2217,17 @@ async function verifyLoginCode(code) {
   input.disabled = true;
   setAuthMessage(tr("verifying"), true);
   try {
-    const response = await fetch(orderingConfig.verifyLoginCodeWebhookUrl, {
-      method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/json" },
-      body: JSON.stringify({ phone: authPhone, code }), cache: "no-store"
+    const data = await orderingApi(orderingConfig.verifyLoginCodeWebhookUrl, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone: authPhone, code })
     });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || !data.ok) throw new Error(data.message || tr("invalidCode"));
+    if (!data.ok) throw new Error(data.error || tr("invalidCode"));
     clearInterval(resendTimer);
     if (authMode === "changePhone" && state.user) {
       const profiles = readJson(PROFILE_KEY, {});
       const previousPhone = state.user.phone;
       const previousCart = { ...state.cart };
       state.user.phone = authPhone;
-      await authenticateFirebaseCustomer(data, authPhone);
+      saveCustomerSession(data, authPhone);
       if (profiles[previousPhone]) delete profiles[previousPhone];
       localStorage.setItem(PROFILE_KEY, JSON.stringify(profiles));
       localStorage.setItem(cartStorageKey(authPhone), JSON.stringify(previousCart));
@@ -2363,8 +2240,8 @@ async function verifyLoginCode(code) {
     const profile = profiles[authPhone] || { phone: authPhone, name: "", addresses: [], orders: [] };
     state.user = { ...profile, phone: authPhone, addresses: profile.addresses || [], orders: profile.orders || [] };
     state.cart = loadUserCart(state.user);
-    await authenticateFirebaseCustomer(data, authPhone);
-    await hydrateUserFromFirebase();
+    saveCustomerSession(data, authPhone);
+    await hydrateUserFromServer();
     state.name = state.user.name;
     state.phone = state.user.phone;
     if (!state.user.name) return renderUsernameAuth();
@@ -2419,26 +2296,14 @@ async function logout() {
   persistCart();
   clearTimeout(userSyncTimer);
   try {
-    await syncUserToFirebase();
+    await syncUserToServer();
   } catch (error) {
-    console.error("Firebase profile sync before logout failed", error);
+    console.error("Server profile sync before logout failed", error);
   }
-  if (customerProfileRef && customerProfileListener) customerProfileRef.off("value", customerProfileListener);
-  customerProfileRef = null;
-  customerProfileListener = null;
-  firebaseProfileHydrated = false;
   localStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem("figsOlivesCustomerSession");
   forgetRememberedSession();
-  firebaseAuthUser = null;
-  if (firebaseServices) {
-    try {
-      await firebaseServices.auth.signOut();
-      const credential = await firebaseServices.auth.signInAnonymously();
-      firebaseAuthUser = credential.user;
-    } catch (error) {
-      console.error("Firebase logout failed", error);
-    }
-  }
+  customerSessionToken = "";
   state.user = null;
   state.cart = {};
   state.name = "";
@@ -2701,7 +2566,10 @@ function renderAddressForm(addressId = "") {
   };
 }
 
-function renderOrders() {
+function renderOrders({ refresh = true } = {}) {
+  if (refresh) refreshCustomerOrders().then(updated => {
+    if (updated) renderOrders({ refresh: false });
+  });
   $("#accountDrawer").classList.remove("order-detail-mode");
   const orders = (state.user.orders || []).map(normalizeLegacyOrder).sort((a, b) => Number(b.createdAt) - Number(a.createdAt));
   state.user.orders = orders;
@@ -3281,12 +3149,11 @@ async function finishOrder() {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 35000);
   try {
-    const response = await fetch(orderingConfig.paymentWebhookUrl, {
-      method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/json" },
-      body: JSON.stringify(paymentPayload(state.paymentMethod)), signal: controller.signal, cache: "no-store"
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || !data.ok) throw new Error(data.error || tr("createFailed"));
+    const data = await orderingApi(orderingConfig.paymentWebhookUrl, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(paymentPayload(state.paymentMethod)), signal: controller.signal
+    }, true);
+    if (!data.ok) throw new Error(data.error || tr("createFailed"));
     const target = new URL(data.paymentUrl);
     if (!isAllowedPaymentGatewayUrl(target)) throw new Error(tr("invalidSecureLink"));
     state.order = data.orderId || "";
@@ -3320,12 +3187,11 @@ async function watchPayment(pending) {
     if (!firstCheck) await delay(5000);
     firstCheck = false;
     try {
-      const response = await fetch(orderingConfig.paymentStatusWebhookUrl, {
-        method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/json" },
-        body: JSON.stringify({ paymentReference: pending.paymentReference || pending.orderId, statusToken: pending.statusToken }), cache: "no-store"
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok || !data.ok) throw new Error(data.error || "Verification failed");
+      const data = await orderingApi(orderingConfig.paymentStatusWebhookUrl, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentReference: pending.paymentReference || pending.orderId, statusToken: pending.statusToken })
+      }, true);
+      if (!data.ok) throw new Error(data.error || "Verification failed");
       errors = 0;
       if (data.status === "paid") {
         if (data.orderId) {
@@ -3561,16 +3427,13 @@ async function sendInvoiceToWhatsApp(order) {
       reader.readAsDataURL(file);
     });
     if (!pdfBase64) throw new Error("Invoice PDF is empty");
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    await orderingApi(endpoint, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
         orderId: String(order.orderId),
         phone: `965${normalizePhone(order.phone)}`,
         pdfBase64
       })
-    });
-    if (!response.ok) throw new Error(`Invoice WhatsApp webhook failed (${response.status})`);
+    }, true);
   } catch (error) {
     // يبقى إتمام الطلب مستقلاً عن الإشعار؛ الفشل هنا لا يوقف دفع العميل أو حفظ طلبه.
     console.warn("Could not send invoice through WhatsApp workflow", error);
@@ -3742,13 +3605,11 @@ async function requestAvailabilityNotification(id) {
   const item = product(id);
   if (!item || item.availability?.status === "available") return;
   if (!state.user?.name || !state.user?.phone) { toast("سجّل دخولك أولاً ليصلك التنبيه", "error"); return openAuth("login"); }
-  const identity = await firebaseIdentityReady;
-  if (!identity || !firebaseServices) return toast("تعذر حفظ طلب التنبيه", "error");
   try {
-    await firebaseServices.database.ref(`orderingPlatform/availabilityNotifications/${id}/${identity.uid}`).set({
-      name: String(state.user.name).slice(0, 80), phone: normalizePhone(state.user.phone).slice(-8),
-      cycleId: String(item.availability?.cycleId || ""), createdAt: firebase.database.ServerValue.TIMESTAMP
-    });
+    await orderingApi(`/availability/${encodeURIComponent(id)}`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: String(state.user.name).slice(0, 80), cycleId: String(item.availability?.cycleId || "") })
+    }, true);
     showAvailabilityConfirmation(item);
   } catch (error) { console.error(error); toast("تعذر تسجيل طلب التنبيه", "error"); }
 }
@@ -3884,17 +3745,7 @@ syncPageScrollLock();
 document.addEventListener("gesturechange", event => event.preventDefault(), { passive: false });
 document.addEventListener("gestureend", event => event.preventDefault(), { passive: false });
 document.addEventListener("touchmove", event => { if (event.touches.length > 1) event.preventDefault(); }, { passive: false });
-window.addEventListener("pageshow", event => {
-  // A restored browser page keeps JavaScript state, including its old filter.
-  if (event.persisted) {
-    state.activeProductFilterId = "";
-    state.activeCategory = "all";
-    state.activeHeadingId = "";
-    state.activeSubheadingId = "";
-    $("#productFilterMenu").classList.add("hidden");
-    $("#productFilterToggle").setAttribute("aria-expanded", "false");
-    renderProductFilters(); renderCategories(); renderProductSections();
-  }
+window.addEventListener("pageshow", () => {
   if (paymentReturnResult() === "success") return;
   const pending = readPendingPayment();
   if (pending) showReturnedPaymentFailure(pending);
@@ -3999,68 +3850,36 @@ function catalogVersion(catalog) {
   return value === undefined || value === null || value === "" ? "" : String(value);
 }
 
-async function refreshCatalogFromFirebase(catalogRef) {
-  if (catalogRefreshPromise) return catalogRefreshPromise;
-  catalogRefreshPromise = catalogRef.once("value")
-    .then(snapshot => {
-      if (snapshot.exists()) applyCatalog(snapshot.val());
-    })
-    .catch(error => console.error("Firebase catalog refresh failed", error))
-    .finally(() => { catalogRefreshPromise = null; });
-  return catalogRefreshPromise;
+async function refreshCatalogFromServer() {
+  try {
+    const catalog = await orderingApi("/catalog");
+    return applyCatalog(catalog);
+  } catch (error) {
+    console.error("Server catalog refresh failed", error);
+    return false;
+  }
 }
 
 async function initializeStoreData() {
   // Do not restore the previously viewed catalogue after a refresh. Cart data
   // lives in its own local-storage key and is intentionally left unchanged.
-  state.activeProductFilterId = "";
-  state.activeHeadingId = "";
-  state.activeSubheadingId = "";
-  resetCatalogToBakery();
+  resetCatalogToEntry();
   const cachedCatalog = readJson(CATALOG_CACHE_KEY, null);
   let hasCatalog = applyCatalog(cachedCatalog, false);
-  if (!hasCatalog) {
-    const localCatalog = await loadLocalCatalog();
-    hasCatalog = applyCatalog(localCatalog);
-  }
-  // Refresh delivery areas independently of the cached catalogue and optional SDK.
-  try {
-    const response = await fetch("https://menassafigs-default-rtdb.firebaseio.com/orderingPlatform/catalog/deliveryAreas.json", { cache: "no-store" });
-    if (!response.ok) throw new Error("Delivery areas: " + response.status);
-    const areas = await response.json();
-    if (Array.isArray(areas)) {
-      state.areas = areas.filter(Boolean);
-      if (state.area) state.area = state.areas.find(area => area.name === state.area.name) || state.area;
-      const cached = readJson(CATALOG_CACHE_KEY, null);
-      if (cached) {
-        cached.deliveryAreas = state.areas;
-        try { localStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(cached)); } catch {}
-      }
-      const areaSearch = $("#addressAreaSearch");
-      if (areaSearch) areaSearch.dispatchEvent(new Event("input", { bubbles: true }));
-    }
-  } catch (error) { console.error("Delivery areas refresh failed", error); }
+  // Always prefer the server catalogue. This also replaces any former cached
+  // cached asset links with the VPS asset URLs during the migration.
+  hasCatalog = (await refreshCatalogFromServer()) || hasCatalog;
+  if (!hasCatalog) hasCatalog = applyCatalog(await loadLocalCatalog());
   if (hasCatalog) resumePendingPayment();
   if (state.user?.phone) {
     rememberSession(state.user.phone);
     requestPersistentStorage();
-    hydrateUserFromFirebase();
+    hydrateUserFromServer();
   } else {
     await restoreSavedCustomerSession();
   }
   trackStoreEvent("visit");
-  if (firebaseServices) {
-    const catalogRef = firebaseServices.database.ref("orderingPlatform/catalog");
-    const cachedVersion = catalogVersion(cachedCatalog);
-    // نراقب قيمة صغيرة بدلاً من تنزيل كتالوج المنتجات كاملاً عند كل زيارة.
-    // لا ينزّل الكتالوج من Firebase إلا عند أول زيارة أو عند تغير رقمه.
-    firebaseServices.database.ref("orderingPlatform/catalog/version").on("value", snapshot => {
-      const remoteVersion = snapshot.exists() ? String(snapshot.val()) : "";
-      if (!remoteVersion ? !cachedVersion : remoteVersion !== cachedVersion) {
-        refreshCatalogFromFirebase(catalogRef);
-      }
-    }, error => console.error("Firebase catalog version listener failed", error));
-  }
+  // تحديث الكتالوج يتم عند فتح الصفحة؛ التطبيق لا يحتفظ باتصال حي.
 }
 
 initializeStoreData().catch(error => {
