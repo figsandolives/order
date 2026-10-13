@@ -523,8 +523,10 @@ function catalogTypeOf(entry) {
   return entry?.catalogType === "restaurant" ? "restaurant" : "bakery";
 }
 
+// Bakery and restaurant categories are shown together on one page. The
+// restaurant ones are hidden only when the admin turns restaurant items off.
 function isCurrentCatalog(entry) {
-  return catalogTypeOf(entry) === state.catalogType;
+  return state.restaurantEnabled || catalogTypeOf(entry) !== "restaurant";
 }
 
 function productName(product) {
@@ -1251,6 +1253,7 @@ function setCatalogType(type) {
 }
 
 function renderCatalogSwitch() {
+  // The bakery/restaurant switch was removed: both catalogues share one page.
   const button = $("#catalogSwitch");
   if (!button) return;
   if (!state.restaurantEnabled && state.catalogType === "bakery") { button.classList.add("hidden"); return; }
@@ -1271,9 +1274,9 @@ function renderCategories() {
   // it is active we intentionally show the original categories as a flat list
   // and do not use manually-linked heading groups (which can link a category
   // to a different heading in the administration panel).
-  const linkedCategoryIds = filteringProducts ? new Set() : new Set((state.headings || []).filter(item => catalogTypeOf(item) === state.catalogType).flatMap(item => [...(item.categoryIds || []), ...(item.subheadings || []).flatMap(group => group.categoryIds || [])].map(String)));
+  const linkedCategoryIds = filteringProducts ? new Set() : new Set((state.headings || []).filter(item => isCurrentCatalog(item)).flatMap(item => [...(item.categoryIds || []), ...(item.subheadings || []).flatMap(group => group.categoryIds || [])].map(String)));
   const entries = [
-    ...(filteringProducts ? [] : (state.headings || []).filter(item => catalogTypeOf(item) === state.catalogType).map(item => ({ type: "heading", item }))),
+    ...(filteringProducts ? [] : (state.headings || []).filter(item => isCurrentCatalog(item)).map(item => ({ type: "heading", item }))),
     ...sortedCategories().filter(category => !linkedCategoryIds.has(String(category.id)) && categoryProducts(category.id).length).map(item => ({ type: "category", item }))
   ].sort((a, b) => Number(a.item.order) - Number(b.item.order) || (a.type === "heading" ? -1 : 1));
   entries.forEach(({ type, item }) => {
@@ -1287,7 +1290,7 @@ function renderCategories() {
 
 function currentHeading() {
   if (activeProductFilter()) return null;
-  return (state.headings || []).find(item => item.id === state.activeHeadingId && catalogTypeOf(item) === state.catalogType);
+  return (state.headings || []).find(item => item.id === state.activeHeadingId && isCurrentCatalog(item));
 }
 
 function linkedGroupForCategory(heading, categoryId) {
@@ -1375,7 +1378,7 @@ function productCard(item, category) {
 
 function renderProductSections() {
   const sections = [];
-  const restaurantImageNotice = state.catalogType === "restaurant"
+  const restaurantImageNotice = category => catalogTypeOf(category) === "restaurant"
     ? `<p class="restaurant-image-notice">جميع صور المنتجات هنا تم تصويرها كما تقدم لك في طاولة المطعم .. لذلك سيختلف التغليف عند طلبها للتوصيل</p>`
     : "";
   const ordered = sortedCategories();
@@ -1389,7 +1392,7 @@ function renderProductSections() {
       const sectionImage = String(category.sectionImage || "").trim();
       sections.push(`
         <section class="category-section" id="category-${encodeURIComponent(category.id)}" data-category-section="${escapeHtml(category.id)}">
-          <div class="section-heading"><h2>${escapeHtml(categoryName(category))}</h2></div>${restaurantImageNotice}
+          <div class="section-heading"><h2>${escapeHtml(categoryName(category))}</h2></div>${restaurantImageNotice(category)}
           ${sectionImage ? `<button type="button" class="category-illustration" data-category-illustration="${escapeHtml(sectionImage)}" aria-label="تكبير الصورة التوضيحية لقسم ${escapeHtml(categoryName(category))}"><img src="${escapeHtml(sectionImage)}" alt="${escapeHtml(categoryName(category))}" loading="lazy"></button>` : ""}
           <div class="product-grid">${matches.map(item => productCard(item, category)).join("")}</div>
         </section>`);
@@ -1399,7 +1402,7 @@ function renderProductSections() {
     return;
   }
   const used = new Set();
-  const headings = (state.headings || []).filter(item => catalogTypeOf(item) === state.catalogType).sort((a, b) => Number(a.order) - Number(b.order));
+  const headings = (state.headings || []).filter(item => isCurrentCatalog(item)).sort((a, b) => Number(a.order) - Number(b.order));
   const linkedCategoryIds = new Set(headings.flatMap(item => [...(item.categoryIds || []), ...(item.subheadings || []).flatMap(group => group.categoryIds || [])]));
   const renderCategory = category => {
     const matches = categoryProducts(category.id);
@@ -1407,7 +1410,7 @@ function renderProductSections() {
     const sectionImage = String(category.sectionImage || "").trim();
     return `
       <section class="category-section" id="category-${encodeURIComponent(category.id)}" data-category-section="${escapeHtml(category.id)}">
-        <div class="section-heading"><h2>${escapeHtml(categoryName(category))}</h2></div>${restaurantImageNotice}
+        <div class="section-heading"><h2>${escapeHtml(categoryName(category))}</h2></div>${restaurantImageNotice(category)}
         ${sectionImage ? `<button type="button" class="category-illustration" data-category-illustration="${escapeHtml(sectionImage)}" aria-label="تكبير الصورة التوضيحية لقسم ${escapeHtml(categoryName(category))}"><img src="${escapeHtml(sectionImage)}" alt="${escapeHtml(categoryName(category))}" loading="lazy"></button>` : ""}
         <div class="product-grid">${matches.map(item => productCard(item, category)).join("")}</div>
       </section>`;
@@ -1562,7 +1565,7 @@ function syncActiveNavigation() {
     centerCategoryButton(state.activeCategory);
     return;
   }
-  const heading = (state.headings || []).filter(item => catalogTypeOf(item) === state.catalogType).find(item => linkedGroupForCategory(item, state.activeCategory));
+  const heading = (state.headings || []).filter(item => isCurrentCatalog(item)).find(item => linkedGroupForCategory(item, state.activeCategory));
   state.activeHeadingId = heading?.id || "";
   state.activeSubheadingId = heading ? (linkedGroupForCategory(heading, state.activeCategory)?.id || "") : "";
   $$("[data-category-link]").forEach(button => button.classList.toggle("active", button.dataset.categoryLink === state.activeCategory));
@@ -3545,7 +3548,7 @@ $("#headingNavigation").onclick = event => {
   const categoryButton = event.target.closest("[data-linked-nav]");
   if (categoryButton) { state.activeCategory = categoryButton.dataset.linkedNav; syncActiveNavigation(); scrollToCategory(categoryButton.dataset.linkedNav); }
 };
-$("#catalogSwitch").onclick = event => setCatalogType(event.currentTarget.dataset.catalogTarget);
+if ($("#catalogSwitch")) $("#catalogSwitch").onclick = event => setCatalogType(event.currentTarget.dataset.catalogTarget);
 function positionProductFilterMenu() {
   if (window.matchMedia("(max-width: 760px)").matches) {
     const trigger = $("#productFilterToggle");
@@ -3779,6 +3782,10 @@ function applyCatalog(catalog, cache = true) {
     item.active !== false && visibleCategoryIds.has(String(item.category || ""))
   );
   state.categories = visibleCategories;
+  // A product belongs to the bakery or the restaurant through its category, so
+  // an order that contains any restaurant-category item becomes a restaurant order.
+  const categoryTypes = new Map(visibleCategories.map(category => [String(category.id), catalogTypeOf(category)]));
+  visibleProducts.forEach(item => { item.catalogType = categoryTypes.get(String(item.category || "")) || catalogTypeOf(item); });
   state.restaurantEnabled = catalog.restaurantEnabled !== false;
   if (!state.restaurantEnabled && state.catalogType === "restaurant") state.catalogType = "bakery";
   renderCatalogSwitch();
@@ -3810,7 +3817,7 @@ function applyCatalog(catalog, cache = true) {
   });
   if (removedCartItem) persistCart();
   if (state.activeCategory !== "all" && !visibleCategoryIds.has(String(state.activeCategory))) state.activeCategory = "all";
-  if (!(state.headings || []).some(item => item.id === state.activeHeadingId && catalogTypeOf(item) === state.catalogType)) {
+  if (!(state.headings || []).some(item => item.id === state.activeHeadingId && isCurrentCatalog(item))) {
     state.activeHeadingId = "";
     state.activeSubheadingId = "";
   }
