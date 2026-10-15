@@ -3947,15 +3947,65 @@ function catalogVersion(catalog) {
   return value === undefined || value === null || value === "" ? "" : String(value);
 }
 
+let liveCatalogVersion = null;
+
 async function refreshCatalogFromServer() {
   try {
+    const version = await orderingApi("/catalog/version").then(result => result.version, () => null);
     const catalog = await orderingApi("/catalog");
+    if (version) liveCatalogVersion = version;
     return applyCatalog(catalog);
   } catch (error) {
     console.error("Server catalog refresh failed", error);
     return false;
   }
 }
+
+// Live catalog: while the page is open, changes saved in the admin panel
+// (a product stopped, a price changed) reach the customer within seconds,
+// without a refresh and without losing their place, open product or cart.
+const CATALOG_CHECK_INTERVAL = 20000;
+let catalogCheckRunning = false;
+
+function catalogScrollAnchor() {
+  if (state.detailProductId) return null;
+  const limit = ($(".site-header")?.offsetHeight || 0) + ($("#categories")?.offsetHeight || 0);
+  const section = $$("[data-category-section]").find(element => element.getBoundingClientRect().bottom > limit);
+  return section ? { id: section.dataset.categorySection, offset: section.getBoundingClientRect().top } : null;
+}
+
+function restoreCatalogScrollAnchor(anchor) {
+  if (!anchor) return;
+  const section = document.querySelector(`[data-category-section="${CSS.escape(anchor.id)}"]`);
+  if (section) window.scrollTo({ top: window.scrollY + section.getBoundingClientRect().top - anchor.offset, behavior: "auto" });
+}
+
+async function checkCatalogUpdates() {
+  if (catalogCheckRunning || document.hidden || !navigator.onLine) return;
+  catalogCheckRunning = true;
+  try {
+    const { version } = await orderingApi("/catalog/version");
+    if (!version || version === liveCatalogVersion) return;
+    const firstCheck = liveCatalogVersion === null;
+    liveCatalogVersion = version;
+    if (firstCheck) return;
+    const catalog = await orderingApi("/catalog");
+    const anchor = catalogScrollAnchor();
+    const cartBefore = cartCount(), openProduct = state.detailProductId;
+    if (!applyCatalog(catalog)) return;
+    restoreCatalogScrollAnchor(anchor);
+    if (cartCount() < cartBefore) toast(state.lang === "ar" ? "تم تحديث المنتجات: أُزيل من سلتك منتج لم يعد متوفراً" : "Products updated: an item no longer available was removed from your cart", "error");
+    else if (openProduct && !state.detailProductId) toast(state.lang === "ar" ? "هذا المنتج لم يعد متوفراً حالياً" : "This product is no longer available", "error");
+  } catch (error) {
+    console.warn("Catalog update check failed", error);
+  } finally {
+    catalogCheckRunning = false;
+  }
+}
+
+setInterval(checkCatalogUpdates, CATALOG_CHECK_INTERVAL);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) checkCatalogUpdates(); });
+window.addEventListener("online", checkCatalogUpdates);
 
 async function initializeStoreData() {
   // Do not restore the previously viewed catalogue after a refresh. Cart data
