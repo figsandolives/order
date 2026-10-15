@@ -985,7 +985,12 @@ function toast(message, variant = "") {
   toastTimer = setTimeout(() => element.classList.add("hidden"), 2200);
 }
 
+// Bumped on every cart change made on this page, so a slower server copy of
+// the cart never replaces something the customer just added.
+let cartRevision = 0;
+
 function persistCart() {
+  cartRevision += 1;
   if (!state.user?.phone) return;
   localStorage.setItem(cartStorageKey(state.user.phone), JSON.stringify(state.cart));
   queueUserSync();
@@ -1077,7 +1082,8 @@ async function hydrateUserFromServer() {
       addresses: Array.isArray(remote.addresses) ? remote.addresses : [],
       orders: Array.isArray(state.user.orders) ? state.user.orders : []
     };
-    if (remote.cart && typeof remote.cart === "object") {
+    if (cartRevision) queueUserSync();
+    else if (remote.cart && typeof remote.cart === "object") {
       state.cart = remote.cart;
       localStorage.setItem(cartStorageKey(state.user.phone), JSON.stringify(state.cart));
       renderCartBar();
