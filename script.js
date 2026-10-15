@@ -546,6 +546,12 @@ function productImages(product) {
   return (Array.isArray(product.images) ? product.images : [product.image]).filter(Boolean);
 }
 
+// Card-sized copy of a catalog photo served by the platform (about 85% lighter).
+// The product page keeps the full photo; a missing copy falls back to it.
+function thumbnailUrl(url) {
+  return String(url || "").replace(/^(https:\/\/162-35-27-249\.sslip\.io)\/platform-assets\/(orderingPlatform\/catalog\/[^?#]+\.(?:webp|jpe?g|png))$/i, "$1/platform-thumbs/$2");
+}
+
 function branchField(branch, field) {
   return branch[`${field}${state.lang === "ar" ? "Ar" : "En"}`] || branch[`${field}Ar`];
 }
@@ -1421,7 +1427,7 @@ function productCard(item, category) {
   return `
     <article class="product-card ${availabilityText ? "unavailable" : ""}" data-product="${escapeHtml(item.id)}" tabindex="0">
       <div class="product-image">
-        <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" data-src="${escapeHtml(source)}" width="640" height="580" alt="${escapeHtml(productName(item))}" decoding="async" fetchpriority="low">
+        <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" data-src="${escapeHtml(thumbnailUrl(source))}" data-full="${escapeHtml(source)}" width="640" height="580" alt="${escapeHtml(productName(item))}" decoding="async" fetchpriority="low">
         ${badge ? `<span class="product-feature-badge">${escapeHtml(badge)}</span>` : ""}
         ${availabilityText ? `<b class="availability-overlay">${availabilityText}</b>` : ""}
         <b class="in-cart ${quantity ? "" : "hidden"}" data-cart-badge="${escapeHtml(item.id)}">${quantity ? `${tr("inCart")} × ${quantity}` : ""}</b>
@@ -1517,7 +1523,7 @@ function renderSearchResults() {
   results.innerHTML = matches.length ? matches.map(item => {
     const source = productImages(item)[0] || "logo.png";
     return `<article class="search-result" data-search-product="${escapeHtml(item.id)}">
-      <img src="${escapeHtml(source)}" alt="${escapeHtml(productName(item))}" loading="lazy">
+      <img src="${escapeHtml(thumbnailUrl(source))}" alt="${escapeHtml(productName(item))}" loading="lazy">
       <div><strong>${escapeHtml(productName(item))}</strong><small>${productPriceLabel(item)}</small></div>
       <button type="button" data-search-add="${escapeHtml(item.id)}">${tr("add")}</button>
     </article>`;
@@ -1575,7 +1581,11 @@ function observeImages() {
       const source = image.dataset.src;
       if (!source) continue;
       image.onload = () => image.closest(".product-image")?.classList.add("loaded");
-      image.onerror = () => { image.src = "logo.png"; image.closest(".product-image")?.classList.add("loaded"); };
+      image.onerror = () => {
+        const full = image.dataset.full;
+        if (full && image.getAttribute("src") !== full) { image.removeAttribute("data-full"); image.src = full; return; }
+        image.src = "logo.png"; image.closest(".product-image")?.classList.add("loaded");
+      };
       image.src = source;
       image.removeAttribute("data-src");
       imageObserver.unobserve(image);
@@ -1595,7 +1605,10 @@ function scrollToCategory(categoryId) {
   const top = window.scrollY + section.getBoundingClientRect().top - headerHeight - categoriesHeight - headingNavigationHeight - 10;
   pendingScrollCategoryId = categoryId;
   pendingScrollUntil = Date.now() + 5000;
-  window.scrollTo({ top: Math.max(0, top), left: 0, behavior: "smooth" });
+  // Far sections are reached in one jump: a long smooth scroll would start
+  // loading every product photo on the way before the wanted section's.
+  const far = Math.abs(top - window.scrollY) > window.innerHeight * 2;
+  window.scrollTo({ top: Math.max(0, top), left: 0, behavior: far ? "auto" : "smooth" });
   window.setTimeout(() => {
     if (pendingScrollCategoryId !== categoryId) return;
     pendingScrollCategoryId = "";
@@ -2762,7 +2775,7 @@ function minimumOrderNotice() {
 function renderReview() {
   $("#checkoutBody").innerHTML = `
     <section class="checkout-review"><div class="cart-list">${cartItems().map(({ cartKey, product: item, quantity, note, options }) => { const minimumIssue = cartItemMinimumIssue({ product: item, quantity, options }); const fillingIssue = cartItemFillingIssue({ product: item, quantity, options }); return `
-      <div class="cart-row ${minimumIssue || fillingIssue ? "minimum-order-warning" : ""}"><img src="${escapeHtml(productImages(item)[0] || "logo.png")}" alt="">
+      <div class="cart-row ${minimumIssue || fillingIssue ? "minimum-order-warning" : ""}"><img src="${escapeHtml(thumbnailUrl(productImages(item)[0]) || "logo.png")}" alt="">
         <div class="cart-copy"><h4>${escapeHtml(cartDisplayName(item, options))}</h4>${cartDetailOptions(item, options).length ? `<small class="cart-options">${escapeHtml(cartDetailOptions(item, options).map(optionSummary).join("، "))}</small>` : ""}${minimumIssue ? `<small class="minimum-order-warning-note">${escapeHtml(minimumOrderText(minimumIssue.minimum))}</small>` : ""}${fillingIssue ? `<small class="minimum-order-warning-note">${escapeHtml(state.lang === "ar" ? `الحشوات: ${new Intl.NumberFormat("ar-KW").format(fillingIssue.selectedQuantity)} من ${new Intl.NumberFormat("ar-KW").format(fillingIssue.required)}. احذف هذا الصنف وأضفه مجدداً لتوزيع الحشوات بدقة.` : `Fillings: ${fillingIssue.selectedQuantity} of ${fillingIssue.required}. Remove this item and add it again to distribute fillings correctly.`)}</small>` : ""}<strong>${money(selectionFlowTotal(item, options, quantity))}</strong></div><label class="cart-note-label"><textarea aria-label="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}" data-cart-note="${escapeHtml(cartKey)}" maxlength="240" placeholder="${state.lang === "ar" ? "ترك ملاحظة" : "Leave a note"}">${escapeHtml(note)}</textarea></label>
         <div class="qty"><button data-plus="${escapeHtml(cartKey)}">+</button><span>${quantity}</span><button data-minus="${escapeHtml(cartKey)}">${quantity === 1 ? "×" : "−"}</button></div>
       </div>`; }).join("")}</div><div class="checkout-sticky-actions">${cartHasLongPreparationItems() ? `<p class="long-preparation-notice">${state.lang === "ar" ? "ملاحظة: يوجد في طلبك أصناف تأخذ وقت للتجهيز.. لذا يرجى العلم أنه قد يتأخر طلبك أو يتم تأجيله." : "Note: Your order includes items that need extra preparation time, so it may be delayed or rescheduled."}</p>` : ""}${totalsHtml()}<button class="primary" id="next1">${tr("confirmContinue")}</button></div></section>`;
@@ -3089,7 +3102,7 @@ function renderConfirmation() {
       <div class="price-summary">
         <button class="price-row products-toggle" id="productsToggle"><span><b class="arrow">‹</b> ${tr("productsTotal")}</span><strong>${money(subtotal())}</strong></button>
         <div class="confirmation-products hidden" id="confirmationProducts">${cartItems().map(({ product: item, quantity, options }) => `
-          <div class="confirmation-product"><img src="${escapeHtml(productImages(item)[0] || "logo.png")}" alt=""><span>${escapeHtml(productName(item))} × ${quantity}</span><b>${money(selectionFlowTotal(item, options, quantity))}</b></div>`).join("")}</div>
+          <div class="confirmation-product"><img src="${escapeHtml(thumbnailUrl(productImages(item)[0]) || "logo.png")}" alt=""><span>${escapeHtml(productName(item))} × ${quantity}</span><b>${money(selectionFlowTotal(item, options, quantity))}</b></div>`).join("")}</div>
         ${tableReservationActive() ? "" : `<div class="price-row"><span>${tr("deliveryFee")}</span><strong>${money(deliveryFee())}</strong></div>`}
         <div class="price-row total-row"><span>${tr("total")}</span><strong>${money(total())}</strong></div>
       </div>
