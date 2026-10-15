@@ -1283,9 +1283,49 @@ function renderCategories() {
     if (type === "heading") buttons.push(`<button class="heading-category-link ${state.activeHeadingId === item.id ? "active" : ""}" data-heading-link="${escapeHtml(item.id)}">${escapeHtml(state.lang === "ar" ? item.nameAr : (item.nameEn || item.nameAr))}</button>`);
     else buttons.push(`<button class="${state.activeCategory === item.id ? "active" : ""}" data-category-link="${escapeHtml(item.id)}">${escapeHtml(categoryName(item))} <small>${categoryProducts(item.id).length}</small></button>`);
   });
-  $("#categories").innerHTML = buttons.join("");
+  const menuLabel = state.lang === "ar" ? "كل الأقسام" : "All categories";
+  const menuOpen = !$("#categoryMenu")?.classList.contains("hidden");
+  $("#categories").innerHTML = `<button type="button" class="category-menu-toggle" id="categoryMenuToggle" aria-label="${menuLabel}" aria-haspopup="true" aria-controls="categoryMenu" aria-expanded="${menuOpen}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h16"/></svg></button>` + buttons.join("");
+  renderCategoryMenu(entries);
   updateHeadingNavigation();
   syncHeadingNavigationOffset();
+}
+
+// Drop-down list of every category, so the customer can jump straight to one
+// instead of scrolling the horizontal bar.
+function renderCategoryMenu(entries) {
+  const menu = $("#categoryMenu");
+  if (!menu) return;
+  const item = category => `<button type="button" role="menuitem" class="${sameCatalogId(category.id, state.activeCategory) ? "active" : ""}" data-menu-category="${escapeHtml(category.id)}"><span>${escapeHtml(categoryName(category))}</span><small>${categoryProducts(category.id).length}</small></button>`;
+  menu.innerHTML = entries.map(({ type, item: entry }) => {
+    if (type === "category") return item(entry);
+    const ids = [...(entry.categoryIds || []), ...(entry.subheadings || []).flatMap(group => group.categoryIds || [])];
+    const categories = ids.map(id => state.categories.find(category => sameCatalogId(category.id, id))).filter(category => category && categoryProducts(category.id).length);
+    if (!categories.length) return "";
+    return `<div class="category-menu-group"><strong>${escapeHtml(state.lang === "ar" ? entry.nameAr : (entry.nameEn || entry.nameAr))}</strong>${categories.map(item).join("")}</div>`;
+  }).join("");
+}
+
+function positionCategoryMenu() {
+  const menu = $("#categoryMenu"), bar = $("#categories");
+  if (!menu || !bar) return;
+  const top = Math.max(0, Math.ceil(bar.getBoundingClientRect().bottom));
+  menu.style.top = `${top}px`;
+  menu.style.maxHeight = `${Math.max(180, window.innerHeight - top - 110)}px`;
+}
+
+function toggleCategoryMenu(open) {
+  const menu = $("#categoryMenu");
+  if (!menu) return;
+  const show = open ?? menu.classList.contains("hidden");
+  if (show) {
+    menu.querySelectorAll("[data-menu-category]").forEach(button => button.classList.toggle("active", sameCatalogId(button.dataset.menuCategory, state.activeCategory)));
+    positionCategoryMenu();
+  }
+  menu.classList.toggle("hidden", !show);
+  $("#categoryMenuToggle")?.setAttribute("aria-expanded", String(show));
+  $("#categoryMenuToggle")?.classList.toggle("open", show);
+  if (show) menu.querySelector(".active")?.scrollIntoView({ block: "nearest" });
 }
 
 function currentHeading() {
@@ -3537,11 +3577,26 @@ $("#authModal").onclick = event => { if (event.target === $("#authModal")) close
 $("#drawerClose").onclick = () => closeAccountDrawer(true);
 $("#drawerBackdrop").onclick = () => closeAccountDrawer(true);
 $("#categories").onclick = event => {
+  if (event.target.closest("#categoryMenuToggle")) { event.stopPropagation(); toggleCategoryMenu(); return; }
   const headingButton = event.target.closest("[data-heading-link]");
   if (headingButton) { const heading = (state.headings || []).find(item => item.id === headingButton.dataset.headingLink); const group = Array.isArray(heading?.subheadings) && heading.subheadings.length ? heading.subheadings[0] : { id: "", categoryIds: heading?.categoryIds || [] }; const category = group?.categoryIds?.[0]; state.activeHeadingId = headingButton.dataset.headingLink; state.activeSubheadingId = group?.id || ""; state.activeCategory = category || "all"; syncActiveNavigation(); if (category) scrollToCategory(category); return; }
   const button = event.target.closest("[data-category-link]");
   if (button) { state.activeCategory = button.dataset.categoryLink; syncActiveNavigation(); scrollToCategory(button.dataset.categoryLink); }
 };
+$("#categoryMenu").onclick = event => {
+  event.stopPropagation();
+  const button = event.target.closest("[data-menu-category]");
+  if (!button) return;
+  toggleCategoryMenu(false);
+  state.activeCategory = button.dataset.menuCategory;
+  syncActiveNavigation();
+  scrollToCategory(button.dataset.menuCategory);
+};
+document.addEventListener("click", event => {
+  if (!$("#categoryMenu")?.classList.contains("hidden") && !event.target.closest("#categoryMenu, #categoryMenuToggle")) toggleCategoryMenu(false);
+});
+document.addEventListener("keydown", event => { if (event.key === "Escape") toggleCategoryMenu(false); });
+["resize", "scroll"].forEach(type => window.addEventListener(type, () => { if (!$("#categoryMenu")?.classList.contains("hidden")) positionCategoryMenu(); }, { passive: true }));
 $("#headingNavigation").onclick = event => {
   const subheadingButton = event.target.closest("[data-subheading-nav]");
   if (subheadingButton) { const heading = currentHeading(); const group = heading?.subheadings?.find(item => item.id === subheadingButton.dataset.subheadingNav); const category = group?.categoryIds?.[0]; state.activeSubheadingId = subheadingButton.dataset.subheadingNav; state.activeCategory = category || "all"; updateHeadingNavigation(); if (category) scrollToCategory(category); return; }

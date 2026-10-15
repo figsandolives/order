@@ -311,4 +311,63 @@ html[lang="en"] .catalog-promise{direction:ltr}
 .table-reservation-panel #tableDate{direction:ltr!important;text-align:center;unicode-bidi:isolate}.table-hours-note{grid-column:1/-1;margin:0;color:#bb3434;font-size:10px;font-weight:900;line-height:1.7;text-align:right}@media(max-width:760px){.table-hours-note{font-size:9px}.table-reservation-panel #tablePeople::placeholder{font-size:11px}}
 .table-confirm{display:grid;gap:15px;text-align:center;padding:10px}.table-confirm h2{margin:0;font-size:25px}.table-confirm p{margin:0;color:var(--muted);line-height:2;font-size:13px}.table-confirm .actions{margin-top:5px}
 .modal.table-confirm-active{z-index:300}.table-confirm-underlay{z-index:219!important}
+.table-date-control{position:relative;display:block}.table-date-control output{display:none}@media(max-width:760px){.table-date-control input#tableDate{color:transparent!important;caret-color:transparent}.table-date-control input#tableDate::-webkit-calendar-picker-indicator{opacity:0}.table-date-control output{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;color:var(--ink);font-size:11px;font-weight:900;letter-spacing:.02em;direction:ltr}.steps.table-booking-steps{grid-template-columns:repeat(2,1fr)}.steps.table-booking-steps:before{left:25%;right:25%}}
 .checkout-head>#closeCheckout.table-back-button{width:auto;height:40px;min-width:76px;padding:0 14px;border-radius:12px;background:#edf3ef;color:var(--green);font-size:12px;font-weight:900;white-space:nowrap}
+
+/* زر قائمة الأقسام المنسدلة (خطوط) بجانب شريط الأقسام */
+.categories .category-menu-toggle{position:sticky;inset-inline-start:0;z-index:2;flex:0 0 auto;display:grid;place-items:center;width:44px;padding:0;border-color:var(--dark);background:var(--dark);color:#fff;box-shadow:-8px 0 0 var(--paper)}
+[dir="ltr"] .categories .category-menu-toggle{box-shadow:8px 0 0 var(--paper)}
+.category-menu-toggle svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round}
+.category-menu-toggle.open{background:var(--gold)!important;border-color:var(--gold)!important;color:var(--dark)!important}
+.category-menu{position:fixed;z-index:95;inset-inline-start:max(12px,calc((100vw - 1320px)/2));width:min(320px,calc(100vw - 24px));overflow-y:auto;overscroll-behavior:contain;padding:6px;border:1px solid #dce6df;border-radius:16px;background:#fff;box-shadow:0 18px 40px #14352930}
+.category-menu button{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:10px 12px;border:0;border-radius:10px;background:transparent;color:var(--ink);font-size:13px;font-weight:800;text-align:start}
+.category-menu button+button{border-top:1px solid #f0f2ee}
+.category-menu button small{flex:0 0 auto;min-width:24px;padding:2px 7px;border-radius:999px;background:#edf3ef;color:var(--green);font-size:10px;text-align:center}
+.category-menu button.active{background:var(--dark);color:#fff}
+.category-menu button.active small{background:#ffffff26;color:#fff}
+.category-menu-group{margin:4px 0;padding:4px 0;border-top:1px solid #e6ece7}
+.category-menu-group:first-child{border-top:0;margin-top:0}
+.category-menu-group strong{display:block;padding:6px 12px 2px;color:var(--muted);font-size:10px;font-weight:900}
+.category-menu-group button{padding-inline-start:20px}
+body.detail-open .category-menu{display:none}
+
+/* الجوال: ثلاث منتجات بالسطر + شريط أقسام وسلة أصغر لترك مساحة أكبر للمنتجات */
+@media(max-width:760px){
+  .categories{gap:6px;padding-top:8px;padding-bottom:7px}
+  .categories button{padding:6px 11px;font-size:12px}
+  .categories small{margin-right:4px;font-size:10px}
+  .categories .category-menu-toggle{width:36px;padding:0}
+  .category-menu-toggle svg{width:18px;height:18px}
+  .heading-navigation-row{padding-top:4px;padding-bottom:4px}
+  .heading-navigation-row button{padding:5px 10px}
+
+  .product-grid,.category-section .product-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:7px}
+  .product-card{border-radius:13px}
+  .product-image{aspect-ratio:1}
+  .product-info{padding:7px}
+  .product-info h3{margin:4px 0;font-size:10.5px;line-height:1.45;min-height:46px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  .preparation-badge{font-size:8px!important;padding:2px 6px!important;gap:3px!important}
+  .preparation-badge svg{width:9px!important;height:9px!important}
+  .minimum-order-badge{font-size:8px!important;padding:2px 6px!important}
+  .product-feature-badge{top:6px;right:6px;padding:3px 6px;font-size:8px}
+  .in-cart{top:6px;right:6px;padding:3px 6px;font-size:8px}
+  .product-image:has(.product-feature-badge) .in-cart{top:30px}
+  .product-foot{gap:5px;margin-top:6px}
+  .product-foot strong{font-size:11.5px}
+  .sale-price b{font-size:11.5px}
+  .sale-price del{font-size:9px}
+  .product-foot button,.product-add{padding:6px 4px;border-radius:9px;font-size:11px}
+  .product-qty{grid-template-columns:26px 1fr 26px;border-radius:9px}
+  .product-qty button{height:28px;padding:0}
+  .product-qty strong{font-size:11px}
+
+  .floating-cart{bottom:8px;width:calc(100% - 20px);padding:5px;gap:6px;border-radius:15px;grid-template-columns:1.2fr 1fr}
+  .cart-summary{gap:7px}
+  .bag{width:30px;height:30px;border-radius:10px}
+  .bag svg{width:17px;height:17px}
+  .bag b{top:-6px;right:-6px;min-width:17px;height:17px;font-size:8px}
+  .cart-summary small{font-size:9px}
+  .cart-summary strong{font-size:15px!important}
+  .checkout-btn{padding:9px 8px;border-radius:11px;font-size:13px}
+  .whatsapp-widget{bottom:72px!important}
+}
