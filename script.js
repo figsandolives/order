@@ -1296,13 +1296,20 @@ function renderCategories() {
 function renderCategoryMenu(entries) {
   const menu = $("#categoryMenu");
   if (!menu) return;
-  const item = category => `<button type="button" role="menuitem" class="${sameCatalogId(category.id, state.activeCategory) ? "active" : ""}" data-menu-category="${escapeHtml(category.id)}"><span>${escapeHtml(categoryName(category))}</span><small>${categoryProducts(category.id).length}</small></button>`;
+  const label = entry => escapeHtml(state.lang === "ar" ? entry.nameAr : (entry.nameEn || entry.nameAr));
+  const categoriesOf = ids => (ids || []).map(id => state.categories.find(category => sameCatalogId(category.id, id))).filter(category => category && categoryProducts(category.id).length);
+  const item = category => `<button type="button" role="menuitem" class="category-menu-item ${sameCatalogId(category.id, state.activeCategory) ? "active" : ""}" data-menu-category="${escapeHtml(category.id)}"><span>${escapeHtml(categoryName(category))}</span><small>${categoryProducts(category.id).length}</small></button>`;
+  const arrow = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 6-6 6 6 6"/></svg>`;
+  // A collapsible group: an arrow that turns down when opened to show what is inside.
+  const group = (title, inner, ids, level) => `<div class="category-menu-group level-${level}" data-menu-ids="${escapeHtml(ids.map(String).join(","))}"><button type="button" class="category-menu-group-toggle" data-menu-group-toggle aria-expanded="false"><i>${arrow}</i><span>${title}</span></button><div class="category-menu-children">${inner}</div></div>`;
   menu.innerHTML = entries.map(({ type, item: entry }) => {
     if (type === "category") return item(entry);
-    const ids = [...(entry.categoryIds || []), ...(entry.subheadings || []).flatMap(group => group.categoryIds || [])];
-    const categories = ids.map(id => state.categories.find(category => sameCatalogId(category.id, id))).filter(category => category && categoryProducts(category.id).length);
-    if (!categories.length) return "";
-    return `<div class="category-menu-group"><strong>${escapeHtml(state.lang === "ar" ? entry.nameAr : (entry.nameEn || entry.nameAr))}</strong>${categories.map(item).join("")}</div>`;
+    const subheadings = (entry.subheadings || []).map(sub => ({ sub, categories: categoriesOf(sub.categoryIds) })).filter(({ categories }) => categories.length);
+    const direct = categoriesOf(entry.categoryIds);
+    const allIds = [...direct, ...subheadings.flatMap(({ categories }) => categories)].map(category => category.id);
+    if (!allIds.length) return "";
+    const inner = direct.map(item).join("") + subheadings.map(({ sub, categories }) => group(label(sub), categories.map(item).join(""), categories.map(category => category.id), 2)).join("");
+    return group(label(entry), inner, allIds, 1);
   }).join("");
 }
 
@@ -1314,12 +1321,19 @@ function positionCategoryMenu() {
   menu.style.maxHeight = `${Math.max(180, window.innerHeight - top - 110)}px`;
 }
 
+function setCategoryMenuGroup(groupElement, open) {
+  groupElement.classList.toggle("open", open);
+  groupElement.querySelector(":scope > [data-menu-group-toggle]")?.setAttribute("aria-expanded", String(open));
+}
+
 function toggleCategoryMenu(open) {
   const menu = $("#categoryMenu");
   if (!menu) return;
   const show = open ?? menu.classList.contains("hidden");
   if (show) {
     menu.querySelectorAll("[data-menu-category]").forEach(button => button.classList.toggle("active", sameCatalogId(button.dataset.menuCategory, state.activeCategory)));
+    // Open only the groups that lead to the category being viewed now.
+    menu.querySelectorAll(".category-menu-group").forEach(groupElement => setCategoryMenuGroup(groupElement, groupElement.dataset.menuIds.split(",").some(id => sameCatalogId(id, state.activeCategory))));
     positionCategoryMenu();
   }
   menu.classList.toggle("hidden", !show);
@@ -3585,6 +3599,8 @@ $("#categories").onclick = event => {
 };
 $("#categoryMenu").onclick = event => {
   event.stopPropagation();
+  const groupToggle = event.target.closest("[data-menu-group-toggle]");
+  if (groupToggle) { const groupElement = groupToggle.parentElement; setCategoryMenuGroup(groupElement, !groupElement.classList.contains("open")); return; }
   const button = event.target.closest("[data-menu-category]");
   if (!button) return;
   toggleCategoryMenu(false);
