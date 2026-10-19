@@ -81,7 +81,7 @@ const translations = {
     order: "طلبك", completeOrder: "إتمام الطلب", review: "المراجعة", deliveryDetails: "تفاصيل العنوان",
     deliveryTime: "وقت التوصيل", pickupTime: "وقت الاستلام", withinTwoHours: "خلال ساعتين", withinTwoHoursHint: "يصلك الطلب في أقرب وقت متاح",
     chooseSpecificTime: "اختيار وقت محدد", chooseSpecificTimeHint: "حدد اليوم والساعة المناسبة لك",
-    notifyWhenReady: "إبلاغي عند اكتمال الطلب", notifyWhenReadyHint: "سيتواصل معك الفرع عندما يصبح الطلب جاهزاً",
+    notifyWhenReady: "إبلاغي عند اكتمال الطلب", whatsappTimingTitle: "سيتم إبلاغك بوقت التوصيل المستغرق للتحضير.. عن طريق الواتساب", whatsappTimingHint: "في طلبك أصناف تحتاج وقت تحضير أطول من ساعتين", whatsappTimingSummary: "أرجو إبلاغي عن طريق الواتساب بتاريخ ووقت التوصيل المستغرق للتحضير ..", notifyWhenReadyHint: "سيتواصل معك الفرع عندما يصبح الطلب جاهزاً",
     chooseArrivalTime: "تحديد وقت الوصول للفرع", chooseArrivalTimeHint: "حدد اليوم والوقت المتوقع لوصولك",
     deliveryDate: "التاريخ", hour: "الساعة", minute: "الدقائق", period: "الفترة",
     morning: "صباحاً", evening: "مساءً", chooseValidTime: "يرجى اختيار تاريخ ووقت قادم",
@@ -147,7 +147,7 @@ const translations = {
     order: "Your order", completeOrder: "Complete order", review: "Review", deliveryDetails: "Address details",
     deliveryTime: "Delivery time", pickupTime: "Pickup time", withinTwoHours: "Within two hours", withinTwoHoursHint: "Your order will arrive as soon as possible",
     chooseSpecificTime: "Choose a specific time", chooseSpecificTimeHint: "Select the day and time that suits you",
-    notifyWhenReady: "Notify me when ready", notifyWhenReadyHint: "The branch will contact you when your order is ready",
+    notifyWhenReady: "Notify me when ready", whatsappTimingTitle: "We will tell you on WhatsApp when your order will be delivered", whatsappTimingHint: "Your order has items that take longer than two hours to prepare", whatsappTimingSummary: "Please tell me on WhatsApp the delivery date and time once preparation is planned", notifyWhenReadyHint: "The branch will contact you when your order is ready",
     chooseArrivalTime: "Choose branch arrival time", chooseArrivalTimeHint: "Select your expected arrival date and time",
     deliveryDate: "Date", hour: "Hour", minute: "Minutes", period: "Period",
     morning: "AM", evening: "PM", chooseValidTime: "Please choose a future date and time",
@@ -3062,7 +3062,7 @@ function setSteps() {
 
 function renderCheckout() {
   // توصيل بس: أي حالة استلام قديمة (من جلسة سابقة) ترجع توصيل قبل ما تنرسم الخطوات.
-  if (state.mode !== "delivery") { state.mode = "delivery"; state.branch = ""; if (state.deliveryTiming === "notify") state.deliveryTiming = "asap"; }
+  if (state.mode !== "delivery") { state.mode = "delivery"; state.branch = ""; if (state.deliveryTiming === "notify" && !cartHasLongPreparationItems()) state.deliveryTiming = "asap"; }
   setSteps();
   $("#checkoutTitle").textContent = state.step === 3
     ? (state.mode === "pickup" ? tr("pickupTime") : tr("deliveryTime"))
@@ -3115,7 +3115,7 @@ function selectSavedAddress(addressId) {
 
 function renderDelivery() {
   // الموقع صار توصيل بس: العميل يختار عنوان التوصيل على طول (بدون خيار الاستلام).
-  if (state.mode !== "delivery") { state.mode = "delivery"; state.branch = ""; if (state.deliveryTiming === "notify") state.deliveryTiming = "asap"; }
+  if (state.mode !== "delivery") { state.mode = "delivery"; state.branch = ""; if (state.deliveryTiming === "notify" && !cartHasLongPreparationItems()) state.deliveryTiming = "asap"; }
   if (state.mode === "pickup" && !branches.some(branch => branch.id === state.branch)) state.branch = "";
   const restaurantPickup = state.mode === "pickup" && cartHasRestaurantItems();
   if (restaurantPickup && state.branch !== "abu") state.branch = "";
@@ -3284,6 +3284,9 @@ function isScheduledTimeAllowed(value, now = new Date()) {
 }
 
 function renderDeliveryTime() {
+  // أصناف تحضيرها أطول من ساعتين: ما فيه «خلال ساعتين» ولا اختيار وقت، المخبز يبلغ العميل بالواتساب.
+  // تنحفظ بنوع «notify» اللي يقبله السيرفر.
+  if (state.mode === "delivery" && cartHasLongPreparationItems()) return renderWhatsappDeliveryTime();
   if (state.mode === "pickup" && state.deliveryTiming === "asap") state.deliveryTiming = "notify";
   if (state.mode === "delivery" && state.deliveryTiming === "notify") state.deliveryTiming = "asap";
   const asapUnavailable = state.mode === "delivery" && isAsapDeliveryUnavailable();
@@ -3343,6 +3346,25 @@ function renderDeliveryTime() {
   };
 }
 
+function renderWhatsappDeliveryTime() {
+  state.deliveryTiming = "notify";
+  $("#checkoutBody").innerHTML = `
+    <section class="delivery-time-panel">
+      <div class="time-choice selected whatsapp-timing" role="status">
+        <span class="radio">✓</span><span><strong>${tr("whatsappTimingTitle")}</strong><small>${tr("whatsappTimingHint")}</small></span>
+      </div>
+      <div class="actions"><button class="secondary" id="backTime">${tr("back")}</button><button class="primary" id="confirmTime">${tr("confirmContinue")}</button></div>
+    </section>`;
+  $("#backTime").onclick = () => { state.step = 2; renderCheckout(); };
+  $("#confirmTime").onclick = () => { state.deliveryTiming = "notify"; state.paymentRequestId = ""; state.step = 4; renderCheckout(); };
+}
+
+// A scheduled time on the same day as the order needs no date, only the hours.
+function sameCalendarDay(first, second) {
+  const a = new Date(first), b = new Date(second);
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
 function formatDeliveryTime(value) {
   return new Date(value).toLocaleTimeString(state.lang === "ar" ? "ar-KW" : "en-GB", { hour: "numeric", minute: "2-digit" });
 }
@@ -3353,22 +3375,24 @@ function formatScheduleDate(value) {
   });
 }
 
-function scheduledWindowSummary(value, mode = state.mode) {
+function scheduledWindowSummary(value, mode = state.mode, reference = Date.now()) {
   const end = new Date(value);
   const start = new Date(end.getTime() - 60 * 60 * 1000);
   const label = mode === "pickup" ? tr("scheduledPickupTime") : tr("scheduledDeliveryTime");
-  return `${label}: ${formatScheduleDate(end)}، ${tr("betweenTime")} ${formatDeliveryTime(start)} ${tr("andTime")} ${formatDeliveryTime(end)}`;
+  const day = sameCalendarDay(end, reference) ? "" : `${formatScheduleDate(end)}، `;
+  return `${label}: ${day}${tr("betweenTime")} ${formatDeliveryTime(start)} ${tr("andTime")} ${formatDeliveryTime(end)}`;
 }
 
 function deliveryTimeSummary(source = state) {
   if (source.mode === "pickup" && source.status === "paid") return tr("pickupContactConfirmation");
   if (source.deliveryTiming === "scheduled" && source.scheduledAt) {
-    return scheduledWindowSummary(source.scheduledAt, source.mode);
+    return scheduledWindowSummary(source.scheduledAt, source.mode, source.createdAt || Date.now());
   }
   if (source.deliveryTiming === "scheduled") {
     const scheduled = scheduledDateTime();
     return scheduled ? scheduledWindowSummary(scheduled, source.mode) : tr("chooseSpecificTime");
   }
+  if (source.deliveryTiming === "notify" && source.mode !== "pickup") return tr("whatsappTimingSummary");
   if (source.mode === "pickup" || source.deliveryTiming === "notify") return tr("notifyWhenReady");
   if (source.expectedStart && source.expectedEnd) {
     return `${tr("betweenTime")} ${formatDeliveryTime(source.expectedStart)} ${tr("andTime")} ${formatDeliveryTime(source.expectedEnd)}`;
@@ -3385,7 +3409,7 @@ function deliveryTimeSummaryLines(source = state) {
   const label = source.mode === "pickup" ? tr("scheduledPickupTime") : tr("scheduledDeliveryTime");
   return [
     `${label}:`,
-    `${formatScheduleDate(scheduled)}،`,
+    ...(sameCalendarDay(scheduled, source.createdAt || Date.now()) ? [] : [`${formatScheduleDate(scheduled)}،`]),
     `${tr("betweenTime")} ${formatDeliveryTime(start)} ${tr("andTime")} ${formatDeliveryTime(scheduled)}`
   ];
 }
@@ -3745,7 +3769,10 @@ function invoiceDeliveryTime(order) {
   const end = new Date(order.scheduledAt), start = new Date(end.getTime() - 60 * 60 * 1000);
   const date = new Intl.DateTimeFormat("ar-KW", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(end);
   const time = value => new Intl.DateTimeFormat("ar-KW", { hour: "numeric", minute: "2-digit" }).format(value);
-  return `وقت التوصيل المحدد:<br>${date}،<br>بين ${time(start)} إلى ${time(end)}`;
+  // Same day as the invoice: the hours alone are clear.
+  return sameCalendarDay(end, order.createdAt || Date.now())
+    ? `وقت التوصيل المحدد:<br>بين ${time(start)} إلى ${time(end)}`
+    : `وقت التوصيل المحدد:<br>${date}،<br>بين ${time(start)} إلى ${time(end)}`;
 }
 
 function buildInvoice(order) {
