@@ -1041,19 +1041,55 @@ function persistCart() {
   queueUserSync();
 }
 
+// صفحة «الزوار الآن» في الإدارة: وين الزائر الحين (الرئيسية، غلاف، منتج، إتمام الطلب) وكم في سلته.
+// الأسماء بالعربي دايماً عشان الإدارة، بغض النظر عن لغة الزائر.
+const VISITOR_REFERRER = (() => { try { const host = document.referrer ? new URL(document.referrer).hostname : ""; return host && host !== location.hostname ? host : ""; } catch { return ""; } })();
+const STEP_LABELS = ["", "مراجعة السلة", "تفاصيل العنوان", "وقت التوصيل", "تأكيد ودفع"];
+function visitorActivity() {
+  let path = location.pathname;
+  try { path = decodeURIComponent(path); } catch { /* keep raw */ }
+  const base = { path, cartCount: cartCount(), cartValue: Number(subtotal().toFixed(3)), lang: state.lang, referrer: VISITOR_REFERRER };
+  const detail = state.detailProductId && Array.isArray(state.products) ? product(state.detailProductId) : null;
+  const cover = detail ? coverForProduct(detail.id) : activeCover();
+  if (!$("#checkoutModal")?.classList.contains("hidden")) return { ...base, view: "checkout", checkoutStep: state.step, label: `إتمام الطلب: ${STEP_LABELS[state.step] || ""}` };
+  if (!$("#accountDrawer")?.classList.contains("hidden")) return { ...base, view: "account", label: "حسابي" };
+  if (detail) return { ...base, view: "product", productId: String(detail.id), productName: detail.name, coverName: cover?.nameAr || "", label: detail.name };
+  const query = String($("#searchInput")?.value || "").trim();
+  if (query) return { ...base, view: "search", label: `يبحث عن: ${query.slice(0, 60)}` };
+  if (cover) return { ...base, view: "cover", coverName: cover.nameAr, label: cover.nameAr };
+  return { ...base, view: "home", label: "الصفحة الرئيسية" };
+}
+let presenceTimer = 0, lastPresenceAt = 0, lastPresenceKey = "";
+// Page changes report right away (once every few seconds at most), on top of the 30-second heartbeat.
+function schedulePresence() {
+  if (PICKER_MODE) return;
+  clearTimeout(presenceTimer);
+  presenceTimer = setTimeout(() => {
+    let key = "";
+    try { const activity = visitorActivity(); key = JSON.stringify([activity.path, activity.label, activity.cartCount, activity.cartValue]); } catch { return; }
+    if (key === lastPresenceKey) return;
+    const wait = 6000 - (Date.now() - lastPresenceAt);
+    if (wait > 0) return void (presenceTimer = setTimeout(schedulePresence, wait));
+    reportVisitorPresence();
+  }, 1200);
+}
 function reportVisitorPresence() {
   if (PICKER_MODE) return;
   const endpoint = orderingConfig.visitorPresenceWebhookUrl;
   if (!endpoint) return;
+  let activity = null;
+  try { activity = visitorActivity(); lastPresenceKey = JSON.stringify([activity.path, activity.label, activity.cartCount, activity.cartValue]); } catch { activity = null; }
+  lastPresenceAt = Date.now();
   fetch(orderingApiUrl(endpoint), {
     method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/json" },
-    body: JSON.stringify({ visitorId, visitorType: state.user?.phone ? "registered" : "new", customer: state.user?.phone ? { name: state.user.name, phone: state.user.phone } : null }),
+    body: JSON.stringify({ visitorId, visitorType: state.user?.phone ? "registered" : "new", customer: state.user?.phone ? { name: state.user.name, phone: state.user.phone } : null, activity }),
     cache: "no-store", keepalive: true
   }).catch(() => undefined);
 }
 
 function trackStoreEvent(type, details = {}) {
   if (PICKER_MODE) return;
+  schedulePresence();
   const endpoint = orderingConfig.analyticsWebhookUrl;
   if (!endpoint) return;
   const onceKey = `figsOlivesEvent:${type}:${new Date().toISOString().slice(0, 10)}`;
@@ -1781,6 +1817,7 @@ function coverIdFromUrl() {
 // عنوان التبويب يطابق صفحة الغلاف أو المنتج المفتوحة (نفس عناوين الصفحات المولّدة لمحركات البحث).
 const HOME_TITLE = document.documentElement.dataset.pageLang ? "" : document.title;
 function updateDocumentTitle() {
+  schedulePresence();
   const brand = state.lang === "ar" ? "مخبز التين والزيتون" : "Figs & Olives Bakery";
   const detail = state.detailProductId && Array.isArray(state.products) ? product(state.detailProductId) : null;
   const cover = detail ? coverForProduct(detail.id) : activeCover();
@@ -1951,6 +1988,7 @@ function visibleLayer(selector) {
 }
 
 function syncPageScrollLock() {
+  schedulePresence();
   const shouldLock = visibleLayer("#productPage") || visibleLayer("#productOptionsModal") || visibleLayer("#checkoutModal")
     || visibleLayer("#accountDrawer") || visibleLayer("#authModal") || visibleLayer("#searchPopover") || Boolean(productOptionsPopover);
   if (shouldLock && !pageScrollLocked) {
@@ -3159,6 +3197,7 @@ function renderCheckout() {
   $("#checkoutTitle").textContent = state.step === 3
     ? (state.mode === "pickup" ? tr("pickupTime") : tr("deliveryTime"))
     : state.step === 4 ? tr("confirmPay") : tr("completeOrder");
+  schedulePresence();
   if (state.step === 1) renderReview();
   else if (state.step === 2) renderDelivery();
   else if (state.step === 3) renderDeliveryTime();
@@ -4268,6 +4307,7 @@ window.addEventListener("popstate", syncProductRoute);
 document.addEventListener("gesturestart", event => event.preventDefault(), { passive: false });
 
 const overlayStateObserver = new MutationObserver(syncPageScrollLock);
+$("#searchInput")?.addEventListener("input", schedulePresence);
 ["#productPage", "#productOptionsModal", "#checkoutModal", "#accountDrawer", "#authModal", "#searchPopover"].forEach(selector => {
   const element = $(selector);
   if (element) overlayStateObserver.observe(element, { attributes: true, attributeFilter: ["class"] });
