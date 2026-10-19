@@ -329,7 +329,8 @@ const state = {
   products: [], categories: [], headings: [], areas: [], cart: loadUserCart(initialUser), search: "", activeCategory: "all", activeHeadingId: "", activeSubheadingId: "",
   catalogType: entryCatalogType(),
   restaurantEnabled: true,
-  lang: localStorage.getItem("storeLanguage") === "en" ? "en" : "ar",
+  // صفحات الأغلفة والمنتجات المولّدة تحدد لغتها (رابط إنجليزي يفتح بالإنجليزي).
+  lang: (document.documentElement.dataset.pageLang || localStorage.getItem("storeLanguage")) === "en" ? "en" : "ar",
   step: 1, mode: "delivery", area: null, branch: "", addressId: "", address: "",
   name: "", phone: "", order: "", paymentRequestId: "", detailProductId: "",
   paymentMethod: "", deliveryTiming: "asap", scheduledDate: "", scheduledHour: "1",
@@ -1192,7 +1193,7 @@ function updateAccountButton() {
 function applyLanguage() {
   document.documentElement.lang = state.lang;
   document.documentElement.dir = state.lang === "ar" ? "rtl" : "ltr";
-  document.title = state.lang === "ar" ? "منصة طلبات التين والزيتون" : "Figs & Olives Ordering";
+  updateDocumentTitle();
   $$("[data-i18n]").forEach(element => element.textContent = tr(element.dataset.i18n));
   $$("[data-i18n-html]").forEach(element => element.innerHTML = tr(element.dataset.i18nHtml));
   $$("[data-i18n-placeholder]").forEach(element => element.placeholder = tr(element.dataset.i18nPlaceholder));
@@ -1737,7 +1738,8 @@ function coverForProduct(id) {
 }
 function prettyPath(cover, item = null) {
   if (!cover) return APP_BASE;
-  return `${APP_BASE}${coverSlug(cover)}${item ? `/${productSlug(item)}` : ""}`;
+  // الشرطة بالآخر تطابق مجلدات الصفحات المولّدة، فما يصير تحويل من GitHub.
+  return `${APP_BASE}${coverSlug(cover)}/${item ? `${productSlug(item)}/` : ""}`;
 }
 // Query parameters other than the old cover/filter ones stay on the address.
 function keptSearch() {
@@ -1752,8 +1754,19 @@ function coverIdFromUrl() {
   return String(new URLSearchParams(location.search).get("cover") || "");
 }
 // Rewrite the address to the pretty form (old ?cover= links, language change, product open/close).
+// عنوان التبويب يطابق صفحة الغلاف أو المنتج المفتوحة (نفس عناوين الصفحات المولّدة لمحركات البحث).
+const HOME_TITLE = document.documentElement.dataset.pageLang ? "" : document.title;
+function updateDocumentTitle() {
+  const brand = state.lang === "ar" ? "مخبز التين والزيتون" : "Figs & Olives Bakery";
+  const detail = state.detailProductId && Array.isArray(state.products) ? product(state.detailProductId) : null;
+  const cover = detail ? coverForProduct(detail.id) : activeCover();
+  if (detail) document.title = [productName(detail), cover && coverText(cover, "name"), brand].filter(Boolean).join(" | ");
+  else if (cover) document.title = `${coverText(cover, "name")} | ${brand}`;
+  else document.title = state.lang === "ar" && HOME_TITLE ? HOME_TITLE : (state.lang === "ar" ? "مخبز التين والزيتون | خبز قمح كامل وأكل صحي في الكويت" : "Figs & Olives Bakery | Whole wheat bread & healthy food in Kuwait");
+}
 function syncPrettyUrl(mode = "replace") {
   if (PICKER_MODE) return;
+  updateDocumentTitle();
   const detail = state.detailProductId ? product(state.detailProductId) : null;
   const cover = detail ? coverForProduct(detail.id) : activeCover();
   const path = detail && !cover ? `${APP_BASE}${keptSearch()}#product=${encodeURIComponent(detail.id)}` : `${prettyPath(cover, detail)}${keptSearch()}`;
