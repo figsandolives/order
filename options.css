@@ -1,0 +1,260 @@
+/* نوافذ خيارات المنتج (خيار واحد، خيار ثاني وثالث، وخطوات العجينة والحشوات).
+   النافذة دايماً بنص الشاشة، ما تطلع برا الحدود: رأس ثابت، قائمة تنزل لحالها، وزر الإضافة ظاهر دايماً.
+   الكود يحط left/top جنب الزر، فهني نرجّعها للنص بـ !important. */
+
+.product-options-backdrop{
+  background:rgba(13,33,25,.55);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  animation:optionsFade .18s ease-out;
+}
+.product-options-popover,
+.selection-flow-popover{
+  inset:0!important;
+  margin:auto;
+  width:min(440px,calc(100vw - 24px));
+  height:fit-content;
+  max-height:min(680px,calc(100dvh - 24px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px)));
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  padding:18px;
+  overflow:hidden;
+  border:0;
+  border-radius:24px;
+  background:#fffefb;
+  box-shadow:0 30px 80px rgba(7,28,20,.32),0 0 0 1px rgba(25,68,51,.06);
+  animation:optionsIn .22s cubic-bezier(.2,.8,.2,1);
+  -webkit-tap-highlight-color:transparent;
+}
+@keyframes optionsIn{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes optionsFade{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){.product-options-popover,.product-options-backdrop{animation:none}}
+
+/* الرأس: نوع الخطوة واسم المنتج، وزر الإغلاق */
+.product-options-popover header{
+  flex:0 0 auto;
+  align-items:center;
+  gap:12px;
+  padding-bottom:12px;
+  border-bottom:1px solid #edf0ec;
+}
+.product-options-popover header div{gap:4px}
+.product-options-popover header small{
+  justify-self:start;
+  padding:3px 10px;
+  border-radius:999px;
+  background:#eaf3ed;
+  color:#2d6a4f;
+  font-size:11px;
+  font-weight:900;
+}
+.product-options-popover header strong{font-size:15.5px;font-weight:900;line-height:1.55;color:#18352a}
+.product-options-popover header button{
+  width:36px;height:36px;flex:0 0 auto;
+  display:grid;place-items:center;
+  padding:0;border:0;border-radius:50%;
+  background:#f1f4f2;color:#33473d;
+  font-size:20px;line-height:1;
+  box-shadow:none;
+  touch-action:manipulation;
+}
+.product-options-popover header button:active{transform:scale(.94);background:#e6ebe7}
+
+/* سطر الشرح وعنوان المجموعة */
+.product-options-popover>p{flex:0 0 auto;margin:0;color:#5f7168;font-size:12.5px;font-weight:700;line-height:1.7}
+.product-options-popover .option-group-title{
+  flex:0 0 auto;
+  gap:3px;
+  padding:10px 12px;
+  border-radius:14px;
+  background:#f1f7f3;
+}
+.product-options-popover .option-group-title strong{font-size:13.5px;font-weight:900}
+.product-options-popover .option-group-title small{font-size:11.5px;font-weight:700;color:#557a64}
+.product-options-popover .filling-progress{flex:0 0 auto;padding:9px 12px;border-radius:12px;font-size:12px}
+.product-options-popover .filling-progress b{font-size:13.5px}
+
+/* القائمة: هي بس اللي تنزل، والرأس والزر ثابتين */
+.product-options-popover .product-options-list,
+.selection-flow-popover .product-options-list{
+  flex:1 1 auto;
+  min-height:0;
+  max-height:none;
+  display:grid;
+  align-content:start;
+  gap:8px;
+  margin:0 -4px;
+  padding:3px 4px;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  scrollbar-width:thin;
+  scrollbar-color:#cfdcd3 transparent;
+}
+.selection-flow-popover .flow-option-row{gap:0}
+.flow-option-group-title{margin:8px 2px 0;font-size:12px;font-weight:900;color:#2d6a4f}
+
+/* كل خيار: بطاقة مرتبة، الاسم والإنجليزي تحته، والسعر بشارة على الطرف */
+.product-options-popover .product-option-choice,
+.selection-flow-popover .flow-option-row .product-option-choice{
+  position:relative;
+  display:flex;
+  align-items:center;
+  gap:11px;
+  min-height:58px;
+  padding:11px 13px;
+  border:1.5px solid #e5ebe6;
+  border-radius:15px;
+  background:#fff;
+  cursor:pointer;
+  transition:border-color .15s,background-color .15s,box-shadow .15s,transform .1s;
+  touch-action:manipulation;
+  -webkit-user-select:none;
+  user-select:none;
+}
+.product-options-popover .product-option-choice:active{transform:scale(.985)}
+.product-options-popover .product-option-choice:has(input:checked){
+  border-color:#2d6a4f;
+  background:#f3f8f4;
+  box-shadow:0 0 0 3px rgba(45,106,79,.1);
+}
+@media(hover:hover) and (pointer:fine){
+  .product-options-popover .product-option-choice:hover{border-color:#bcd2c3}
+  .product-options-popover .product-option-choice:has(input:checked):hover{border-color:#2d6a4f}
+}
+
+/* دائرة الاختيار ومربع الاختيار المتعدد */
+.product-options-popover .product-option-choice input{
+  appearance:none;
+  -webkit-appearance:none;
+  width:21px;height:21px;
+  flex:0 0 auto;
+  margin:0;
+  border:2px solid #c3d1c8;
+  border-radius:50%;
+  background:#fff;
+  transition:border-color .15s,background-color .15s,box-shadow .15s;
+  pointer-events:none;
+}
+.product-options-popover .product-option-choice input[type="radio"]:checked{
+  border-color:#2d6a4f;
+  box-shadow:inset 0 0 0 4px #fff;
+  background:#2d6a4f;
+}
+.product-options-popover .product-option-choice input[type="checkbox"]{border-radius:7px}
+.product-options-popover .product-option-choice input[type="checkbox"]:checked{
+  border-color:#2d6a4f;
+  background:#2d6a4f url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center/14px no-repeat;
+}
+
+.product-options-popover .product-option-choice>img{width:42px;height:42px;border-radius:11px}
+.product-options-popover .product-option-choice span{flex:1 1 auto;min-width:0;display:grid;gap:2px}
+.product-options-popover .product-option-choice b{font-size:14px;font-weight:800;line-height:1.5;color:#18352a;overflow-wrap:anywhere}
+.product-options-popover .product-option-choice small{
+  direction:ltr;
+  text-align:right;
+  font-size:11.5px;
+  font-weight:600;
+  color:#7b8a82;
+  line-height:1.5;
+  overflow-wrap:anywhere;
+}
+[dir="ltr"] .product-options-popover .product-option-choice small{direction:rtl;text-align:left}
+.product-options-popover .product-option-choice i{margin-top:3px;font-size:10.5px}
+.product-options-popover .product-option-choice em{
+  flex:0 0 auto;
+  display:grid;
+  justify-items:center;
+  gap:1px;
+  padding:5px 10px;
+  border-radius:999px;
+  background:#eef5f0;
+  color:#1f5a40;
+  font-size:12.5px;
+  font-weight:900;
+  font-style:normal;
+  white-space:nowrap;
+}
+.product-options-popover .product-option-choice:has(input:checked) em{background:#2d6a4f;color:#fff}
+.product-options-popover .product-option-choice:has(input:checked) em .per-unit-price{color:rgba(255,255,255,.8)!important}
+.product-options-popover .per-unit-price{font-size:9px!important}
+
+/* الكمية داخل الخيار: أصغر شوي عشان ما تزحم الاسم */
+.product-options-popover .option-choice-quantity-wrap,
+.selection-flow-popover .product-option-choice .flow-choice-quantity-wrap{flex:0 0 96px!important;width:96px!important}
+.product-options-popover .option-choice-quantity-wrap>small,
+.selection-flow-popover .product-option-choice .flow-choice-quantity-wrap>small{font-size:10px!important;text-align:center!important}
+.product-options-popover .product-option-choice .option-choice-quantity,
+.selection-flow-popover .product-option-choice .flow-choice-quantity{
+  grid-template-columns:repeat(3,32px)!important;
+  width:96px!important;min-width:96px!important;
+  border-radius:11px!important;
+  background:#fff;
+}
+.product-options-popover .product-option-choice .option-choice-quantity button,
+.selection-flow-popover .product-option-choice .flow-choice-quantity button{height:32px!important;font-size:18px!important;touch-action:manipulation}
+.product-options-popover .product-option-choice .option-choice-quantity span,
+.selection-flow-popover .product-option-choice .flow-choice-quantity span{font-size:13px!important}
+
+/* الأسفل: السعر الحالي وزر الإضافة، ثابتين تحت */
+.product-options-popover .selection-flow-footer{flex:0 0 auto;gap:10px;padding-top:4px}
+.product-options-popover .selection-price{
+  flex:0 0 auto;
+  padding:11px 14px;
+  border:0;
+  border-radius:14px;
+  background:#f1f7f3;
+  font-size:13px;
+}
+.product-options-popover .selection-price b{font-size:16px;color:#18352a}
+.product-options-popover>.primary,
+.product-options-popover .selection-flow-footer .primary{
+  flex:0 0 auto;
+  width:100%;
+  min-height:50px;
+  border-radius:15px;
+  font-size:15px;
+  font-weight:900;
+  touch-action:manipulation;
+}
+.product-options-popover .primary:active:not(:disabled){transform:scale(.98)}
+
+@media(max-width:760px){
+  .product-options-popover,
+  .selection-flow-popover{
+    width:calc(100vw - 20px);
+    max-height:calc(100dvh - 20px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));
+    padding:16px 14px 14px;
+    gap:10px;
+    border-radius:22px;
+  }
+  .product-options-popover header strong{font-size:14.5px}
+  .product-options-popover .product-option-choice,
+  .selection-flow-popover .flow-option-row .product-option-choice{min-height:54px;padding:10px 11px;gap:10px;border-radius:14px}
+  .product-options-popover .product-option-choice b{font-size:13.5px}
+  .product-options-popover .product-option-choice small{font-size:11px}
+  .product-options-popover .product-option-choice em{padding:4px 9px;font-size:12px}
+  .product-options-popover>.primary,
+  .product-options-popover .selection-flow-footer .primary{min-height:48px}
+}
+
+/* الخيار المختار اللي فيه كمية: الكمية تنزل بسطر تحته، فالاسم ما ينضغط */
+.product-options-popover .product-option-choice:has(.option-choice-quantity-wrap),
+.selection-flow-popover .product-option-choice:has(.flow-choice-quantity-wrap){flex-wrap:wrap;row-gap:10px}
+.product-options-popover .option-choice-quantity-wrap,
+.selection-flow-popover .product-option-choice .flow-choice-quantity-wrap{
+  flex:1 0 100%!important;
+  width:auto!important;
+  display:flex!important;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding-top:9px;
+  border-top:1px dashed #cfe0d5;
+}
+.product-options-popover .option-choice-quantity-wrap>small,
+.selection-flow-popover .product-option-choice .flow-choice-quantity-wrap>small{font-size:12px!important}
+.product-options-popover .product-option-choice .option-choice-quantity,
+.selection-flow-popover .product-option-choice .flow-choice-quantity{grid-template-columns:repeat(3,36px)!important;width:108px!important;min-width:108px!important}
+.product-options-popover .product-option-choice .option-choice-quantity button,
+.selection-flow-popover .product-option-choice .flow-choice-quantity button{height:34px!important}
