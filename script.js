@@ -1075,6 +1075,8 @@ function schedulePresence() {
 }
 function reportVisitorPresence() {
   if (PICKER_MODE) return;
+  // تبويب مخفي (الموقع مفتوح بالخلفية) ما يُحسب «يتصفح الحين»: ما نرسل نبض لين يرجع يطالع الصفحة.
+  if (document.visibilityState === "hidden") return;
   const endpoint = orderingConfig.visitorPresenceWebhookUrl;
   if (!endpoint) return;
   let activity = null;
@@ -4324,6 +4326,7 @@ window.addEventListener("pageshow", () => {
 
 reportVisitorPresence();
 setInterval(reportVisitorPresence, 30000);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") reportVisitorPresence(); });
 
 applyLanguage();
 if (state.user) {
