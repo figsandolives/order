@@ -1213,6 +1213,7 @@ function applyLanguage() {
 function setLanguage(language) {
   state.lang = language;
   localStorage.setItem("storeLanguage", language);
+  setTimeout(() => syncPrettyUrl("replace"), 0);
   applyLanguage();
   renderCategories();
   renderProductFilters();
@@ -1651,7 +1652,7 @@ function coverMosaicMarkup(cover) {
 }
 function coverTileMarkup(cover) {
   const animated = cover.imageMode === "animated";
-  return `<a class="world-tile size-${cover.size}${animated ? " is-animated" : ""}" href="?cover=${encodeURIComponent(cover.id)}" data-cover-open="${escapeHtml(cover.id)}">
+  return `<a class="world-tile size-${cover.size}${animated ? " is-animated" : ""}" href="${escapeHtml(prettyPath(cover))}" data-cover-open="${escapeHtml(cover.id)}">
     ${animated ? coverMosaicMarkup(cover) : (cover.image ? `<img src="${escapeHtml(cover.image)}" alt="" loading="lazy" decoding="async">` : "")}
     <span class="world-tile-copy"><strong>${escapeHtml(coverText(cover, "name"))}</strong>${coverText(cover, "description") ? `<small>${escapeHtml(coverText(cover, "description"))}</small>` : ""}</span>
     <span class="world-tile-count">${itemsLabel(coverProducts(cover).length)}</span>
@@ -1702,19 +1703,75 @@ function renderCoverStage() {
   syncHeadingNavigationOffset();
 }
 
-function coverIdFromUrl() { return String(new URLSearchParams(location.search).get("cover") || ""); }
+// ---------- روابط بالاسم ----------
+// figsolives.online/الإفطار (أو /breakfast بالإنجليزي) يفتح الغلاف، و /الإفطار/<اسم-المنتج> يفتح المنتج داخله.
+// GitHub Pages يعرض 404.html لأي رابط غير موجود، وهي نفس الصفحة، فالمنصة تقرا الرابط هني.
+const APP_BASE = (() => { const href = document.querySelector("base")?.getAttribute("href") || "/"; return href.endsWith("/") ? href : `${href}/`; })();
+function slugify(text) {
+  return String(text || "").trim()
+    .replace(/[()[\]{}.,،؛:;!?؟"'«»\/\\|#%&+*=<>~`^]/g, " ")
+    .replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase();
+}
+function coverSlug(cover, lang = state.lang) { return slugify(lang === "ar" ? cover.nameAr : (cover.nameEn || cover.nameAr)) || cover.id; }
+function productSlug(item, lang = state.lang) { return slugify(lang === "ar" ? item.name : (item.nameEn || item.name)) || String(item.id); }
+function routeSegments() {
+  let path = location.pathname;
+  try { path = decodeURIComponent(path); } catch { /* keep raw */ }
+  const base = decodeURIComponent(APP_BASE);
+  if (path.startsWith(base)) path = path.slice(base.length);
+  return path.split("/").map(part => part.trim().toLowerCase()).filter(Boolean).filter(part => !/\.html?$/i.test(part));
+}
+function coverFromSegment(segment) {
+  if (!segment) return null;
+  return (state.covers || []).find(cover => cover.id.toLowerCase() === segment || coverSlug(cover, "ar") === segment || coverSlug(cover, "en") === segment) || null;
+}
+function productFromSegment(cover, segment) {
+  if (!cover || !segment) return null;
+  return coverProducts(cover).find(item => String(item.id).toLowerCase() === segment || productSlug(item, "ar") === segment || productSlug(item, "en") === segment) || null;
+}
+// The cover a product page belongs to: the open cover, or the first cover that has it.
+function coverForProduct(id) {
+  const holds = cover => coverProducts(cover).some(item => sameCatalogId(item.id, id));
+  const open = activeCover();
+  return open && holds(open) ? open : (state.covers || []).find(holds) || null;
+}
+function prettyPath(cover, item = null) {
+  if (!cover) return APP_BASE;
+  return `${APP_BASE}${coverSlug(cover)}${item ? `/${productSlug(item)}` : ""}`;
+}
+// Query parameters other than the old cover/filter ones stay on the address.
+function keptSearch() {
+  const params = new URLSearchParams(location.search);
+  ["cover", "filter"].forEach(key => params.delete(key));
+  const text = params.toString();
+  return text ? `?${text}` : "";
+}
+function coverIdFromUrl() {
+  const fromPath = coverFromSegment(routeSegments()[0]);
+  if (fromPath) return fromPath.id;
+  return String(new URLSearchParams(location.search).get("cover") || "");
+}
+// Rewrite the address to the pretty form (old ?cover= links, language change, product open/close).
+function syncPrettyUrl(mode = "replace") {
+  if (PICKER_MODE) return;
+  const detail = state.detailProductId ? product(state.detailProductId) : null;
+  const cover = detail ? coverForProduct(detail.id) : activeCover();
+  const path = detail && !cover ? `${APP_BASE}${keptSearch()}#product=${encodeURIComponent(detail.id)}` : `${prettyPath(cover, detail)}${keptSearch()}`;
+  const current = `${location.pathname}${location.search}${location.hash}`;
+  if (decodeURIComponent(current) === decodeURIComponent(path)) return;
+  history[mode === "push" ? "pushState" : "replaceState"]({ cover: state.activeCoverId, product: state.detailProductId || "", catalogScrollPosition }, "", path);
+}
 // مكان الصفحة الرئيسية قبل الدخول لغلاف، عشان «رجوع» يرجّع لنفس المكان.
 let homeScrollY = 0;
+let coverOpenedInApp = false;
 function openCover(coverId, { push = true } = {}) {
   const cover = (state.covers || []).find(item => item.id === coverId) || null;
   if (cover && !activeCover()) homeScrollY = window.scrollY;
+  if (!push && state.activeCoverId === (cover ? cover.id : "")) return;
   state.activeCoverId = cover ? cover.id : "";
-  if (push) {
-    const url = new URL(location.href);
-    if (cover) url.searchParams.set("cover", cover.id); else url.searchParams.delete("cover");
-    url.searchParams.delete("filter");
-    history.pushState({ cover: state.activeCoverId }, "", url);
-  }
+  if (push) history.pushState({ cover: state.activeCoverId }, "", `${prettyPath(cover)}${keptSearch()}`);
+  // «رجوع» يستخدم رجوع المتصفح بس لما الغلاف انفتح من داخل الموقع (عشان ما يطلع برا الموقع من رابط مباشر).
+  coverOpenedInApp = Boolean(cover) && push;
   state.activeCategory = "all"; state.activeHeadingId = ""; state.activeSubheadingId = "";
   if (!cover) applyLanguage();
   renderCategories();
@@ -1729,7 +1786,7 @@ window.addEventListener("popstate", () => openCover(coverIdFromUrl(), { push: fa
 document.addEventListener("click", event => {
   const tile = event.target.closest("[data-cover-open]");
   if (tile && !event.metaKey && !event.ctrlKey && !event.shiftKey) { event.preventDefault(); openCover(tile.dataset.coverOpen); return; }
-  if (event.target.closest("#coverBack, [data-cover-back]")) { event.preventDefault(); if (history.state && "cover" in history.state && history.length > 1) history.back(); else openCover(""); }
+  if (event.target.closest("#coverBack, [data-cover-back]")) { event.preventDefault(); if (coverOpenedInApp) history.back(); else openCover(""); }
 });
 
 function sectionHeadingMarkup(category, matches) {
@@ -2439,18 +2496,11 @@ function openProductPage(id, push = true) {
   $("#productPage").setAttribute("aria-hidden", "false");
   document.body.classList.add("detail-open");
   $("#productPage").scrollTop = 0;
-  if (push && location.hash !== `#product=${encodeURIComponent(id)}`) {
-    history.pushState({ product: id, catalogScrollPosition }, "", `#product=${encodeURIComponent(id)}`);
-  }
+  if (push) syncPrettyUrl("push");
 }
 
 function clearProductRoute() {
-  if (!location.hash.startsWith("#product=")) return;
-  history.replaceState(
-    { catalogScrollPosition },
-    "",
-    `${location.pathname}${location.search}`
-  );
+  syncPrettyUrl("replace");
 }
 
 function closeProductPage(useHistory = true) {
@@ -2474,7 +2524,12 @@ function restoreCatalogScrollPosition() {
 
 function syncProductRoute() {
   const match = location.hash.match(/^#product=(.+)$/);
-  if (match) {
+  const segments = routeSegments();
+  const pathProduct = productFromSegment(coverFromSegment(segments[0]), segments[1]);
+  if (pathProduct) {
+    if (history.state?.catalogScrollPosition != null) catalogScrollPosition = Number(history.state.catalogScrollPosition);
+    if (state.detailProductId !== String(pathProduct.id)) openProductPage(pathProduct.id, false);
+  } else if (match) {
     if (history.state?.catalogScrollPosition != null) catalogScrollPosition = Number(history.state.catalogScrollPosition);
     openProductPage(decodeURIComponent(match[1]), false);
   } else if (state.detailProductId) {
@@ -4272,6 +4327,7 @@ function applyCatalog(catalog, cache = true) {
   renderProductSections();
   renderCartBar();
   syncProductRoute();
+  syncPrettyUrl("replace");
   setTimeout(() => showAdvertisement(state.advertisement), 250);
   return true;
 }
