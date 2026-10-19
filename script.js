@@ -78,7 +78,7 @@ const translations = {
     catalogPromise: "جميع مخبوزاتنا من خبز وفطاير وبسكويت يصنع من القمح الكامل والخميرة الطبيعية، أو الرز وخميرة الرز الطبيعية، أو اللوز وخميرة اللوز الطبيعية، ولا نستخدم الطحين الأبيض أو الزيوت المهدرجة أو الخميرة التجارية.", searchPlaceholder: "ابحث عن منتج…", searchStart: "اكتب اسم المنتج لعرض النتائج",
     all: "الكل", products: "منتج", add: "إضافة +", added: "تمت إضافة المنتج", inCart: "في السلة",
     total: "الإجمالي", checkout: "إتمام الدفع ←", back: "رجوع", noResults: "لا توجد منتجات مطابقة",
-    order: "طلبك", completeOrder: "إتمام الطلب", review: "المراجعة", deliveryDetails: "تفاصيل التسليم",
+    order: "طلبك", completeOrder: "إتمام الطلب", review: "المراجعة", deliveryDetails: "تفاصيل العنوان",
     deliveryTime: "وقت التوصيل", pickupTime: "وقت الاستلام", withinTwoHours: "خلال ساعتين", withinTwoHoursHint: "يصلك الطلب في أقرب وقت متاح",
     chooseSpecificTime: "اختيار وقت محدد", chooseSpecificTimeHint: "حدد اليوم والساعة المناسبة لك",
     notifyWhenReady: "إبلاغي عند اكتمال الطلب", notifyWhenReadyHint: "سيتواصل معك الفرع عندما يصبح الطلب جاهزاً",
@@ -144,7 +144,7 @@ const translations = {
     catalogPromise: "All our bread, fatayer and biscuits are made with whole wheat and natural sourdough, rice and natural rice starter, or almonds and natural almond starter. We never use white flour, hydrogenated oils or commercial yeast.", searchPlaceholder: "Search products…", searchStart: "Type a product name to see results",
     all: "All", products: "products", add: "Add +", added: "Product added", inCart: "In cart",
     total: "Total", checkout: "Checkout →", back: "Back", noResults: "No matching products",
-    order: "Your order", completeOrder: "Complete order", review: "Review", deliveryDetails: "Delivery details",
+    order: "Your order", completeOrder: "Complete order", review: "Review", deliveryDetails: "Address details",
     deliveryTime: "Delivery time", pickupTime: "Pickup time", withinTwoHours: "Within two hours", withinTwoHoursHint: "Your order will arrive as soon as possible",
     chooseSpecificTime: "Choose a specific time", chooseSpecificTimeHint: "Select the day and time that suits you",
     notifyWhenReady: "Notify me when ready", notifyWhenReadyHint: "The branch will contact you when your order is ready",
@@ -3061,6 +3061,8 @@ function setSteps() {
 }
 
 function renderCheckout() {
+  // توصيل بس: أي حالة استلام قديمة (من جلسة سابقة) ترجع توصيل قبل ما تنرسم الخطوات.
+  if (state.mode !== "delivery") { state.mode = "delivery"; state.branch = ""; if (state.deliveryTiming === "notify") state.deliveryTiming = "asap"; }
   setSteps();
   $("#checkoutTitle").textContent = state.step === 3
     ? (state.mode === "pickup" ? tr("pickupTime") : tr("deliveryTime"))
@@ -3112,6 +3114,8 @@ function selectSavedAddress(addressId) {
 }
 
 function renderDelivery() {
+  // الموقع صار توصيل بس: العميل يختار عنوان التوصيل على طول (بدون خيار الاستلام).
+  if (state.mode !== "delivery") { state.mode = "delivery"; state.branch = ""; if (state.deliveryTiming === "notify") state.deliveryTiming = "asap"; }
   if (state.mode === "pickup" && !branches.some(branch => branch.id === state.branch)) state.branch = "";
   const restaurantPickup = state.mode === "pickup" && cartHasRestaurantItems();
   if (restaurantPickup && state.branch !== "abu") state.branch = "";
@@ -3132,16 +3136,15 @@ function renderDelivery() {
     </button>`;
   }).join("")}</div>`;
   $("#checkoutBody").innerHTML = `
-    <div class="tabs"><button class="${state.mode === "delivery" ? "active" : ""}" id="deliveryTab">🚚 ${tr("delivery")}</button><button class="${state.mode === "pickup" ? "active" : ""}" id="pickupTab">⌂ ${tr("pickup")}</button></div>
-    ${state.mode === "delivery" ? deliveryForm : pickupForm}
+    ${deliveryForm}
     <div class="actions"><button class="secondary" id="back1">${tr("back")}</button><button class="primary" id="next2">${tr("confirmContinue")}</button></div>`;
-  $("#deliveryTab").onclick = () => {
+  if ($("#deliveryTab")) $("#deliveryTab").onclick = () => {
     state.mode = "delivery";
     if (state.deliveryTiming === "notify") state.deliveryTiming = "asap";
     state.paymentRequestId = "";
     renderDelivery();
   };
-  $("#pickupTab").onclick = () => {
+  if ($("#pickupTab")) $("#pickupTab").onclick = () => {
     state.mode = "pickup";
     if (state.deliveryTiming === "asap") state.deliveryTiming = "notify";
     state.paymentRequestId = "";
