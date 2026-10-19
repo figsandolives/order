@@ -1736,10 +1736,24 @@ function coverForProduct(id) {
   const open = activeCover();
   return open && holds(open) ? open : (state.covers || []).find(holds) || null;
 }
+// منتجين بنفس الاسم (نسخ في أغلفة مختلفة) أو اسم منتج نفس اسم غلاف: الرابط يبقى /الغلاف/المنتج/.
+let sharedSlugCache = { covers: null, lang: "", slugs: new Set() };
+function productNeedsCover(item) {
+  const slug = productSlug(item);
+  if (coverFromSegment(slug)) return true;
+  if (sharedSlugCache.covers !== state.covers || sharedSlugCache.lang !== state.lang) {
+    const owners = new Map();
+    (state.covers || []).forEach(cover => coverProducts(cover).forEach(entry => { const key = productSlug(entry); if (!owners.has(key)) owners.set(key, new Set()); owners.get(key).add(String(entry.id)); }));
+    sharedSlugCache = { covers: state.covers, lang: state.lang, slugs: new Set([...owners].filter(([, ids]) => ids.size > 1).map(([key]) => key)) };
+  }
+  return sharedSlugCache.slugs.has(slug);
+}
 function prettyPath(cover, item = null) {
   if (!cover) return APP_BASE;
   // الشرطة بالآخر تطابق مجلدات الصفحات المولّدة، فما يصير تحويل من GitHub.
-  return `${APP_BASE}${coverSlug(cover)}/${item ? `${productSlug(item)}/` : ""}`;
+  // المنتج رابطه باسمه بس، إلا لو اسمه نفس اسم غلاف (نادر) فيبقى تحت غلافه.
+  if (item) return productNeedsCover(item) ? `${APP_BASE}${coverSlug(cover)}/${productSlug(item)}/` : `${APP_BASE}${productSlug(item)}/`;
+  return `${APP_BASE}${coverSlug(cover)}/`;
 }
 // Query parameters other than the old cover/filter ones stay on the address.
 function keptSearch() {
@@ -1748,9 +1762,19 @@ function keptSearch() {
   const text = params.toString();
   return text ? `?${text}` : "";
 }
+// رابط المنتج باسمه بس (/اسم-المنتج/)، والروابط القديمة /الغلاف/المنتج/ بعدها تشتغل.
+function productFromRoute() {
+  const segments = routeSegments();
+  if (segments.length > 1) return productFromSegment(coverFromSegment(segments[0]), segments[1]);
+  if (!segments[0] || coverFromSegment(segments[0])) return null;
+  for (const cover of state.covers || []) { const found = productFromSegment(cover, segments[0]); if (found) return found; }
+  return null;
+}
 function coverIdFromUrl() {
   const fromPath = coverFromSegment(routeSegments()[0]);
   if (fromPath) return fromPath.id;
+  const routed = productFromRoute();
+  if (routed) return coverForProduct(routed.id)?.id || "";
   return String(new URLSearchParams(location.search).get("cover") || "");
 }
 // Rewrite the address to the pretty form (old ?cover= links, language change, product open/close).
@@ -2537,8 +2561,7 @@ function restoreCatalogScrollPosition() {
 
 function syncProductRoute() {
   const match = location.hash.match(/^#product=(.+)$/);
-  const segments = routeSegments();
-  const pathProduct = productFromSegment(coverFromSegment(segments[0]), segments[1]);
+  const pathProduct = productFromRoute();
   if (pathProduct) {
     if (history.state?.catalogScrollPosition != null) catalogScrollPosition = Number(history.state.catalogScrollPosition);
     if (state.detailProductId !== String(pathProduct.id)) openProductPage(pathProduct.id, false);
@@ -2548,6 +2571,7 @@ function syncProductRoute() {
   } else if (state.detailProductId) {
     closeProductPage(false);
   }
+  updateDocumentTitle();
 }
 
 function setAuthMessage(message, success = false) {

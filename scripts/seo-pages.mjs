@@ -63,6 +63,19 @@ const covers = catalog.covers
 // المنتج الموجود في أكثر من غلاف: رابطه الأساسي في أول غلاف (نفس المنصة).
 const primaryCover = new Map();
 covers.forEach(cover => cover.list.forEach(item => { if (!primaryCover.has(String(item.id))) primaryCover.set(String(item.id), cover); }));
+// رابط المنتج باسمه بس (/اسم-المنتج/)، إلا لو اسمه نفس اسم غلاف فيبقى تحت غلافه (نفس script.js).
+const coverSlugs = new Set(covers.flatMap(cover => [coverSlug(cover, "ar"), coverSlug(cover, "en"), cover.id.toLowerCase()]));
+// منتجين مختلفين بنفس الاسم: كل واحد يبقى تحت غلافه.
+const sharedSlugs = Object.fromEntries(["ar", "en"].map(lang => {
+  const owners = new Map();
+  covers.forEach(cover => cover.list.forEach(item => { const key = productSlug(item, lang); if (!owners.has(key)) owners.set(key, new Set()); owners.get(key).add(String(item.id)); }));
+  return [lang, new Set([...owners].filter(([, ids]) => ids.size > 1).map(([key]) => key))];
+}));
+const productSegments = (item, lang) => {
+  const slug = productSlug(item, lang);
+  return coverSlugs.has(slug) || sharedSlugs[lang].has(slug) ? [coverSlug(primaryCover.get(String(item.id)), lang), slug] : [slug];
+};
+const productUrl = (item, lang) => urlOf(...productSegments(item, lang));
 
 const template = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
 
@@ -118,8 +131,7 @@ for (const cover of covers) {
     const names = cover.list.slice(0, 6).map(item => productName(item, lang)).join(ar ? "، " : ", ");
     const description = clip(coverDesc(cover, lang) ? `${coverDesc(cover, lang)} — ${names}` : (ar ? `اطلب ${name} من ${BRAND_AR}: ${names}. توصيل لجميع مناطق الكويت.` : `Order ${name} from ${BRAND_EN}: ${names}. Delivery across Kuwait.`));
     const productLinks = cover.list.map(item => {
-      const home = primaryCover.get(String(item.id));
-      const href = urlOf(coverSlug(home, lang), productSlug(item, lang));
+      const href = productUrl(item, lang);
       return `        <li><a href="${esc(href)}">${esc(productName(item, lang))}</a> — ${esc(price(item.price, lang))}</li>`;
     }).join("\n");
     const seoHtml = `      <div class="seo-intro">\n        <h1 id="seoTitle">${esc(name)}</h1>\n        <p>${esc(coverDesc(cover, lang) || description)}</p>\n      </div>\n      <ul>\n${productLinks}\n      </ul>`;
@@ -129,20 +141,20 @@ for (const cover of covers) {
       name, description, url: urls[lang], inLanguage: ar ? "ar-KW" : "en-KW",
       isPartOf: { "@type": "WebSite", name: brand, url: `${SITE}${BASE}` },
       breadcrumb: crumb([[brand, `${SITE}${BASE}`], [name, urls[lang]]]),
-      mainEntity: { "@type": "ItemList", itemListElement: cover.list.map((item, index) => ({ "@type": "ListItem", position: index + 1, name: productName(item, lang), url: urlOf(coverSlug(primaryCover.get(String(item.id)), lang), productSlug(item, lang)) })) }
+      mainEntity: { "@type": "ItemList", itemListElement: cover.list.map((item, index) => ({ "@type": "ListItem", position: index + 1, name: productName(item, lang), url: productUrl(item, lang) })) }
     };
     pages.set(slugs[lang], page({ lang, title: `${name} | ${brand}`, description, canonical: urls[lang], alternates: urls, image: coverImage(cover), imageAlt: name, seoHtml, jsonLd }));
     sitemap.push({ loc: urls[lang], alternates: urls, image: coverImage(cover) });
   }
 
   for (const item of cover.list) {
-    const home = primaryCover.get(String(item.id));
-    const pslugs = { ar: productSlug(item, "ar"), en: productSlug(item, "en") };
-    const canonicalUrls = { ar: urlOf(coverSlug(home, "ar"), pslugs.ar), en: urlOf(coverSlug(home, "en"), pslugs.en) };
+    // صفحة وحدة لكل منتج، تحت أول غلاف فيه.
+    if (primaryCover.get(String(item.id)) !== cover) continue;
+    const canonicalUrls = { ar: productUrl(item, "ar"), en: productUrl(item, "en") };
     for (const lang of ["ar", "en"]) {
-      if (lang === "en" && slugs.en === slugs.ar && pslugs.en === pslugs.ar) continue;
-      const dir = `${slugs[lang]}/${pslugs[lang]}`;
-      if (pages.has(dir)) continue; // اسمين بنفس الرابط: المنصة تفتح الأول، فنفس الشي هني.
+      if (lang === "en" && canonicalUrls.en === canonicalUrls.ar) continue;
+      const dir = productSegments(item, lang).join("/");
+      if (pages.has(dir) || RESERVED.has(dir)) continue; // اسمين بنفس الرابط: المنصة تفتح الأول، فنفس الشي هني.
       const ar = lang === "ar";
       const brand = ar ? BRAND_AR : BRAND_EN;
       const name = productName(item, lang);
@@ -161,7 +173,7 @@ for (const cover of covers) {
         offers: { "@type": "Offer", price: Number(item.price).toFixed(3), priceCurrency: "KWD", availability: available ? "https://schema.org/InStock" : "https://schema.org/OutOfStock", url: canonicalUrls[lang], seller: { "@type": "Organization", name: brand }, areaServed: "KW" }
       };
       pages.set(dir, page({ lang, title: `${name} | ${cname} | ${brand}`, description, canonical: canonicalUrls[lang], alternates: canonicalUrls, image: photo, imageAlt: name, seoHtml, jsonLd }));
-      if (home === cover) sitemap.push({ loc: canonicalUrls[lang], alternates: canonicalUrls, image: photo });
+      sitemap.push({ loc: canonicalUrls[lang], alternates: canonicalUrls, image: photo, priority: "0.6" });
     }
   }
 }
@@ -183,6 +195,6 @@ fs.writeFileSync(MANIFEST, `${JSON.stringify([...pages.keys()].sort(), null, 1)}
 
 const home = `${SITE}${BASE}`;
 const entry = ({ loc, alternates, image }, priority) => `  <url>\n    <loc>${esc(loc)}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <priority>${priority}</priority>\n${alternates ? `    <xhtml:link rel="alternate" hreflang="ar-KW" href="${esc(alternates.ar)}"/>\n    <xhtml:link rel="alternate" hreflang="en-KW" href="${esc(alternates.en)}"/>\n` : ""}${image ? `    <image:image><image:loc>${esc(image)}</image:loc></image:image>\n` : ""}  </url>`;
-const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n${[entry({ loc: home }, "1.0"), ...sitemap.map(item => entry(item, item.loc.split("/").filter(Boolean).length > 3 ? "0.6" : "0.8"))].join("\n")}\n</urlset>\n`;
+const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n${[entry({ loc: home }, "1.0"), ...sitemap.map(item => entry(item, item.priority || "0.8"))].join("\n")}\n</urlset>\n`;
 fs.writeFileSync(path.join(ROOT, "sitemap.xml"), xml);
 console.log(`${pages.size} pages, ${sitemap.length + 1} sitemap urls`);
