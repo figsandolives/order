@@ -1,6 +1,10 @@
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const orderingConfig = window.ORDERING_CONFIG || {};
+// وضع الاختيار: المنصة تنفتح داخل الإدارة عشان تختار منها منتجات (للأغلفة).
+// كل الأقسام تبين، والضغط على المنتج يحدده بدل ما يفتحه، وما ينرسل شي للسيرفر غير قراءة الكتالوج.
+const PICKER_MODE = window.FO_PICKER === true || new URLSearchParams(location.search).has("picker");
+if (PICKER_MODE) document.documentElement.classList.add("picker-mode");
 const orderingApiBaseUrl = String(orderingConfig.apiBaseUrl || "").replace(/\/+$/, "");
 let customerSessionToken = localStorage.getItem("figsOlivesCustomerSession") || "";
 
@@ -9,16 +13,43 @@ function orderingApiUrl(path) {
   return `${orderingApiBaseUrl}${path}`;
 }
 
-async function orderingApi(path, options = {}, requireSession = false) {
+async function orderingApi(path, options = {}, requireSession = false, retried = false) {
   const headers = { "Accept": "application/json", ...(options.headers || {}) };
   if (requireSession) {
+    if (!customerSessionToken) await restoreLegacyCustomerSession();
     if (!customerSessionToken) throw new Error("سجّل دخولك أولاً");
     headers.Authorization = `Bearer ${customerSessionToken}`;
   }
   const response = await fetch(orderingApiUrl(path), { ...options, headers, cache: "no-store" });
   const data = await response.json().catch(() => ({}));
+  // جلسة منتهية لعميل ما زال داخلاً على جهازه: نجدد الجلسة ونعيد الطلب مرة واحدة.
+  if (response.status === 401 && requireSession && !retried) {
+    customerSessionToken = "";
+    localStorage.removeItem("figsOlivesCustomerSession");
+    if (await restoreLegacyCustomerSession()) return orderingApi(path, options, true, true);
+  }
   if (!response.ok) throw new Error(data.error || data.message || "تعذر الاتصال بخدمة المنصة");
   return data;
+}
+
+// الأجهزة التي سجّلت الدخول قبل رمز الواتساب تحفظ رقم العميل فقط، فنطلب لها
+// جلسة لحسابها المسجل. تسجيل الخروج ثم الدخول من جديد يمر برمز الواتساب.
+let legacySessionRequest = null;
+function restoreLegacyCustomerSession() {
+  // وضع الاختيار داخل الإدارة ما يسجل دخول ولا يرسل شي للسيرفر.
+  if (PICKER_MODE) return Promise.resolve(false);
+  const phone = normalizePhone(state.user?.phone);
+  if (phone.length !== 8) return Promise.resolve(false);
+  legacySessionRequest ||= fetch(orderingApiUrl("/auth/legacy-session"), {
+    method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/json" },
+    body: JSON.stringify({ phone }), cache: "no-store"
+  }).then(async response => {
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || normalizePhone(state.user?.phone) !== phone) return false;
+    saveCustomerSession(data, phone);
+    return true;
+  }).catch(() => false).finally(() => { legacySessionRequest = null; });
+  return legacySessionRequest;
 }
 
 // نطلب من المتصفح حفظ مساحة الموقع بشكل دائم قدر الإمكان. هذا مهم خصوصاً
@@ -39,10 +70,11 @@ const persistentStorageReady = requestPersistentStorage();
 
 const translations = {
   ar: {
-    brand: "مخبز التين والزيتون", tagline: "طبيعي، صحي، مصنوع بحب", yourCart: "سلتك",
+    brand: "مخبز التين والزيتون", restaurantName: "مطعم التين الطبيعي", back: "رجوع", menu: "القائمة", browseCovers: "تصفّح", tagline: "طبيعي، صحي، مصنوع بحب", yourCart: "سلتك",
     deliveryEverywhere: "توصيل لجميع مناطق الكويت", heroTitle: "أكل صحي بطعم<br>يستحق التكرار",
     heroText: "اختر من منتجاتنا الطبيعية والمخبوزات الطازجة، ونحن نتكفل بالباقي.",
     naturalIngredients: "مكونات طبيعية", dailyPreparation: "تحضير يومي", securePayment: "دفع آمن",
+    qualityTitle: "جميع مخبوزاتنا من خبز وفطاير وبسكويت:",
     catalogPromise: "جميع مخبوزاتنا من خبز وفطاير وبسكويت يصنع من القمح الكامل والخميرة الطبيعية، أو الرز وخميرة الرز الطبيعية، أو اللوز وخميرة اللوز الطبيعية، ولا نستخدم الطحين الأبيض أو الزيوت المهدرجة أو الخميرة التجارية.", searchPlaceholder: "ابحث عن منتج…", searchStart: "اكتب اسم المنتج لعرض النتائج",
     all: "الكل", products: "منتج", add: "إضافة +", added: "تمت إضافة المنتج", inCart: "في السلة",
     total: "الإجمالي", checkout: "إتمام الدفع ←", back: "رجوع", noResults: "لا توجد منتجات مطابقة",
@@ -104,10 +136,11 @@ const translations = {
     noZoom: ""
   },
   en: {
-    brand: "Figs & Olives Bakery", tagline: "Natural, healthy, made with love", yourCart: "Cart",
+    brand: "Figs & Olives Bakery", restaurantName: "Natural Figs Restaurant", back: "Back", menu: "Menu", browseCovers: "Browse", tagline: "Natural, healthy, made with love", yourCart: "Cart",
     deliveryEverywhere: "Delivery across Kuwait", heroTitle: "Healthy food with a taste<br>worth repeating",
     heroText: "Choose from our natural products and fresh bakes, and we will handle the rest.",
     naturalIngredients: "Natural ingredients", dailyPreparation: "Prepared daily", securePayment: "Secure payment",
+    qualityTitle: "All our bread, fatayer and biscuits are:",
     catalogPromise: "All our bread, fatayer and biscuits are made with whole wheat and natural sourdough, rice and natural rice starter, or almonds and natural almond starter. We never use white flour, hydrogenated oils or commercial yeast.", searchPlaceholder: "Search products…", searchStart: "Type a product name to see results",
     all: "All", products: "products", add: "Add +", added: "Product added", inCart: "In cart",
     total: "Total", checkout: "Checkout →", back: "Back", noResults: "No matching products",
@@ -415,8 +448,9 @@ function validPercent(value, fallback = 50) {
 function normalizeAppearance(value = {}) {
   let heroImage = "";
   try {
-    const candidate = new URL(String(value.heroImage || ""));
-    if (candidate.protocol === "https:") heroImage = candidate.href;
+    // نسخة التجارب المحلية: صورة الواجهة ملف محلي (http://localhost).
+    const candidate = new URL(String(value.heroImage || ""), window.LOCAL_MODE ? location.href : undefined);
+    if (candidate.protocol === "https:" || (window.LOCAL_MODE && candidate.origin === location.origin)) heroImage = candidate.href;
   } catch {
     heroImage = "";
   }
@@ -439,13 +473,14 @@ function appearanceForCatalog(value, catalogType = state.catalogType) {
 function applyStoreAppearance(value) {
   state.catalogAppearance = value || {};
   state.appearance = appearanceForCatalog(state.catalogAppearance);
-  const hero = $("#storeHero");
-  const heroImage = $("#storeHeroImage");
-  if (!hero || !heroImage) return;
   const storeName = $("#brandName");
   if (storeName) storeName.textContent = state.lang === "ar"
     ? (state.catalogType === "restaurant" ? "مطعم التين الطبيعي" : "مخبز التين والزيتون")
     : (state.catalogType === "restaurant" ? "Natural Figs Restaurant" : "Figs & Olives Bakery");
+  // نسخة التجارب: انشالت صورة الواجهة العلوية والفلتر اللي فيها.
+  const hero = $("#storeHero");
+  const heroImage = $("#storeHeroImage");
+  if (!hero || !heroImage) return;
   hero.style.setProperty("--hero-title-color", state.appearance.heroTextColor);
   hero.style.setProperty("--hero-badge-background", state.appearance.badgeBackgroundColor);
   hero.style.setProperty("--hero-badge-text", state.appearance.badgeTextColor);
@@ -462,6 +497,7 @@ function normalizeAdvertisement(value = {}) {
 }
 
 function showAdvertisement(value) {
+  if (PICKER_MODE) return;
   const ad = normalizeAdvertisement(value);
   const key = JSON.stringify(ad);
   if (!ad.enabled || !ad.image || shownAdvertisementKey === key) return;
@@ -538,7 +574,7 @@ function productDescription(product) {
 }
 function productBadge(product) {
   const filter = activeProductFilter();
-  if (filter && filter.products.some(entry => String(entry.productId) === String(product.id))) return state.lang === "ar" ? filter.nameAr : (filter.nameEn || filter.nameAr);
+  if (filter && !activeFilteredCover() && filter.products.some(entry => String(entry.productId) === String(product.id))) return state.lang === "ar" ? filter.nameAr : (filter.nameEn || filter.nameAr);
   return state.lang === "ar" ? (product.badgeAr || product.badgeEn || "") : (product.badgeEn || product.badgeAr || "");
 }
 
@@ -549,6 +585,8 @@ function productImages(product) {
 // Card-sized copy of a catalog photo served by the platform (about 85% lighter).
 // The product page keeps the full photo; a missing copy falls back to it.
 function thumbnailUrl(url) {
+  // نسخة التجارب المحلية: الصورة الصغيرة من local-data/thumbs.
+  if (/^local-data\/assets\//.test(String(url || ""))) return String(url).replace(/^local-data\/assets\//, "local-data/thumbs/");
   return String(url || "").replace(/^(https:\/\/162-35-27-249\.sslip\.io)\/platform-assets\/(orderingPlatform\/catalog\/[^?#]+\.(?:webp|jpe?g|png))$/i, "$1/platform-thumbs/$2");
 }
 
@@ -1003,6 +1041,7 @@ function persistCart() {
 }
 
 function reportVisitorPresence() {
+  if (PICKER_MODE) return;
   const endpoint = orderingConfig.visitorPresenceWebhookUrl;
   if (!endpoint) return;
   fetch(orderingApiUrl(endpoint), {
@@ -1013,6 +1052,7 @@ function reportVisitorPresence() {
 }
 
 function trackStoreEvent(type, details = {}) {
+  if (PICKER_MODE) return;
   const endpoint = orderingConfig.analyticsWebhookUrl;
   if (!endpoint) return;
   const onceKey = `figsOlivesEvent:${type}:${new Date().toISOString().slice(0, 10)}`;
@@ -1157,6 +1197,9 @@ function applyLanguage() {
   $$("[data-i18n-html]").forEach(element => element.innerHTML = tr(element.dataset.i18nHtml));
   $$("[data-i18n-placeholder]").forEach(element => element.placeholder = tr(element.dataset.i18nPlaceholder));
   $("#languageLabel").textContent = state.lang === "ar" ? "English" : "العربية";
+  $$(".lang-label").forEach(label => { label.textContent = state.lang === "ar" ? "English" : "العربية"; });
+  renderFooter();
+  renderQualityStrip();
   applyStoreAppearance(state.catalogAppearance);
   renderCatalogSwitch();
   renderProductFilters();
@@ -1193,10 +1236,29 @@ function sameCatalogId(first, second) {
 }
 
 function categoryProducts(categoryId) {
-  return state.products.filter(item => sameCatalogId(item.category, categoryId) && isCurrentCatalog(item) && productMatchesActiveFilter(item)).sort((a, b) => Number(a.order) - Number(b.order));
+  const list = state.products.filter(item => sameCatalogId(item.category, categoryId) && isCurrentCatalog(item) && productMatchesActiveFilter(item)).sort((a, b) => Number(a.order) - Number(b.order));
+  // A filtered cover keeps its own product order inside each section.
+  const order = activeFilteredCover()?.productOrder?.[String(categoryId)];
+  if (!Array.isArray(order) || !order.length) return list;
+  const rank = id => { const index = order.indexOf(String(id)); return index < 0 ? Infinity : index; };
+  return list.slice().sort((a, b) => rank(a.id) - rank(b.id));
 }
 
-function activeProductFilter() { return state.productFilters.find(filter => filter.id === state.activeProductFilterId) || null; }
+// نسخة التجارب: الفلتر صار داخل «الغلاف المفلتر». الغلاف المفتوح يشتغل كفلتر:
+// يعرض منتجاته بس، وبالخيارات اللي انحددت له.
+function activeFilteredCover() { const cover = typeof activeCover === "function" ? activeCover() : null; return cover?.filtered ? cover : null; }
+function activeProductFilter() {
+  const cover = activeFilteredCover();
+  return cover ? { id: `cover:${cover.id}`, nameAr: cover.nameAr, nameEn: cover.nameEn, products: cover.products } : null;
+}
+// Sections in the order the page shows them: a filtered cover has its own order.
+function viewCategories() {
+  const list = sortedCategories();
+  const order = activeFilteredCover()?.sectionOrder;
+  if (!Array.isArray(order) || !order.length) return list;
+  const rank = category => { const index = order.indexOf(String(category.id)); return index < 0 ? Infinity : index; };
+  return list.slice().sort((a, b) => rank(a) - rank(b));
+}
 function directProductFilterId() {
   const value = String(new URLSearchParams(location.search).get("filter") || "").trim();
   if (value === "al-tayyibat-diet") return "filter-mt8zswyi";
@@ -1287,11 +1349,25 @@ function renderCategories() {
   // and do not use manually-linked heading groups (which can link a category
   // to a different heading in the administration panel).
   const linkedCategoryIds = filteringProducts ? new Set() : new Set((state.headings || []).filter(item => isCurrentCatalog(item)).flatMap(item => [...(item.categoryIds || []), ...(item.subheadings || []).flatMap(group => group.categoryIds || [])].map(String)));
-  const entries = [
-    ...(filteringProducts ? [] : (state.headings || []).filter(item => isCurrentCatalog(item)).map(item => ({ type: "heading", item }))),
-    ...sortedCategories().filter(category => !linkedCategoryIds.has(String(category.id)) && categoryProducts(category.id).length).map(item => ({ type: "category", item }))
-  ].sort((a, b) => Number(a.item.order) - Number(b.item.order) || (a.type === "heading" ? -1 : 1));
+  let entries = [
+    ...(filteringProducts ? [] : (state.headings || []).filter(item => isCurrentCatalog(item) && entryVisibleHere("heading", item.id)).map(item => ({ type: "heading", item }))),
+    ...viewCategories().filter(category => !linkedCategoryIds.has(String(category.id)) && categoryProducts(category.id).length && entryVisibleHere("category", category.id)).map(item => ({ type: "category", item }))
+  ];
+  if (!activeFilteredCover()) entries.sort((a, b) => Number(a.item.order) - Number(b.item.order) || (a.type === "heading" ? -1 : 1));
+  if (activeCover() && !filteringProducts) {
+    // Inside a cover a heading loses its own title: its subheadings (or, without
+    // subheadings, its categories) sit directly in the section bar.
+    const withProducts = ids => (ids || []).map(id => state.categories.find(category => sameCatalogId(category.id, id))).filter(category => category && categoryProducts(category.id).length);
+    entries = entries.flatMap(entry => {
+      if (entry.type !== "heading") return [entry];
+      const subheadings = Array.isArray(entry.item.subheadings) ? entry.item.subheadings : [];
+      if (!subheadings.length) return withProducts(entry.item.categoryIds).map(item => ({ type: "category", item }));
+      return subheadings.filter(group => withProducts(group.categoryIds).length).map(group => ({ type: "subheading", item: { ...group, subheadings: [], headingId: entry.item.id } }));
+    });
+  }
+  $("#categories").classList.toggle("hidden", !entries.length);
   entries.forEach(({ type, item }) => {
+    if (type === "subheading") { buttons.push(`<button class="cover-sub-link ${state.activeHeadingId === item.headingId && state.activeSubheadingId === item.id ? "active" : ""}" data-cover-sub="${escapeHtml(item.headingId)}|${escapeHtml(item.id)}">${escapeHtml(state.lang === "ar" ? item.nameAr : (item.nameEn || item.nameAr))}</button>`); return; }
     if (type === "heading") buttons.push(`<button class="heading-category-link ${state.activeHeadingId === item.id ? "active" : ""}" data-heading-link="${escapeHtml(item.id)}">${escapeHtml(state.lang === "ar" ? item.nameAr : (item.nameEn || item.nameAr))}</button>`);
     else buttons.push(`<button class="${state.activeCategory === item.id ? "active" : ""}" data-category-link="${escapeHtml(item.id)}">${escapeHtml(categoryName(item))} <small>${categoryProducts(item.id).length}</small></button>`);
   });
@@ -1373,8 +1449,11 @@ function updateHeadingNavigation() {
   const subheadings = Array.isArray(heading.subheadings) ? heading.subheadings : [];
   const group = subheadings.length ? (subheadings.find(item => item.id === state.activeSubheadingId) || subheadings.find(item => (item.categoryIds || []).some(id => sameCatalogId(id, state.activeCategory))) || subheadings[0]) : { id: "", categoryIds: heading.categoryIds || [] };
   state.activeSubheadingId = group?.id || "";
+  // In a cover the subheadings already sit in the main bar; a heading without
+  // subheadings has its categories there too, so only the category row remains.
+  if (activeCover() && !subheadings.length) { host.classList.add("hidden"); syncHeadingNavigationOffset(); return; }
   host.classList.remove("hidden");
-  subheadingRow.classList.toggle("hidden", !subheadings.length);
+  subheadingRow.classList.toggle("hidden", !subheadings.length || Boolean(activeCover()));
   subheadingRow.innerHTML = subheadings.map(item => `<button class="${item.id === state.activeSubheadingId ? "active" : ""}" data-heading-nav="${escapeHtml(heading.id)}" data-subheading-nav="${escapeHtml(item.id)}">${escapeHtml(state.lang === "ar" ? item.nameAr : (item.nameEn || item.nameAr))}</button>`).join("");
   const categories = (group?.categoryIds || []).map(id => state.categories.find(item => sameCatalogId(item.id, id))).filter(Boolean);
   categoryRow.classList.toggle("hidden", !categories.length);
@@ -1442,28 +1521,246 @@ function productCard(item, category) {
     </article>`;
 }
 
+// نسخة التجارب: شريط الجودة المتحرك وأغلفة «عوالم» المتجر.
+const QUALITY_POINTS = {
+  ar: ["من القمح الكامل والنخالة", "بالخميرة الطبيعية", "من الرز وخميرة الرز الطبيعية", "من اللوز وخميرة اللوز الطبيعية", "خالية من الطحين الأبيض", "خالية من الزيوت المهدرجة", "خالية من الخميرة التجارية"],
+  en: ["Whole wheat with the bran", "Naturally leavened", "Rice with natural rice starter", "Almond with natural almond starter", "Free of white flour", "Free of hydrogenated oils", "Free of commercial yeast"]
+};
+const QUALITY_SEAL = `<svg viewBox="0 0 24 24" aria-hidden="true"><path class="seal" d="M12 1.8l2.3 1.7 2.8-.3 1.1 2.6 2.6 1.1-.3 2.8 1.7 2.3-1.7 2.3.3 2.8-2.6 1.1-1.1 2.6-2.8-.3L12 22.2l-2.3-1.7-2.8.3-1.1-2.6-2.6-1.1.3-2.8L1.8 12l1.7-2.3-.3-2.8 2.6-1.1 1.1-2.6 2.8.3z"/><path class="tick" d="M7.6 12.3l2.9 2.9 5.9-6.1"/></svg>`;
+
+// إعدادات الشريط من الإدارة (catalog.qualityStrip): العنوان، النقاط (كل سطر نقطة)، السرعة، والتوقف عند مرور الماوس.
+function normalizeQualityStrip(value) {
+  const points = (Array.isArray(value?.points) ? value.points : []).map(point => String(point || "").trim()).filter(Boolean);
+  return {
+    title: String(value?.title || "").trim(),
+    points,
+    speed: Math.min(10, Math.max(1, Number(value?.speed) || 5)),
+    pauseOnHover: value?.pauseOnHover !== false
+  };
+}
+function renderQualityStrip() {
+  const track = $("#qualityStripTrack");
+  if (!track) return;
+  const settings = normalizeQualityStrip(state.qualityStrip);
+  const custom = state.lang === "ar" && settings.points.length;
+  const points = custom ? settings.points : (QUALITY_POINTS[state.lang] || QUALITY_POINTS.ar);
+  const title = $("#qualityStrip [data-i18n='qualityTitle']");
+  if (title) title.textContent = state.lang === "ar" && settings.title ? settings.title : tr("qualityTitle");
+  $("#qualityStrip")?.classList.toggle("pause-on-hover", settings.pauseOnHover);
+  // The track is laid out left to right and moves right, so for Arabic the list is
+  // reversed: read from the title leftwards, the points come in the order written.
+  const ordered = state.lang === "ar" ? [...points].reverse() : points;
+  const group = hidden => `<ul class="quality-strip-group"${hidden ? ' aria-hidden="true"' : ""}>${ordered.map(point => `<li>${QUALITY_SEAL}<span>${escapeHtml(point)}</span></li>`).join("")}</ul>`;
+  // Two identical groups make the loop seamless; the copy is hidden from screen readers.
+  track.innerHTML = group(false) + group(true);
+  // Speed is a distance per second, so a longer list does not move faster.
+  const width = track.firstElementChild?.getBoundingClientRect().width || 0;
+  if (width) track.style.setProperty("--strip-duration", `${(width / (settings.speed * 9)).toFixed(1)}s`);
+}
+
+// ---- الأغلفة: تنضبط من الإدارة (catalog.covers). كل غلاف صفحة مستقلة برابط ?cover=<id> ----
+function normalizeCovers(list) {
+  return (Array.isArray(list) ? list : []).map(cover => ({
+    id: String(cover?.id || ""),
+    nameAr: String(cover?.nameAr || ""), nameEn: String(cover?.nameEn || cover?.nameAr || ""),
+    descriptionAr: String(cover?.descriptionAr || ""), descriptionEn: String(cover?.descriptionEn || cover?.descriptionAr || ""),
+    size: cover?.size === "full" ? "full" : "half",
+    image: String(cover?.image || ""),
+    helperProductIds: (Array.isArray(cover?.helperProductIds) ? cover.helperProductIds : []).map(String).slice(0, 3),
+    items: (Array.isArray(cover?.items) ? cover.items : []).map(item => ({ type: item?.type === "heading" ? "heading" : "category", id: String(item?.id || "") })).filter(item => item.id),
+    filtered: cover?.filtered === true,
+    imageMode: cover?.imageMode === "animated" ? "animated" : "photo",
+    mosaic: normalizeCoverMosaic(cover?.mosaic),
+    sourceFilterId: String(cover?.sourceFilterId || ""),
+    products: (Array.isArray(cover?.products) ? cover.products : []).map(entry => ({ productId: String(entry?.productId || ""), firstStepId: String(entry?.firstStepId || ""), optionIds: Array.isArray(entry?.optionIds) ? entry.optionIds.map(String) : [], steps: (Array.isArray(entry?.steps) ? entry.steps : []).map(step => ({ stepId: String(step?.stepId || ""), optionIds: Array.isArray(step?.optionIds) ? step.optionIds.map(String) : [] })).filter(step => step.stepId) })).filter(entry => entry.productId),
+    sectionOrder: (Array.isArray(cover?.sectionOrder) ? cover.sectionOrder : []).map(String),
+    productOrder: Object.fromEntries(Object.entries(cover?.productOrder && typeof cover.productOrder === "object" ? cover.productOrder : {}).map(([key, ids]) => [String(key), (Array.isArray(ids) ? ids : []).map(String)]))
+  })).filter(cover => cover.id);
+}
+function coverText(cover, field) { return state.lang === "ar" ? cover[`${field}Ar`] : (cover[`${field}En`] || cover[`${field}Ar`]); }
+function headingCategoryIds(heading) { return [...(heading?.subheadings || []).flatMap(group => group.categoryIds || []), ...(heading?.categoryIds || [])].map(String); }
+function coverCategoryIds(cover) {
+  return cover.items.flatMap(item => item.type === "heading" ? headingCategoryIds((state.headings || []).find(heading => sameCatalogId(heading.id, item.id))) : [item.id]);
+}
+function coverProducts(cover) {
+  if (cover.filtered) {
+    const visible = new Set(state.categories.map(category => String(category.id)));
+    return cover.products.map(entry => state.products.find(item => sameCatalogId(item.id, entry.productId))).filter(item => item && visible.has(String(item.category)) && isCurrentCatalog(item));
+  }
+  return coverCategoryIds(cover).flatMap(id => categoryProducts(id));
+}
+function visibleCovers() { return activeProductFilter() ? [] : (state.covers || []).filter(cover => coverProducts(cover).length); }
+function activeCover() { return state.activeCoverId ? (state.covers || []).find(cover => cover.id === state.activeCoverId) || null : null; }
+// Headings and categories that live inside any cover: they leave the home page.
+function coveredKeys() {
+  const keys = new Set();
+  // A filtered cover holds copies, so its sections stay on the home page too.
+  (state.covers || []).filter(cover => !cover.filtered).forEach(cover => cover.items.forEach(item => {
+    keys.add(`${item.type}:${item.id}`);
+    if (item.type === "heading") headingCategoryIds((state.headings || []).find(heading => sameCatalogId(heading.id, item.id))).forEach(id => keys.add(`category:${id}`));
+  }));
+  return keys;
+}
+// Which catalogue entries this page shows: the open cover's, or what no cover holds.
+function entryVisibleHere(type, id) {
+  if (PICKER_MODE) return true;
+  // الصفحة الرئيسية ما تعرض إلا الأغلفة: أي قسم برا الأغلفة ما يطلع في الموقع.
+  if (!activeCover() && (state.covers || []).length) return false;
+  const cover = activeCover();
+  if (cover?.filtered) return type === "category";
+  if (cover) return type === "heading" ? cover.items.some(item => item.type === "heading" && sameCatalogId(item.id, id)) : coverCategoryIds(cover).some(value => sameCatalogId(value, id));
+  return !coveredKeys().has(`${type}:${id}`);
+}
+function coverHelperImages(cover) {
+  return cover.helperProductIds.map(id => state.products.find(item => sameCatalogId(item.id, id))).filter(Boolean).map(item => productImages(item)[0]).filter(Boolean);
+}
+function itemsLabel(count) { return state.lang === "ar" ? `${count} ${count > 2 && count < 11 ? "أصناف" : "صنف"}` : `${count} items`; }
+
+// «صور متحركة»: 4 صفوف، كل صف لين 10 مربعات تنحدد من الإدارة (صورة مرفوعة أو صورة منتج).
+// الصف الفاضي ياخذ صور منتجات الغلاف. الحركة كلها transform في CSS فتبقى ناعمة على الجوال.
+const COVER_MOSAIC_ROWS = 4;
+const COVER_MOSAIC_SLOTS = 10;
+function normalizeCoverMosaic(value) {
+  const rows = Array.from({ length: COVER_MOSAIC_ROWS }, (_, row) => Array.from({ length: COVER_MOSAIC_SLOTS }, (_, index) => {
+    const slot = value?.rows?.[row]?.[index];
+    if (slot?.type === "product" && slot.productId) return { type: "product", productId: String(slot.productId) };
+    if (slot?.type === "image" && slot.url) return { type: "image", url: String(slot.url) };
+    return null;
+  }));
+  return { speed: Math.min(10, Math.max(1, Number(value?.speed) || 5)), rows };
+}
+function coverMosaicMarkup(cover) {
+  const auto = [...new Set(coverProducts(cover).map(item => productImages(item)[0]).filter(Boolean))].map(thumbnailUrl);
+  const slotImage = slot => {
+    if (slot?.type === "image") return slot.url;
+    if (slot?.type === "product") { const item = state.products.find(entry => sameCatalogId(entry.id, slot.productId)); const src = item && productImages(item)[0]; return src ? thumbnailUrl(src) : ""; }
+    return "";
+  };
+  const speed = cover.mosaic?.speed || 5;
+  const rows = Array.from({ length: COVER_MOSAIC_ROWS }, (_, row) => {
+    // An empty slot takes one of the cover's product photos, so a half-filled row still looks full.
+    let images = Array.from({ length: COVER_MOSAIC_SLOTS }, (_, index) => slotImage(cover.mosaic?.rows?.[row]?.[index]) || (auto.length ? auto[(row * COVER_MOSAIC_SLOTS + index) % auto.length] : "")).filter(Boolean);
+    while (images.length && images.length < 8) images = [...images, ...images];
+    return images;
+  });
+  if (!rows.some(images => images.length)) return "";
+  return `<span class="cover-mosaic rows-${COVER_MOSAIC_ROWS}" aria-hidden="true">${rows.map((images, row) => {
+    const cells = images.map(src => `<img src="${escapeHtml(src)}" alt="" decoding="async">`).join("");
+    return `<span class="cover-mosaic-row"><span class="cover-mosaic-track" style="--mosaic-duration:${((150 / speed) * (1 + row * .22)).toFixed(1)}s">${cells}${cells}</span></span>`;
+  }).join("")}</span>`;
+}
+function coverTileMarkup(cover) {
+  const animated = cover.imageMode === "animated";
+  return `<a class="world-tile size-${cover.size}${animated ? " is-animated" : ""}" href="?cover=${encodeURIComponent(cover.id)}" data-cover-open="${escapeHtml(cover.id)}">
+    ${animated ? coverMosaicMarkup(cover) : (cover.image ? `<img src="${escapeHtml(cover.image)}" alt="" loading="lazy" decoding="async">` : "")}
+    <span class="world-tile-copy"><strong>${escapeHtml(coverText(cover, "name"))}</strong>${coverText(cover, "description") ? `<small>${escapeHtml(coverText(cover, "description"))}</small>` : ""}</span>
+    <span class="world-tile-count">${itemsLabel(coverProducts(cover).length)}</span>
+  </a>`;
+}
+
+function renderCatalogWorlds() {
+  const host = $("#catalogWorlds");
+  if (!host) return;
+  if (PICKER_MODE) { host.classList.add("hidden"); host.innerHTML = ""; return; }
+  const covers = activeCover() ? [] : visibleCovers();
+  host.classList.toggle("hidden", !covers.length);
+  host.innerHTML = covers.length ? `<div class="catalog-worlds-grid">${covers.map(coverTileMarkup).join("")}</div>` : "";
+}
+
+function coverBannerMarkup(cover) {
+  const helpers = coverHelperImages(cover);
+  const animated = cover.imageMode === "animated";
+  return `<header class="world-cover${animated ? " is-animated" : ""}" data-cover-banner="${escapeHtml(cover.id)}">
+    <div class="world-cover-media">${animated ? coverMosaicMarkup(cover) : (cover.image ? `<img src="${escapeHtml(cover.image)}" alt="" decoding="async">` : "")}</div>
+    <div class="world-cover-copy"><h1>${escapeHtml(coverText(cover, "name"))}</h1>${coverText(cover, "description") ? `<p>${escapeHtml(coverText(cover, "description"))}</p>` : ""}<span class="world-cover-count">${itemsLabel(coverProducts(cover).length)}</span></div>
+    ${helpers.length ? `<div class="world-cover-stack" aria-hidden="true">${helpers.map(src => `<img src="${escapeHtml(thumbnailUrl(src))}" alt="" decoding="async">`).join("")}</div>` : ""}
+  </header>`;
+}
+
+// The section bar stays hidden while the cover banner is on screen and appears once it scrolls away.
+function updateCoverBannerVisibility() {
+  const banner = activeCover() ? $("#coverStage .world-cover") : null;
+  if (!banner) return;
+  const visible = Boolean(banner) && banner.getBoundingClientRect().bottom > ($(".site-header")?.offsetHeight || 0);
+  if (document.body.classList.contains("cover-banner-visible") === visible) return;
+  document.body.classList.toggle("cover-banner-visible", visible);
+  syncHeadingNavigationOffset();
+}
+window.addEventListener("scroll", updateCoverBannerVisibility, { passive: true });
+window.addEventListener("resize", updateCoverBannerVisibility, { passive: true });
+function renderCoverStage() {
+  const cover = activeCover();
+  document.body.classList.toggle("cover-mode", Boolean(cover));
+  // صفحة الغلاف تبدأ بالأقسام والمنتجات على طول؛ الهيدر يعرض «رجوع» واسم الغلاف بدل اسم المخبز.
+  const stage = $("#coverStage");
+  if (stage) stage.innerHTML = "";
+  document.body.classList.remove("cover-banner-visible");
+  $("#headerTitle")?.classList.toggle("hidden", Boolean(cover));
+  $("#headerCover")?.classList.toggle("hidden", !cover);
+  if ($("#headerCoverName")) $("#headerCoverName").textContent = cover ? coverText(cover, "name") : "";
+  if (cover) document.title = `${coverText(cover, "name")} — ${state.lang === "ar" ? "مخبز التين والزيتون" : "Figs & Olives"}`;
+  syncHeadingNavigationOffset();
+}
+
+function coverIdFromUrl() { return String(new URLSearchParams(location.search).get("cover") || ""); }
+// مكان الصفحة الرئيسية قبل الدخول لغلاف، عشان «رجوع» يرجّع لنفس المكان.
+let homeScrollY = 0;
+function openCover(coverId, { push = true } = {}) {
+  const cover = (state.covers || []).find(item => item.id === coverId) || null;
+  if (cover && !activeCover()) homeScrollY = window.scrollY;
+  state.activeCoverId = cover ? cover.id : "";
+  if (push) {
+    const url = new URL(location.href);
+    if (cover) url.searchParams.set("cover", cover.id); else url.searchParams.delete("cover");
+    url.searchParams.delete("filter");
+    history.pushState({ cover: state.activeCoverId }, "", url);
+  }
+  state.activeCategory = "all"; state.activeHeadingId = ""; state.activeSubheadingId = "";
+  if (!cover) applyLanguage();
+  renderCategories();
+  renderProductSections();
+  const top = cover ? 0 : homeScrollY;
+  window.scrollTo({ top, behavior: "auto" });
+  // The covers grid may still be laying out: settle the position once more.
+  if (top) setTimeout(() => { if (!activeCover()) window.scrollTo({ top, behavior: "auto" }); }, 60);
+}
+window.addEventListener("popstate", () => openCover(coverIdFromUrl(), { push: false }));
+
+document.addEventListener("click", event => {
+  const tile = event.target.closest("[data-cover-open]");
+  if (tile && !event.metaKey && !event.ctrlKey && !event.shiftKey) { event.preventDefault(); openCover(tile.dataset.coverOpen); return; }
+  if (event.target.closest("#coverBack, [data-cover-back]")) { event.preventDefault(); if (history.state && "cover" in history.state && history.length > 1) history.back(); else openCover(""); }
+});
+
+function sectionHeadingMarkup(category, matches) {
+  const thumbs = matches.map(item => productImages(item)[0]).filter(Boolean).slice(0, 3);
+  return `<div class="section-heading"><h2>${escapeHtml(categoryName(category))}</h2><span class="section-meta">${thumbs.length ? `<span class="section-thumbs" aria-hidden="true">${thumbs.map(src => `<img src="${escapeHtml(thumbnailUrl(src))}" alt="" loading="lazy" decoding="async">`).join("")}</span>` : ""}<b>${itemsLabel(matches.length)}</b></span></div>`;
+}
+
 function renderProductSections() {
   const sections = [];
   const restaurantImageNotice = category => catalogTypeOf(category) === "restaurant"
     ? `<p class="restaurant-image-notice">جميع صور المنتجات هنا تم تصويرها كما تقدم لك في طاولة المطعم .. لذلك سيختلف التغليف عند طلبها للتوصيل</p>`
     : "";
-  const ordered = sortedCategories();
+  const ordered = viewCategories();
   const filteringProducts = Boolean(activeProductFilter());
   // Preserve the real product.category relationship when filtering.  Headings
   // are a display grouping only, so they must not decide a product's section.
   if (filteringProducts) {
     ordered.forEach(category => {
       const matches = categoryProducts(category.id);
-      if (!matches.length) return;
+      if (!matches.length || (activeCover() && !activeFilteredCover() && !entryVisibleHere("category", category.id))) return;
       const sectionImage = String(category.sectionImage || "").trim();
       sections.push(`
         <section class="category-section" id="category-${encodeURIComponent(category.id)}" data-category-section="${escapeHtml(category.id)}">
-          <div class="section-heading"><h2>${escapeHtml(categoryName(category))}</h2></div>${restaurantImageNotice(category)}
+          ${sectionHeadingMarkup(category, matches)}${restaurantImageNotice(category)}
           ${sectionImage ? `<button type="button" class="category-illustration" data-category-illustration="${escapeHtml(sectionImage)}" aria-label="تكبير الصورة التوضيحية لقسم ${escapeHtml(categoryName(category))}"><img src="${escapeHtml(sectionImage)}" alt="${escapeHtml(categoryName(category))}" loading="lazy"></button>` : ""}
           <div class="product-grid">${matches.map(item => productCard(item, category)).join("")}</div>
         </section>`);
     });
-    $("#productSections").innerHTML = sections.length ? sections.join("") : `<div class="loading">${tr("noResults")}</div>`;
+    $("#productSections").innerHTML = sections.length ? sections.join("") : (!activeCover() && (state.covers || []).length ? "" : `<div class="loading">${tr("noResults")}</div>`);
+    renderCatalogWorlds();
+    renderCoverStage();
     observeImages();
     return;
   }
@@ -1476,7 +1773,7 @@ function renderProductSections() {
     const sectionImage = String(category.sectionImage || "").trim();
     return `
       <section class="category-section" id="category-${encodeURIComponent(category.id)}" data-category-section="${escapeHtml(category.id)}">
-        <div class="section-heading"><h2>${escapeHtml(categoryName(category))}</h2></div>${restaurantImageNotice(category)}
+        ${sectionHeadingMarkup(category, matches)}${restaurantImageNotice(category)}
         ${sectionImage ? `<button type="button" class="category-illustration" data-category-illustration="${escapeHtml(sectionImage)}" aria-label="تكبير الصورة التوضيحية لقسم ${escapeHtml(categoryName(category))}"><img src="${escapeHtml(sectionImage)}" alt="${escapeHtml(categoryName(category))}" loading="lazy"></button>` : ""}
         <div class="product-grid">${matches.map(item => productCard(item, category)).join("")}</div>
       </section>`;
@@ -1487,22 +1784,31 @@ function renderProductSections() {
   ].sort((a, b) => Number(a.item.order) - Number(b.item.order) || (a.type === "heading" ? -1 : 1));
   entries.forEach(({ type, item }) => {
     if (type === "category") {
-      if (!linkedCategoryIds.has(item.id) && !used.has(item.id)) { const markup = renderCategory(item); if (markup) sections.push(markup); }
+      if (!linkedCategoryIds.has(item.id) && !used.has(item.id) && entryVisibleHere("category", item.id)) { const markup = renderCategory(item); if (markup) sections.push(markup); }
       return;
     }
+    if (!entryVisibleHere("heading", item.id)) return;
     const subheadings = Array.isArray(item.subheadings) ? item.subheadings : [];
     const groups = subheadings.length ? subheadings : [{ nameAr: "", nameEn: "", categoryIds: item.categoryIds || [] }];
     const groupMarkup = groups.map(group => { const linked = (group.categoryIds || []).map(id => ordered.find(category => sameCatalogId(category.id, id))).filter(Boolean); linked.forEach(category => used.add(category.id)); if (!linked.length) return ""; return `<section class="catalog-subheading-group" data-subheading-section="${escapeHtml(group.id || "")}">${linked.map(renderCategory).join("")}</section>`; }).join("");
     if (groupMarkup) sections.push(`<section class="catalog-heading-group" id="heading-${encodeURIComponent(item.id)}" data-heading-section="${escapeHtml(item.id)}">${groupMarkup}</section>`);
   });
-  $("#productSections").innerHTML = sections.length ? sections.join("") : `<div class="loading">${tr("noResults")}</div>`;
+  $("#productSections").innerHTML = sections.length ? sections.join("") : (!activeCover() && (state.covers || []).length ? "" : `<div class="loading">${tr("noResults")}</div>`);
+  renderCatalogWorlds();
+  renderCoverStage();
   observeImages();
 }
 
+// Products that live in a cover: only these show on the site (and in search).
+function coveredProductIds() {
+  if (!(state.covers || []).length) return null;
+  return new Set((state.covers || []).flatMap(cover => coverProducts(cover)).map(item => String(item.id)));
+}
 function matchingSearchProducts(query) {
   const normalized = String(query || "").trim().toLocaleLowerCase();
   if (!normalized) return [];
-  return state.products.filter(item =>
+  const allowed = PICKER_MODE ? null : coveredProductIds();
+  return state.products.filter(item => (!allowed || allowed.has(String(item.id))) &&
     [item.name, item.nameEn, item.description, item.descriptionEn]
       .filter(Boolean)
       .join(" ")
@@ -1531,6 +1837,7 @@ function renderSearchResults() {
 }
 
 function openHeaderSearch() {
+  $("#homeTools")?.scrollIntoView({ block: "start", behavior: "smooth" });
   $("#searchPopover").classList.remove("hidden");
   $("#searchToggle").setAttribute("aria-expanded", "true");
   renderSearchResults();
@@ -1643,7 +1950,11 @@ function syncActiveNavigation() {
   state.activeSubheadingId = heading ? (linkedGroupForCategory(heading, state.activeCategory)?.id || "") : "";
   $$("[data-category-link]").forEach(button => button.classList.toggle("active", button.dataset.categoryLink === state.activeCategory));
   $$("[data-heading-link]").forEach(button => button.classList.toggle("active", button.dataset.headingLink === state.activeHeadingId));
-  if (state.activeHeadingId) document.querySelector(`[data-heading-link="${CSS.escape(state.activeHeadingId)}"]`)?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  const coverSubKey = `${state.activeHeadingId}|${state.activeSubheadingId}`;
+  $$("[data-cover-sub]").forEach(button => button.classList.toggle("active", button.dataset.coverSub === coverSubKey));
+  const coverSubButton = $$("[data-cover-sub]").find(button => button.dataset.coverSub === coverSubKey);
+  if (coverSubButton) coverSubButton.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  else if (state.activeHeadingId) document.querySelector(`[data-heading-link="${CSS.escape(state.activeHeadingId)}"]`)?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
   else centerCategoryButton(state.activeCategory);
   updateHeadingNavigation();
 }
@@ -3578,8 +3889,11 @@ $("#searchToggle").onclick = event => {
 $("#searchPopover").onclick = event => event.stopPropagation();
 $("#searchInput").oninput = event => {
   state.search = event.target.value;
+  // البحث صار خانة ثابتة فوق الشريط: النتائج تطلع تحتها أول ما تكتب.
+  $("#searchPopover").classList.toggle("hidden", !state.search.trim());
   renderSearchResults();
 };
+$("#searchInput").onfocus = () => { if (state.search.trim()) $("#searchPopover").classList.remove("hidden"); };
 $("#searchResults").onclick = event => {
   const addButton = event.target.closest("[data-search-add]");
   if (addButton) {
@@ -3611,6 +3925,8 @@ $("#drawerClose").onclick = () => closeAccountDrawer(true);
 $("#drawerBackdrop").onclick = () => closeAccountDrawer(true);
 $("#categories").onclick = event => {
   if (event.target.closest("#categoryMenuToggle")) { event.stopPropagation(); toggleCategoryMenu(); return; }
+  const coverSubButton = event.target.closest("[data-cover-sub]");
+  if (coverSubButton) { const [headingId, subheadingId] = coverSubButton.dataset.coverSub.split("|"); const heading = (state.headings || []).find(item => item.id === headingId); const group = heading?.subheadings?.find(item => item.id === subheadingId); const category = (group?.categoryIds || []).find(id => categoryProducts(id).length); state.activeHeadingId = headingId; state.activeSubheadingId = subheadingId; state.activeCategory = category || "all"; syncActiveNavigation(); if (category) scrollToCategory(category); return; }
   const headingButton = event.target.closest("[data-heading-link]");
   if (headingButton) { const heading = (state.headings || []).find(item => item.id === headingButton.dataset.headingLink); const group = Array.isArray(heading?.subheadings) && heading.subheadings.length ? heading.subheadings[0] : { id: "", categoryIds: heading?.categoryIds || [] }; const category = group?.categoryIds?.[0]; state.activeHeadingId = headingButton.dataset.headingLink; state.activeSubheadingId = group?.id || ""; state.activeCategory = category || "all"; syncActiveNavigation(); if (category) scrollToCategory(category); return; }
   const button = event.target.closest("[data-category-link]");
@@ -3657,27 +3973,27 @@ function positionProductFilterMenu() {
     menu.style.width = "";
   }
 }
-$("#productFilterToggle").onclick = event => {
+if ($("#productFilterToggle")) $("#productFilterToggle").onclick = event => {
   event.stopPropagation();
   if (state.catalogType === "restaurant") return openTableReservation();
   const menu = $("#productFilterMenu"), isNowHidden = menu.classList.toggle("hidden");
   if (!isNowHidden) positionProductFilterMenu();
   $("#productFilterToggle").setAttribute("aria-expanded", String(!isNowHidden));
 };
-$("#productFilterMenu").onclick = event => {
+if ($("#productFilterMenu")) $("#productFilterMenu").onclick = event => {
   const button = event.target.closest("[data-product-filter]"); if (!button) return;
   state.activeProductFilterId = button.dataset.productFilter;
   state.activeCategory = "all"; state.activeHeadingId = ""; state.activeSubheadingId = "";
   $("#productFilterMenu").classList.add("hidden"); $("#productFilterToggle").setAttribute("aria-expanded", "false");
   renderProductFilters(); renderCategories(); renderProductSections(); window.scrollTo({ top: 0, behavior: "smooth" });
 };
-$("#productFilterClear").onclick = () => {
+if ($("#productFilterClear")) $("#productFilterClear").onclick = () => {
   if (state.catalogType === "restaurant") return cancelTableReservation();
   state.activeProductFilterId = ""; state.activeCategory = "all"; state.activeHeadingId = ""; state.activeSubheadingId = "";
   renderProductFilters(); renderCategories(); renderProductSections();
 };
-document.addEventListener("pointerdown", event => { const wrap = $("#catalogFilterWrap"); if (wrap && !wrap.contains(event.target)) { $("#productFilterMenu").classList.add("hidden"); $("#productFilterToggle").setAttribute("aria-expanded", "false"); } });
-window.addEventListener("resize", () => { if (!$("#productFilterMenu").classList.contains("hidden")) positionProductFilterMenu(); });
+document.addEventListener("pointerdown", event => { const wrap = $("#catalogFilterWrap"); if (wrap && !wrap.contains(event.target)) { $("#productFilterMenu")?.classList.add("hidden"); $("#productFilterToggle").setAttribute("aria-expanded", "false"); } });
+window.addEventListener("resize", () => { if ($("#productFilterMenu") && !$("#productFilterMenu").classList.contains("hidden")) positionProductFilterMenu(); });
 function handleProductQuantityEvent(event) {
   const notify = event.target.closest("[data-availability-notify]");
   const add = event.target.closest("[data-product-add]");
@@ -3859,7 +4175,7 @@ function applyCatalog(catalog, cache = true) {
     catalog.version || "", catalog.updatedAt || "",
     catalog.restaurantEnabled !== false,
     catalog.appearance || {}, catalog.advertisement || {},
-    catalog.headings || [], catalog.productFilters || [],
+    catalog.headings || [], catalog.productFilters || [], catalog.covers || [], catalog.qualityStrip || null,
     catalog.categories.map(category => [category.id, category.catalogType || "bakery", category.active !== false, category.order, category.nameAr, category.nameEn]),
     catalog.products.map(item => [item.id, item.catalogType || "bakery", item.active !== false, item.availability || null, item.inventory || null, item.originalPrice || 0, item.category, item.order, item.price, item.name, item.nameEn, item.image, item.options || null, item.preparation || null]),
     catalog.deliveryAreas.map(area => [area.id, area.nameAr || area.name, area.nameEn, area.price, area.order])
@@ -3880,6 +4196,14 @@ function applyCatalog(catalog, cache = true) {
   if (!state.restaurantEnabled && state.catalogType === "restaurant") state.catalogType = "bakery";
   renderCatalogSwitch();
   state.headings = Array.isArray(catalog.headings) ? catalog.headings : [];
+  state.covers = normalizeCovers(catalog.covers);
+  state.qualityStrip = catalog.qualityStrip || null;
+  renderQualityStrip();
+  // The address (?cover=) decides which cover page is open, so a shared link always works.
+  const urlCoverId = PICKER_MODE ? "" : coverIdFromUrl();
+  state.activeCoverId = state.covers.some(cover => cover.id === urlCoverId) ? urlCoverId : "";
+  // Old filter links (?filter=…) open the filtered cover that was made from that filter.
+  if (!state.activeCoverId && !PICKER_MODE) { const filterId = directProductFilterId(); const match = filterId && state.covers.find(cover => cover.filtered && cover.sourceFilterId === filterId); if (match) state.activeCoverId = match.id; }
   state.productFilters = Array.isArray(catalog.productFilters) ? catalog.productFilters.map((filter, index) => ({ id: String(filter.id || `filter-${index}`), nameAr: String(filter.nameAr || filter.name || ""), nameEn: String(filter.nameEn || filter.nameAr || filter.name || ""), products: (Array.isArray(filter.products) ? filter.products : []).map(entry => ({ productId: String(entry?.productId || entry?.id || entry || ""), firstStepId: String(entry?.firstStepId || ""), optionIds: Array.isArray(entry?.optionIds) ? entry.optionIds.map(String) : [], steps: (Array.isArray(entry?.steps) ? entry.steps : []).map(step => ({ stepId: String(step?.stepId || step?.id || ""), optionIds: Array.isArray(step?.optionIds) ? step.optionIds.map(String) : [] })).filter(step => step.stepId) })) })) : [];
   const directFilterId = directProductFilterId();
   if (!directFilterWasApplied && directFilterId && state.productFilters.some(filter => filter.id === directFilterId)) {
@@ -4021,7 +4345,7 @@ async function initializeStoreData() {
   if (state.user?.phone) {
     rememberSession(state.user.phone);
     requestPersistentStorage();
-    hydrateUserFromServer();
+    (customerSessionToken ? Promise.resolve() : restoreLegacyCustomerSession()).then(hydrateUserFromServer);
   } else {
     await restoreSavedCustomerSession();
   }
@@ -4064,3 +4388,149 @@ document.addEventListener("pointerup", event => {
 document.addEventListener("click", event => {
   if (event.target === $("#advertisementModal")) hideAdvertisement();
 }, true);
+
+
+// ---------- وضع الاختيار (داخل الإدارة) ----------
+// الإدارة ترسل المنتجات المحددة، والمنصة ترجّع المنتج اللي انضغط.
+const pickerSelected = new Set();
+function syncPickerMarks() {
+  $$("[data-product]").forEach(card => card.classList.toggle("picker-selected", pickerSelected.has(String(card.dataset.product))));
+}
+if (PICKER_MODE) {
+  window.addEventListener("message", event => {
+    if (event.origin !== location.origin || event.data?.type !== "fo-picker-state") return;
+    pickerSelected.clear();
+    (event.data.selected || []).forEach(id => pickerSelected.add(String(id)));
+    syncPickerMarks();
+  });
+  document.addEventListener("click", event => {
+    const card = event.target.closest(".product-card[data-product]");
+    if (!card) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    window.parent?.postMessage({ type: "fo-picker-toggle", productId: String(card.dataset.product) }, location.origin);
+  }, true);
+  // Cards are redrawn when the catalogue or the language changes.
+  new MutationObserver(syncPickerMarks).observe(document.body, { childList: true, subtree: true });
+  window.parent?.postMessage({ type: "fo-picker-ready" }, location.origin);
+}
+
+
+// ---------- القائمة الجانبية (زر الثلاث خطوط) ----------
+// أولها الدخول (أو حسابي لما يكون مسجل)، بعدها الأغلفة، وبالأخير الترجمة.
+const sideMenuIcons = {
+  login: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4.25 4.25 0 1 0 0-8.5 4.25 4.25 0 0 0 0 8.5Zm7.25 8.5a7.25 7.25 0 0 0-14.5 0"/></svg>',
+  home: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5h-5v5H5a1 1 0 0 1-1-1z"/></svg>'
+};
+function renderSideMenu() {
+  const account = $("#sideMenuAccount"), coversHost = $("#sideMenuCovers");
+  if (!account || !coversHost) return;
+  const ar = state.lang === "ar";
+  account.innerHTML = state.user?.name
+    ? `<div class="side-menu-user"><small>${escapeHtml(tr("welcome"))}</small><strong>${escapeHtml(state.user.name)}</strong></div>
+       <button type="button" data-side-account="info">${accountIcons.info}<span>${tr("myInfo")}</span></button>
+       <button type="button" data-side-account="addresses">${accountIcons.address}<span>${tr("myAddresses")}</span></button>
+       <button type="button" data-side-account="orders">${accountIcons.order}<span>${tr("myOrders")}</span></button>
+       <button type="button" class="logout" data-side-account="logout">${accountIcons.logout}<span>${tr("logout")}</span></button>`
+    : `<button type="button" class="side-menu-login" data-side-account="login">${sideMenuIcons.login}<span>${tr("login")}</span></button>`;
+  const covers = visibleCovers();
+  coversHost.classList.toggle("hidden", !covers.length);
+  coversHost.innerHTML = covers.length ? `<h3>${escapeHtml(tr("browseCovers"))}</h3>
+    <button type="button" data-side-cover="" class="${activeCover() ? "" : "active"}">${sideMenuIcons.home}<span>${ar ? "الرئيسية" : "Home"}</span></button>
+    ${covers.map(cover => `<button type="button" data-side-cover="${escapeHtml(cover.id)}" class="${state.activeCoverId === cover.id ? "active" : ""}">${coverMenuImage(cover) ? `<img src="${escapeHtml(coverMenuImage(cover))}" alt="" loading="lazy">` : `<i></i>`}<span>${escapeHtml(coverText(cover, "name"))}</span></button>`).join("")}` : "";
+}
+// A moving-photos cover has no single photo: the menu shows its first product photo.
+function coverMenuImage(cover) {
+  if (cover.image && cover.imageMode !== "animated") return cover.image;
+  const first = coverProducts(cover).map(item => productImages(item)[0]).find(Boolean);
+  return first ? thumbnailUrl(first) : cover.image;
+}
+function setSideMenu(open) {
+  const layer = $("#sideMenu");
+  if (!layer) return;
+  if (open) renderSideMenu();
+  layer.classList.toggle("hidden", !open);
+  layer.setAttribute("aria-hidden", String(!open));
+  $("#sideMenuToggle")?.setAttribute("aria-expanded", String(open));
+  document.documentElement.classList.toggle("side-menu-open", open);
+}
+$("#sideMenuToggle")?.addEventListener("click", () => setSideMenu(true));
+$("#sideMenu")?.addEventListener("click", event => {
+  if (event.target.closest("[data-side-menu-close]")) return setSideMenu(false);
+  const accountAction = event.target.closest("[data-side-account]")?.dataset.sideAccount;
+  if (accountAction) {
+    setSideMenu(false);
+    if (accountAction === "login") return openAuth("login");
+    if (accountAction === "logout") return logout();
+    return openAccountDrawer(accountAction);
+  }
+  const coverButton = event.target.closest("[data-side-cover]");
+  if (coverButton) { setSideMenu(false); openCover(coverButton.dataset.sideCover); }
+});
+document.addEventListener("keydown", event => { if (event.key === "Escape" && !$("#sideMenu")?.classList.contains("hidden")) setSideMenu(false); });
+$("#homeLanguageToggle")?.addEventListener("click", () => setLanguage(state.lang === "ar" ? "en" : "ar"));
+$("#languageToggle")?.addEventListener("click", () => { if (!$("#sideMenu")?.classList.contains("hidden")) setTimeout(renderSideMenu, 0); });
+$("#brandHome")?.addEventListener("click", event => { event.preventDefault(); if (activeCover()) openCover(""); else window.scrollTo({ top: 0, behavior: "smooth" }); });
+
+
+// ---------- التذييل ----------
+// المعلومات من صفحة روابطنا وفروعنا (figsolives.online/qr) و«من نحن».
+function renderFooter() {
+  const host = document.getElementById("siteFooter");
+  if (!host || PICKER_MODE) return;
+  const ar = state.lang === "ar";
+  const icon = {
+    pin: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>',
+    wa: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 19.5 5.6 16A7.8 7.8 0 1 1 8.4 18.6Z"/><path d="M9.2 8.8c.2 2.6 2.4 4.9 5 5.2l1-1.2-1.6-.9-.7.6c-.9-.4-1.6-1.1-2-2l.6-.7-.9-1.6Z"/></svg>',
+    ig: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="4.5"/><circle cx="12" cy="12" r="3.6"/><circle cx="16.6" cy="7.4" r=".6"/></svg>',
+    tt: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4v10.2a3.3 3.3 0 1 1-2.7-3.2"/><path d="M14 4c.4 2.3 2 3.9 4.5 4.2"/></svg>',
+    web: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.3 3.6 5.1 3.6 8.5s-1.2 6.2-3.6 8.5c-2.4-2.3-3.6-5.1-3.6-8.5s1.2-6.2 3.6-8.5Z"/></svg>'
+  };
+  const branches = [
+    { ar: "المطبخ الرئيسي", en: "Main kitchen", addressAr: "حولي، شارع تونس، مجمع علي فهد الخالد، دور الميزانين", addressEn: "Hawally, Tunis St., Ali Fahad Al-Khaled Complex, Mezzanine", map: "https://maps.app.goo.gl/qa5RhW2H1cPWFwzx8?g_st=awb" },
+    { ar: "فرع اليرموك", en: "Yarmouk branch", addressAr: "اليرموك، ق٢، شارع ٢، بجانب بوابة فرع الجمعية", addressEn: "Yarmouk, Block 2, Street 2, next to the co-op gate", map: "https://maps.app.goo.gl/4sphxVX9DsJFUB5u6?g_st=awb" },
+    { ar: "فرع أبو الحصانية", en: "Abu Al-Hasaniya branch", addressAr: "أبو الحصانية، مول ٣٠، مقابل طريق الفحيحيل السريع", addressEn: "Abu Al-Hasaniya, Mall 30, facing Fahaheel Expressway", map: "https://maps.app.goo.gl/N8WgcZHLoS1QC5Dj9?g_st=awb" }
+  ];
+  const contacts = [
+    { ar: "فرع التوصيل", en: "Delivery", phone: "96566906605" },
+    { ar: "فرع اليرموك", en: "Yarmouk branch", phone: "96565162277" },
+    { ar: "فرع أبو الحصانية", en: "Abu Al-Hasaniya branch", phone: "96599176512" }
+  ];
+  const accounts = [
+    { ar: "مخبز التين والزيتون", en: "Figs & Olives Bakery", handle: "figsolives.kw", instagram: "https://www.instagram.com/figsolives.kw/", tiktok: "https://www.tiktok.com/@figsolives.kw" },
+    { ar: "مطعم التين الطبيعي", en: "Natural Figs Restaurant", handle: "natural_figs", instagram: "https://www.instagram.com/natural_figs/", tiktok: "https://www.tiktok.com/@natural_figs" }
+  ];
+  const about = ar
+    ? "نحن مخبز ومطعم يطحنان الحبوب الكاملة من القمح والشعير والشوفان والدخن، ثم يصنعان الخبز والفطائر بإضافة الخميرة الطبيعية والنكهات الطبيعية من خضار وفواكه وبهارات لتزيد القيمة الغذائية للخبزة. ولأن هدفنا الصحة فنحن لا نضيف مواد حافظة أو ملونة أو معلبة أو محسنة للطعم، ولا نستخدم الطحين الأبيض أو السكر أو الخميرة الصناعية أو الدهون المهدرجة، ونختار أجود المواد وأغلاها لصناعة منتجاتنا."
+    : "We are a bakery and restaurant that mill whole grains — wheat, barley, oats and millet — then make our bread and pastries with natural sourdough and natural flavours from vegetables, fruits and spices to add nutritional value. Because our goal is health, we add no preservatives, colourings, canned ingredients or flavour enhancers, and we never use white flour, sugar, commercial yeast or hydrogenated fats. We choose the finest, most precious ingredients for everything we make.";
+  const promises = ar ? ["حبوب كاملة نطحنها بأنفسنا", "خميرة طبيعية", "بدون مواد حافظة"] : ["Whole grains we mill ourselves", "Natural sourdough", "No preservatives"];
+  const formatPhone = phone => `+965 ${phone.slice(3, 7)} ${phone.slice(7)}`;
+  const year = new Date().getFullYear();
+  host.innerHTML = `
+    <div class="footer-inner">
+      <section class="footer-about">
+        <div class="footer-brand"><img src="logo.png" alt=""><div><strong>${ar ? "مخبز التين والزيتون" : "Figs & Olives Bakery"}</strong><span><i>&amp;</i> ${ar ? "مطعم التين الطبيعي" : "Natural Figs Restaurant"}</span></div></div>
+        <h2>${ar ? "من نحن" : "About us"}</h2>
+        <p>${escapeHtml(about)}</p>
+        <ul class="footer-promises">${promises.map(text => `<li>${escapeHtml(text)}</li>`).join("")}</ul>
+      </section>
+      <section class="footer-col">
+        <h2>${ar ? "فروعنا" : "Our branches"}</h2>
+        <ul class="footer-branches">${branches.map(branch => `<li><a href="${branch.map}" target="_blank" rel="noopener">${icon.pin}<span><b>${escapeHtml(ar ? branch.ar : branch.en)}</b><small>${escapeHtml(ar ? branch.addressAr : branch.addressEn)}</small></span></a></li>`).join("")}</ul>
+      </section>
+      <section class="footer-col">
+        <h2>${ar ? "تواصل معنا" : "Contact us"}</h2>
+        <ul class="footer-contacts">${contacts.map(contact => `<li><a href="https://wa.me/${contact.phone}" target="_blank" rel="noopener">${icon.wa}<span><b>${escapeHtml(ar ? contact.ar : contact.en)}</b><small dir="ltr">${formatPhone(contact.phone)}</small></span></a></li>`).join("")}</ul>
+      </section>
+      <section class="footer-col">
+        <h2>${ar ? "حساباتنا" : "Follow us"}</h2>
+        <ul class="footer-accounts">${accounts.map(account => `<li><b>${escapeHtml(ar ? account.ar : account.en)}</b><span class="footer-social"><a href="${account.instagram}" target="_blank" rel="noopener" aria-label="Instagram ${account.handle}">${icon.ig}</a><a href="${account.tiktok}" target="_blank" rel="noopener" aria-label="TikTok ${account.handle}">${icon.tt}</a><small dir="ltr">@${account.handle}</small></span></li>`).join("")}</ul>
+        <a class="footer-site" href="https://figsolives.online/" target="_blank" rel="noopener">${icon.web}<span dir="ltr">figsolives.online</span></a>
+      </section>
+    </div>
+    <div class="footer-bottom">
+      <p class="footer-motto">${ar ? "صحتك أغلى ما تملك .. فتناول طعاماً صحياً" : "Your health is your most precious asset — eat well."}</p>
+      <small>© ${year} ${ar ? "مخبز التين والزيتون ومطعم التين الطبيعي" : "Figs & Olives Bakery · Natural Figs Restaurant"}</small>
+    </div>`;
+}
+renderFooter();

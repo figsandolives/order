@@ -1,0 +1,195 @@
+/* الهيدر الجديد، القائمة الجانبية، وأدوات الصفحة الرئيسية (البحث والترجمة).
+   الترتيب بالعربي من اليمين: القائمة ← الشعار ← اسم المخبز والمطعم ← السلة أقصى اليسار. */
+
+/* ---------- الهيدر ---------- */
+.site-header .header-inner{
+  display:grid;
+  grid-template-columns:auto auto minmax(0,1fr) auto;
+  align-items:center;
+  gap:10px;
+}
+.side-menu-toggle{
+  width:46px;height:46px;flex:0 0 auto;
+  display:grid;place-content:center;gap:5px;
+  padding:0;border:1px solid #dfe6e0;border-radius:15px;
+  background:#fff;cursor:pointer;
+  transition:background-color .2s,border-color .2s;
+}
+.side-menu-toggle span{display:block;width:20px;height:2.2px;border-radius:2px;background:#194433}
+.side-menu-toggle span:nth-child(2){width:14px;justify-self:start}
+.side-menu-toggle:hover{background:#eef4ef;border-color:#cddcd1}
+.site-header .brand{display:block;line-height:0}
+.site-header .brand img{width:48px;height:48px;object-fit:contain}
+
+.header-title{
+  min-width:0;
+  display:grid;
+  justify-items:center;
+  gap:1px;
+  text-align:center;
+  line-height:1.35;
+}
+.header-title > strong{font-size:clamp(15px,1.6vw,20px);font-weight:900;color:#18352a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.header-title-second{display:flex;align-items:center;gap:7px;max-width:100%;white-space:nowrap}
+.header-title-second i{font-style:normal;font-family:Georgia,"Times New Roman",serif;font-size:1.25em;color:#c99a33;line-height:1}
+.header-title-second strong{font-size:clamp(12px,1.2vw,15px);font-weight:800;color:#2d6a4f;overflow:hidden;text-overflow:ellipsis}
+
+/* صفحة الغلاف: «رجوع» واسم الغلاف مكان اسم المخبز */
+.header-cover{min-width:0;display:flex;align-items:center;justify-content:center;gap:10px}
+.header-cover.hidden{display:none}
+.header-cover .cover-back{
+  position:static;
+  flex:0 0 auto;
+  display:inline-flex;align-items:center;gap:5px;
+  margin:0;padding:8px 14px 8px 16px;
+  border:0;border-radius:999px;
+  background:#194433;color:#fff;
+  font-size:13px;font-weight:900;text-decoration:none;
+  box-shadow:0 6px 16px rgba(25,68,51,.25);
+}
+.header-cover .cover-back svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+[dir="ltr"] .header-cover .cover-back svg{transform:scaleX(-1)}
+.header-cover strong{min-width:0;font-size:clamp(15px,1.6vw,20px);font-weight:900;color:#18352a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.cover-mode .cover-stage{display:none}
+body.cover-mode .home-tools{display:none}
+
+@media(max-width:760px){
+  .site-header .header-inner{gap:7px}
+  .side-menu-toggle{width:40px;height:40px;border-radius:13px}
+  .side-menu-toggle span{width:18px}
+  .side-menu-toggle span:nth-child(2){width:12px}
+  .site-header .brand img{width:40px;height:40px}
+  .header-title > strong{font-size:13.5px}
+  .header-title-second{gap:5px}
+  .header-title-second strong{font-size:11px}
+  .header-cover{gap:7px;justify-content:flex-start}
+  .header-cover .cover-back{padding:7px 11px 7px 13px;font-size:12px}
+  .header-cover strong{font-size:14px}
+}
+
+/* ---------- القائمة الجانبية ---------- */
+.side-menu-layer{position:fixed;inset:0;z-index:300}
+.side-menu-layer.hidden{display:none}
+.side-menu-backdrop{position:absolute;inset:0;border:0;padding:0;background:rgba(13,33,25,.5);backdrop-filter:blur(3px);cursor:pointer;animation:sideMenuFade .2s ease-out}
+.side-menu{
+  position:absolute;
+  top:0;bottom:0;
+  inset-inline-start:0;
+  width:min(340px,86vw);
+  display:flex;flex-direction:column;
+  background:#fffefb;
+  box-shadow:0 0 50px rgba(13,33,25,.3);
+  overflow:auto;
+  overscroll-behavior:contain;
+  animation:sideMenuIn .28s cubic-bezier(.2,.8,.2,1);
+}
+[dir="ltr"] .side-menu{animation-name:sideMenuInLtr}
+@keyframes sideMenuIn{from{transform:translateX(100%)}to{transform:none}}
+@keyframes sideMenuInLtr{from{transform:translateX(-100%)}to{transform:none}}
+@keyframes sideMenuFade{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){.side-menu,.side-menu-backdrop{animation:none}}
+html.side-menu-open,html.side-menu-open body{overflow:hidden}
+
+.side-menu-head{display:flex;align-items:center;gap:10px;padding:18px 16px;border-bottom:1px solid #ebe8de;background:linear-gradient(180deg,#f4f8f5,#fffefb)}
+.side-menu-head img{width:48px;height:48px;object-fit:contain}
+.side-menu-head div{flex:1;min-width:0;display:grid;gap:2px}
+.side-menu-head strong{font-size:15px;font-weight:900;color:#18352a}
+.side-menu-head small{font-size:12px;font-weight:800;color:#2d6a4f}
+.side-menu-head small i{font-style:normal;font-family:Georgia,serif;color:#c99a33;font-size:1.2em}
+.side-menu-close{width:38px;height:38px;flex:0 0 auto;border:0;border-radius:50%;background:#eef1ec;color:#194433;font-size:24px;line-height:1;cursor:pointer}
+
+.side-menu-section{display:grid;gap:4px;padding:12px 10px}
+.side-menu-section.hidden{display:none}
+.side-menu-section + .side-menu-section{border-top:1px solid #ebe8de}
+.side-menu-section h3{margin:4px 8px 6px;font-size:12px;font-weight:900;color:#708078}
+.side-menu-section button{
+  display:flex;align-items:center;gap:12px;
+  width:100%;padding:11px 12px;
+  border:0;border-radius:14px;
+  background:transparent;color:#18352a;
+  font:inherit;font-size:14px;font-weight:800;text-align:start;cursor:pointer;
+}
+.side-menu-section button:hover{background:#f1f5f2}
+.side-menu-section button.active{background:#e8f0ea;color:#194433}
+.side-menu-section button svg{width:22px;height:22px;flex:0 0 auto;fill:none;stroke:#2d6a4f;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.side-menu-section button img,.side-menu-section button > i{width:36px;height:36px;flex:0 0 auto;border-radius:11px;object-fit:cover;background:#eef1ec}
+.side-menu-section .logout{color:#b43e3e}
+.side-menu-section .logout svg{stroke:#b43e3e}
+.side-menu-login{background:#194433!important;color:#fff!important;justify-content:center}
+.side-menu-login svg{stroke:#fff!important}
+.side-menu-user{display:grid;gap:2px;padding:6px 12px 10px}
+.side-menu-user small{font-size:11px;color:#708078;font-weight:700}
+.side-menu-user strong{font-size:17px;font-weight:900;color:#18352a}
+
+.side-menu-foot{margin-top:auto;padding:14px 16px 22px;border-top:1px solid #ebe8de}
+.side-menu-foot .language-toggle{
+  width:100%;display:flex;align-items:center;justify-content:center;gap:8px;
+  padding:12px;border:1px solid #dfe6e0;border-radius:14px;
+  background:#fff;color:#194433;font:inherit;font-size:14px;font-weight:900;cursor:pointer;
+}
+.side-menu-foot svg,.home-language svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8}
+
+/* ---------- البحث والترجمة فوق الشريط ---------- */
+.home-tools{
+  width:min(1320px,calc(100% - 32px));
+  margin:14px auto 14px;
+  display:flex;align-items:center;gap:10px;
+}
+.home-search{position:relative;flex:1 1 auto;min-width:0}
+.home-search-field{
+  display:flex;align-items:center;gap:10px;
+  height:52px;padding:0 16px;
+  border:1px solid #dfe3d8;border-radius:16px;
+  background:#fff;
+  box-shadow:0 6px 18px rgba(16,47,34,.06);
+  cursor:text;
+  transition:border-color .2s,box-shadow .2s;
+}
+.home-search-field:focus-within{border-color:#2d6a4f;box-shadow:0 0 0 4px rgba(45,106,79,.12)}
+.home-search-field svg{width:21px;height:21px;flex:0 0 auto;fill:none;stroke:#2d6a4f;stroke-width:2;stroke-linecap:round}
+.home-search-field input{flex:1;min-width:0;height:100%;border:0;outline:0;background:transparent;font:inherit;font-size:14px;font-weight:700;color:#18352a}
+.home-search-field input::placeholder{color:#97a29b;font-weight:600}
+.home-search .search-popover{
+  position:absolute;
+  top:calc(100% + 8px);
+  inset-inline:0;
+  width:auto;
+  z-index:60;
+}
+.home-language{
+  flex:0 0 auto;
+  height:52px;
+  display:inline-flex;align-items:center;gap:7px;
+  padding:0 16px;
+  border:1px solid #dfe3d8;border-radius:16px;
+  background:#fff;color:#194433;
+  font:inherit;font-size:13px;font-weight:900;cursor:pointer;
+  box-shadow:0 6px 18px rgba(16,47,34,.06);
+}
+.home-language:hover{background:#f1f5f2}
+.home-tools + .quality-strip-host{margin-top:0}
+@media(max-width:760px){
+  .home-tools{width:calc(100% - 24px);margin:10px auto 12px;gap:8px}
+  .home-search-field{height:46px;padding:0 13px;border-radius:14px}
+  .home-search-field input{font-size:13px}
+  .home-language{height:46px;padding:0 12px;border-radius:14px;font-size:12px}
+}
+
+/* وضع الاختيار داخل الإدارة: بدون قائمة ولا بحث ولا ترجمة */
+html.picker-mode .side-menu-toggle,
+html.picker-mode .home-tools,
+html.picker-mode .header-cover{display:none!important}
+html.picker-mode .site-header .header-inner{grid-template-columns:auto minmax(0,1fr) auto}
+.home-search .search-toggle{display:none!important}
+.home-search{display:block}
+/* النتائج بعرض الصف كامل (البحث + الترجمة) */
+.home-tools{position:relative}
+.home-search{position:static}
+
+/* صفحة الغلاف: زر الرجوع مكان القائمة والشعار (يمين)، واسم الغلاف بعده، والسلة يسار */
+body.cover-mode .site-header .side-menu-toggle,
+body.cover-mode .site-header .brand{display:none}
+body.cover-mode .site-header .header-inner{grid-template-columns:minmax(0,1fr) auto}
+body.cover-mode .header-cover{justify-content:flex-start}
+/* الصفحة الرئيسية ما فيها أقسام (الأغلفة بس)، فما تبقى مساحة فاضية قبل التذييل */
+.product-sections:empty{display:none}
