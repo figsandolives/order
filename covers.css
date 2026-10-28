@@ -270,3 +270,6 @@ html.picker-mode .product-card.picker-selected::after{top:8px;inset-inline-end:8
 .cover-inner-image{display:block;width:min(100%,960px);margin:0 auto;padding:0;border:0;background:transparent;cursor:zoom-in}
 .cover-inner-image img{display:block;width:100%;height:auto;border-radius:18px}
 .product-sections:has(+ .cover-inner-image-host:not(.hidden)){padding-bottom:28px}
+
+/* حجم خط اسم الغلاف من الإدارة (cover.nameScale) */
+.world-tile-copy strong>span{font-size:calc(var(--name-scale,1) * 1em)}

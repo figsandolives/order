@@ -1604,6 +1604,7 @@ function normalizeCovers(list) {
     id: String(cover?.id || ""),
     nameAr: String(cover?.nameAr || ""), nameEn: String(cover?.nameEn || cover?.nameAr || ""),
     descriptionAr: String(cover?.descriptionAr || ""), descriptionEn: String(cover?.descriptionEn || cover?.descriptionAr || ""),
+    nameScale: Math.min(1.3, Math.max(0.5, Number(cover?.nameScale) || 1)),
     size: cover?.size === "full" ? "full" : "half",
     image: String(cover?.image || ""),
     innerImage: String(cover?.innerImage || "").trim(),
@@ -1752,7 +1753,7 @@ function coverTileMarkup(cover) {
   const animated = cover.imageMode === "animated";
   return `<a class="world-tile size-${cover.size}${animated ? " is-animated" : ""}" href="${escapeHtml(prettyPath(cover))}" data-cover-open="${escapeHtml(cover.id)}">
     ${animated ? coverMosaicMarkup(cover) : (cover.image ? `<img src="${escapeHtml(cover.image)}" alt="" loading="lazy" decoding="async">` : "")}
-    <span class="world-tile-copy"><strong>${escapeHtml(coverText(cover, "name"))}</strong>${coverText(cover, "description") ? `<small>${escapeHtml(coverText(cover, "description"))}</small>` : ""}</span>
+    <span class="world-tile-copy"><strong><span style="--name-scale:${cover.nameScale}">${escapeHtml(coverText(cover, "name"))}</span></strong>${coverText(cover, "description") ? `<small>${escapeHtml(coverText(cover, "description"))}</small>` : ""}</span>
     <span class="world-tile-count">${itemsLabel(coverProducts(cover).length)}</span>
   </a>`;
 }
