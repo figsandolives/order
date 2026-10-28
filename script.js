@@ -1607,6 +1607,7 @@ function normalizeCovers(list) {
     size: cover?.size === "full" ? "full" : "half",
     image: String(cover?.image || ""),
     innerImage: String(cover?.innerImage || "").trim(),
+    innerImages: (Array.isArray(cover?.innerImages) ? cover.innerImages : [cover?.innerImage]).map(src => String(src || "").trim()).filter(Boolean),
     imagePages: normalizeImagePages(cover?.imagePages),
     helperProductIds: (Array.isArray(cover?.helperProductIds) ? cover.helperProductIds : []).map(String).slice(0, 3),
     items: (Array.isArray(cover?.items) ? cover.items : []).map(item => ({ type: item?.type === "heading" ? "heading" : "category", id: String(item?.id || "") })).filter(item => item.id),
@@ -1797,9 +1798,9 @@ function renderCoverStage() {
   // الصورة الداخلية للغلاف (من الإدارة): تطلع تحت كل الأقسام ومنتجاتها (آخر صفحة الغلاف)، بمقاسها كاملة.
   const inner = $("#coverInnerImage");
   if (inner) {
-    const src = cover?.innerImage || "";
-    inner.classList.toggle("hidden", !src);
-    inner.innerHTML = src ? `<button type="button" class="cover-inner-image" data-category-illustration="${escapeHtml(src)}" aria-label="${escapeHtml(coverText(cover, "name"))}"><img src="${escapeHtml(src)}" alt="${escapeHtml(coverText(cover, "name"))}" decoding="async"></button>` : "";
+    const images = cover?.innerImages || [];
+    inner.classList.toggle("hidden", !images.length);
+    inner.innerHTML = images.map(src => `<button type="button" class="cover-inner-image" data-category-illustration="${escapeHtml(src)}" aria-label="${escapeHtml(coverText(cover, "name"))}"><img src="${escapeHtml(src)}" alt="${escapeHtml(coverText(cover, "name"))}" loading="lazy" decoding="async"></button>`).join("");
   }
   document.body.classList.remove("cover-banner-visible");
   $("#headerTitle")?.classList.toggle("hidden", Boolean(cover));
