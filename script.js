@@ -1607,6 +1607,7 @@ function normalizeCovers(list) {
     size: cover?.size === "full" ? "full" : "half",
     image: String(cover?.image || ""),
     innerImage: String(cover?.innerImage || "").trim(),
+    imagePages: normalizeImagePages(cover?.imagePages),
     helperProductIds: (Array.isArray(cover?.helperProductIds) ? cover.helperProductIds : []).map(String).slice(0, 3),
     items: (Array.isArray(cover?.items) ? cover.items : []).map(item => ({ type: item?.type === "heading" ? "heading" : "category", id: String(item?.id || "") })).filter(item => item.id),
     filtered: cover?.filtered === true,
@@ -1618,6 +1619,62 @@ function normalizeCovers(list) {
     productOrder: Object.fromEntries(Object.entries(cover?.productOrder && typeof cover.productOrder === "object" ? cover.productOrder : {}).map(([key, ids]) => [String(key), (Array.isArray(ids) ? ids : []).map(String)]))
   })).filter(cover => cover.id);
 }
+// ---- تفريغ قسم داخل صورة (cover.imagePages): صورة A4 للقسم، كل منتج له حدود مرسومة ومرفقات بأماكنها ----
+const IMAGE_PAGE_TYPES = ["name", "desc", "price", "add", "prep", "min", "badge"];
+function normalizeImagePages(list) {
+  const num = (value, min, max, fallback) => { const n = Number(value); return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback; };
+  return (Array.isArray(list) ? list : []).map(page => ({
+    id: String(page?.id || ""), categoryId: String(page?.categoryId || ""), image: String(page?.image || ""),
+    width: num(page?.width, 1, 20000, 1000), height: num(page?.height, 1, 40000, 1414), active: page?.active === true,
+    regions: (Array.isArray(page?.regions) ? page.regions : []).map(region => ({
+      id: String(region?.id || ""), productId: String(region?.productId || ""),
+      points: (Array.isArray(region?.points) ? region.points : []).map(point => [num(point?.[0], 0, 1, 0), num(point?.[1], 0, 1, 0)]),
+      elements: (Array.isArray(region?.elements) ? region.elements : []).filter(el => IMAGE_PAGE_TYPES.includes(el?.type)).map(el => ({
+        id: String(el.id || ""), type: el.type, x: num(el.x, -0.5, 1.5, 0), y: num(el.y, -0.5, 1.5, 0), w: num(el.w, 0, 1.5, 0), h: num(el.h, 0, 1.5, 0),
+        size: num(el.size, 0.3, 12, 2.4), color: ["dark", "light", "green", "gold", "red"].includes(el.color) ? el.color : "dark",
+        align: ["right", "center", "left"].includes(el.align) ? el.align : "center", plate: el.plate === true
+      }))
+    })).filter(region => region.id && region.productId && region.points.length >= 3)
+  })).filter(page => page.id && page.categoryId);
+}
+function activeImagePage(categoryId) {
+  const cover = activeCover();
+  if (!cover || cover.filtered || activeProductFilter()) return null;
+  return cover.imagePages.find(page => page.active && page.image && page.regions.length && sameCatalogId(page.categoryId, categoryId)) || null;
+}
+const IMAGE_PAGE_CLOCK = `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/></svg>`;
+function imageElementMarkup(el, item) {
+  const id = escapeHtml(item.id);
+  const description = String(productDescription(item) || "").trim();
+  const inner = {
+    name: () => escapeHtml(productName(item)),
+    desc: () => (/^[-–—_.\s]*$/.test(description) ? "" : escapeHtml(description)),
+    price: () => productPriceMarkup(item),
+    add: () => `<div class="product-quantity-slot" data-product-quantity="${id}">${productQuantityControl(item.id, cartQuantity(item.id))}</div>`,
+    prep: () => `<span class="im-pill">${IMAGE_PAGE_CLOCK}${escapeHtml(preparationLabel(item))}</span>`,
+    min: () => (minimumOrderConfig(item.minimumOrder) ? `<span class="im-pill">${escapeHtml(minimumOrderText(item.minimumOrder))}</span>` : ""),
+    badge: () => { const badge = productBadge(item); return badge ? `<span class="im-pill">${escapeHtml(badge)}</span>` : ""; }
+  }[el.type]?.() || "";
+  if (!inner) return "";
+  const style = `left:${(el.x * 100).toFixed(3)}%;top:${(el.y * 100).toFixed(3)}%;${el.w ? `width:${(el.w * 100).toFixed(3)}%;` : ""}${el.h ? `min-height:${(el.h * 100).toFixed(3)}%;` : ""}--s:${el.size}`;
+  return `<div class="im-el im-${el.type} im-c-${el.color} im-a-${el.align}${el.plate ? " im-plate" : ""}" style="${style}" dir="${state.lang === "ar" ? "rtl" : "ltr"}"${el.type === "add" ? "" : ` data-product="${id}"`}>${inner}</div>`;
+}
+function imagePageMarkup(page, category) {
+  const visible = new Map(categoryProducts(category.id).map(item => [String(item.id), item]));
+  const regions = page.regions.map(region => ({ region, item: visible.get(String(region.productId)) })).filter(entry => entry.item);
+  const W = page.width, H = page.height;
+  const polygons = regions.map(({ region, item }) => `<polygon points="${region.points.map(([x, y]) => `${(x * W).toFixed(1)},${(y * H).toFixed(1)}`).join(" ")}" data-product="${escapeHtml(item.id)}" tabindex="0" role="button" aria-label="${escapeHtml(productName(item))}"></polygon>`).join("");
+  const elements = regions.flatMap(({ region, item }) => region.elements.map(el => imageElementMarkup(el, item))).join("");
+  return `
+    <section class="category-section im-section" id="category-${encodeURIComponent(category.id)}" data-category-section="${escapeHtml(category.id)}" aria-label="${escapeHtml(categoryName(category))}">
+      <div class="im-page" style="aspect-ratio:${W}/${H}">
+        <img src="${escapeHtml(page.image)}" width="${W}" height="${H}" alt="${escapeHtml(categoryName(category))}" decoding="async">
+        <svg class="im-regions" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${polygons}</svg>
+        <div class="im-layer">${elements}</div>
+      </div>
+    </section>`;
+}
+
 function coverText(cover, field) { return state.lang === "ar" ? cover[`${field}Ar`] : (cover[`${field}En`] || cover[`${field}Ar`]); }
 function headingCategoryIds(heading) { return [...(heading?.subheadings || []).flatMap(group => group.categoryIds || []), ...(heading?.categoryIds || [])].map(String); }
 function coverCategoryIds(cover) {
@@ -1732,6 +1789,8 @@ window.addEventListener("resize", updateCoverBannerVisibility, { passive: true }
 function renderCoverStage() {
   const cover = activeCover();
   document.body.classList.toggle("cover-mode", Boolean(cover));
+  // غلاف فيه صفحة صورة مفعّلة: الصورة تاخذ الصفحة كاملة بدون شريط الأقسام.
+  document.body.classList.toggle("cover-image-page", Boolean(cover && !cover.filtered && !activeProductFilter() && cover.imagePages.some(page => page.active && page.image && page.regions.length)));
   // صفحة الغلاف تبدأ بالأقسام والمنتجات على طول؛ الهيدر يعرض «رجوع» واسم الغلاف بدل اسم المخبز.
   const stage = $("#coverStage");
   if (stage) stage.innerHTML = "";
@@ -1911,6 +1970,8 @@ function renderProductSections() {
   const renderCategory = category => {
     const matches = categoryProducts(category.id);
     if (!matches.length) return "";
+    const imagePage = activeImagePage(category.id);
+    if (imagePage) return imagePageMarkup(imagePage, category);
     const sectionImage = String(category.sectionImage || "").trim();
     return `
       <section class="category-section" id="category-${encodeURIComponent(category.id)}" data-category-section="${escapeHtml(category.id)}">
