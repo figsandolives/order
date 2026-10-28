@@ -264,3 +264,8 @@ html.picker-mode .product-card.picker-selected::after{top:8px;inset-inline-end:8
 @media(hover:hover) and (pointer:fine){
   .world-tile:hover .cover-mosaic{transform:rotate(-7deg) scale(1.08)}
 }
+
+/* الصورة الداخلية للغلاف: فوق الأقسام، بنسبتها الأصلية بدون قص */
+.cover-inner-image-host{margin:4px 0 6px}
+.cover-inner-image{display:block;width:min(100%,960px);margin:0 auto;padding:0;border:0;background:transparent;cursor:zoom-in}
+.cover-inner-image img{display:block;width:100%;height:auto;border-radius:18px}

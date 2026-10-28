@@ -1606,6 +1606,7 @@ function normalizeCovers(list) {
     descriptionAr: String(cover?.descriptionAr || ""), descriptionEn: String(cover?.descriptionEn || cover?.descriptionAr || ""),
     size: cover?.size === "full" ? "full" : "half",
     image: String(cover?.image || ""),
+    innerImage: String(cover?.innerImage || "").trim(),
     helperProductIds: (Array.isArray(cover?.helperProductIds) ? cover.helperProductIds : []).map(String).slice(0, 3),
     items: (Array.isArray(cover?.items) ? cover.items : []).map(item => ({ type: item?.type === "heading" ? "heading" : "category", id: String(item?.id || "") })).filter(item => item.id),
     filtered: cover?.filtered === true,
@@ -1734,6 +1735,13 @@ function renderCoverStage() {
   // صفحة الغلاف تبدأ بالأقسام والمنتجات على طول؛ الهيدر يعرض «رجوع» واسم الغلاف بدل اسم المخبز.
   const stage = $("#coverStage");
   if (stage) stage.innerHTML = "";
+  // الصورة الداخلية للغلاف (من الإدارة): تطلع فوق الأقسام بمقاسها كاملة.
+  const inner = $("#coverInnerImage");
+  if (inner) {
+    const src = cover?.innerImage || "";
+    inner.classList.toggle("hidden", !src);
+    inner.innerHTML = src ? `<button type="button" class="cover-inner-image" data-category-illustration="${escapeHtml(src)}" aria-label="${escapeHtml(coverText(cover, "name"))}"><img src="${escapeHtml(src)}" alt="${escapeHtml(coverText(cover, "name"))}" decoding="async"></button>` : "";
+  }
   document.body.classList.remove("cover-banner-visible");
   $("#headerTitle")?.classList.toggle("hidden", Boolean(cover));
   $("#headerCover")?.classList.toggle("hidden", !cover);
@@ -4253,6 +4261,10 @@ $("#productSections").onclick = event => {
   const card = event.target.closest("[data-product]");
   if (card) openProductPage(card.dataset.product);
 };
+$("#coverInnerImage")?.addEventListener("click", event => {
+  const image = event.target.closest("[data-category-illustration]");
+  if (image) openCategoryImageViewer(image.dataset.categoryIllustration, image.querySelector("img")?.alt || "");
+});
 $("#productSections").onkeydown = event => {
   if (!["Enter", " "].includes(event.key)) return;
   const card = event.target.closest("[data-product]");
