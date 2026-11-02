@@ -625,7 +625,7 @@ function productOptions(item) {
   const config = item?.options;
   if (!config || config.enabled === false || !Array.isArray(config.items)) return null;
   const items = config.items.filter(option => option && (option.nameAr || option.nameEn)).map(option => ({
-    id: String(option.id || option.nameAr || option.nameEn), nameAr: String(option.nameAr || option.nameEn || ""), nameEn: String(option.nameEn || option.nameAr || ""), price: Math.max(0, Number(option.price) || 0), preparation: option.preparation || null, image: String(option.image || ""), minimumOrder: minimumOrderConfig(option.minimumOrder),
+    id: String(option.id || option.nameAr || option.nameEn), nameAr: String(option.nameAr || option.nameEn || ""), nameEn: String(option.nameEn || option.nameAr || ""), price: Math.max(0, Number(option.price) || 0), originalPrice: Math.max(0, Number(option.originalPrice) || 0), preparation: option.preparation || null, image: String(option.image || ""), minimumOrder: minimumOrderConfig(option.minimumOrder),
     subOptions: (Array.isArray(option.subOptions) ? option.subOptions : []).filter(subOption => subOption && (subOption.nameAr || subOption.nameEn)).map(subOption => ({
       id: String(subOption.id || subOption.nameAr || subOption.nameEn), nameAr: String(subOption.nameAr || subOption.nameEn || ""), nameEn: String(subOption.nameEn || subOption.nameAr || ""), price: Math.max(0, Number(subOption.price) || 0),
       subOptions: (Array.isArray(subOption.subOptions) ? subOption.subOptions : []).filter(thirdOption => thirdOption && (thirdOption.nameAr || thirdOption.nameEn)).map(thirdOption => ({
@@ -637,7 +637,7 @@ function productOptions(item) {
   const thirdLevelEnabled = nestedEnabled && config.thirdLevelEnabled === true;
   const stages = thirdLevelEnabled ? 3 : nestedEnabled ? 2 : 1;
   const multiple = config.multiple === true;
-  return items.length ? { required: nestedEnabled || config.required === true, multiple, multipleStep: Math.min(stages, Math.max(1, Number(config.multipleStep) || 1)), maxSelections: multiple ? Math.max(1, Math.min(99, Number(config.maxSelections) || items.length)) : 1, titleAr: String(config.titleAr || ""), titleEn: String(config.titleEn || ""), priceBased: nestedEnabled || config.priceBased === true, nestedEnabled, thirdLevelEnabled, minimumPerOptionEnabled: config.minimumPerOptionEnabled === true, optionQuantityEnabled: config.optionQuantityEnabled === true, quantityStep: Math.min(stages, Math.max(1, Number(config.quantityStep) || 1)), items } : null;
+  return items.length ? { required: nestedEnabled || config.required === true, multiple, multipleStep: Math.min(stages, Math.max(1, Number(config.multipleStep) || 1)), maxSelections: multiple ? Math.max(1, Math.min(99, Number(config.maxSelections) || items.length)) : 1, titleAr: String(config.titleAr || ""), titleEn: String(config.titleEn || ""), priceBased: nestedEnabled || config.priceBased === true, nestedEnabled, thirdLevelEnabled, minimumPerOptionEnabled: config.minimumPerOptionEnabled === true, optionQuantityEnabled: config.optionQuantityEnabled === true, detailsLine: config.detailsLine === true, quantityStep: Math.min(stages, Math.max(1, Number(config.quantityStep) || 1)), items } : null;
 }
 
 const STUFFED_BREAD_SELECTION_FLOW = Object.freeze({
@@ -759,6 +759,8 @@ function optionSummary(option) {
 // الخيار الإلزامي الواحد يعرّف الصنف نفسه (مثل: كيكة بالشوكولاتة)،
 // أما الإضافات الاختيارية أو المتعددة فتبقى كسطر تفاصيل منفصل.
 function optionBelongsInName(item, option) {
+  // «إظهار الخيار تحت اسم المنتج»: الاسم يبقى كما هو والخيار سطر تفاصيل (مثل حشوات الفطاير).
+  if (productOptions(item)?.detailsLine) return false;
   if (option?.nameSuffix) return true;
   const flowStep = productSelectionFlow(item)?.steps.find(step => step.id === option?.flowStepId);
   if (flowStep) return flowStep.required && !flowStep.multiple;
@@ -852,6 +854,14 @@ function productPriceMarkup(item) {
     return `<span class="sale-price"><del>${money(original)}</del><b>${current}</b></span>`;
   }
   return `<span>${current}</span>`;
+}
+
+function optionPriceMarkup(option) {
+  const price = Math.max(0, Number(option?.price) || 0);
+  const original = Math.max(0, Number(option?.originalPrice) || 0);
+  if (original <= price) return `<em>${money(price)}</em>`;
+  const saving = state.lang === "ar" ? `وفّر ${money(original - price)}` : `Save ${money(original - price)}`;
+  return `<em class="option-sale"><del>${money(original)}</del><span class="option-sale-price">${money(price)}</span><span class="option-sale-badge">${saving}</span></em>`;
 }
 
 function productIsSoldOut(item) {
@@ -1609,6 +1619,7 @@ function normalizeCovers(list) {
     size: cover?.size === "full" ? "full" : "half",
     image: String(cover?.image || ""),
     innerImage: String(cover?.innerImage || "").trim(),
+    stripImage: String(cover?.stripImage || "").trim(),
     innerImages: (Array.isArray(cover?.innerImages) ? cover.innerImages : [cover?.innerImage]).map(src => String(src || "").trim()).filter(Boolean),
     imagePages: normalizeImagePages(cover?.imagePages),
     helperProductIds: (Array.isArray(cover?.helperProductIds) ? cover.helperProductIds : []).map(String).slice(0, 3),
@@ -1797,6 +1808,14 @@ function renderCoverStage() {
   // صفحة الغلاف تبدأ بالأقسام والمنتجات على طول؛ الهيدر يعرض «رجوع» واسم الغلاف بدل اسم المخبز.
   const stage = $("#coverStage");
   if (stage) stage.innerHTML = "";
+  // شريط صور الغلاف (cover.stripImage): صورة مفرغة تتكرر جنب بعضها وتتحرك بدون توقف فوق صفحة الغلاف.
+  const photoStrip = $("#coverPhotoStrip");
+  if (photoStrip) {
+    const src = cover?.stripImage || "";
+    photoStrip.classList.toggle("hidden", !src);
+    const group = hidden => `<span class="cover-photo-strip-group"${hidden ? ' aria-hidden="true"' : ""}><img src="${escapeHtml(src)}" alt="" decoding="async"><img src="${escapeHtml(src)}" alt="" decoding="async"></span>`;
+    photoStrip.innerHTML = src ? `<div class="cover-photo-strip-track">${group(false)}${group(true)}</div>` : "";
+  }
   // الصورة الداخلية للغلاف (من الإدارة): تطلع تحت كل الأقسام ومنتجاتها (آخر صفحة الغلاف)، بمقاسها كاملة.
   const inner = $("#coverInnerImage");
   if (inner) {
@@ -2474,7 +2493,7 @@ function renderProductOptionsStep() {
       return total + Math.max(0, Number(option.price) || 0) * quantity;
     }, 0);
   };
-  productOptionsPopover.innerHTML = `<header><div><small>${state.lang === "ar" ? (stage === 3 ? "الخيار الثالث" : stage === 2 ? "الخيار الثاني" : "خيارات المنتج") : (stage === 3 ? "Third option" : stage === 2 ? "Second option" : "Product options")}</small><strong>${escapeHtml(productName(item))}</strong></div><button type="button" data-close-options aria-label="${state.lang === "ar" ? "إغلاق" : "Close"}">×</button></header><p>${escapeHtml(stepText)}</p>${optionsTitle ? `<div class="option-group-title"><strong>${escapeHtml(optionsTitle)}</strong><small>${escapeHtml(maxHint)}</small></div>` : ""}<div class="product-options-list">${choices.map(option => { const chosen = selectedOptionIds.has(option.id); const quantity = Math.max(1, Number(pendingGeneralOptionQuantities[option.id]) || 1); return `<label class="product-option-choice"><input type="${type}" name="${choiceName}" value="${escapeHtml(option.id)}" ${chosen ? "checked" : ""}>${option.image ? `<img src="${escapeHtml(option.image)}" alt="">` : ""}<span><b>${escapeHtml(optionName(option))}</b><small>${escapeHtml(state.lang === "ar" ? option.nameEn : option.nameAr)}</small>${option.preparation ? `<i>◷ ${escapeHtml(preparationLabel(option.preparation))}</i>` : ""}${config.minimumPerOptionEnabled && option.minimumOrder ? `<i class="option-minimum-note">${escapeHtml(minimumOrderText(option.minimumOrder))}</i>` : ""}</span>${config.priceBased ? `<em>${money(option.price)}</em>` : ""}${stageQuantity && chosen ? `<div class="option-choice-quantity-wrap"><small>${state.lang === "ar" ? "الكمية" : "Quantity"}</small><div class="qty option-choice-quantity"><button type="button" data-option-quantity-action="plus" data-option-id="${escapeHtml(option.id)}">+</button><span>${new Intl.NumberFormat(state.lang === "ar" ? "ar-KW" : "en").format(quantity)}</span><button type="button" data-option-quantity-action="minus" data-option-id="${escapeHtml(option.id)}">${quantity === 1 ? "×" : "−"}</button></div></div>` : ""}</label>`; }).join("")}</div>${showNestedCurrentPrice ? `<div class="selection-price hidden" data-option-current-price><span>${state.lang === "ar" ? "السعر الحالي" : "Current price"}</span><b></b></div>` : ""}<button type="button" class="primary" data-option-confirm ${config.required && !selectedOptionIds.size ? "disabled" : ""}>${actionText}</button>`;
+  productOptionsPopover.innerHTML = `<header><div><small>${state.lang === "ar" ? (stage === 3 ? "الخيار الثالث" : stage === 2 ? "الخيار الثاني" : "خيارات المنتج") : (stage === 3 ? "Third option" : stage === 2 ? "Second option" : "Product options")}</small><strong>${escapeHtml(productName(item))}</strong></div><button type="button" data-close-options aria-label="${state.lang === "ar" ? "إغلاق" : "Close"}">×</button></header><p>${escapeHtml(stepText)}</p>${optionsTitle ? `<div class="option-group-title"><strong>${escapeHtml(optionsTitle)}</strong><small>${escapeHtml(maxHint)}</small></div>` : ""}<div class="product-options-list">${choices.map(option => { const chosen = selectedOptionIds.has(option.id); const quantity = Math.max(1, Number(pendingGeneralOptionQuantities[option.id]) || 1); return `<label class="product-option-choice"><input type="${type}" name="${choiceName}" value="${escapeHtml(option.id)}" ${chosen ? "checked" : ""}>${option.image ? `<img src="${escapeHtml(option.image)}" alt="">` : ""}<span><b>${escapeHtml(optionName(option))}</b><small>${escapeHtml(state.lang === "ar" ? option.nameEn : option.nameAr)}</small>${option.preparation ? `<i>◷ ${escapeHtml(preparationLabel(option.preparation))}</i>` : ""}${config.minimumPerOptionEnabled && option.minimumOrder ? `<i class="option-minimum-note">${escapeHtml(minimumOrderText(option.minimumOrder))}</i>` : ""}</span>${config.priceBased ? optionPriceMarkup(option) : ""}${stageQuantity && chosen ? `<div class="option-choice-quantity-wrap"><small>${state.lang === "ar" ? "الكمية" : "Quantity"}</small><div class="qty option-choice-quantity"><button type="button" data-option-quantity-action="plus" data-option-id="${escapeHtml(option.id)}">+</button><span>${new Intl.NumberFormat(state.lang === "ar" ? "ar-KW" : "en").format(quantity)}</span><button type="button" data-option-quantity-action="minus" data-option-id="${escapeHtml(option.id)}">${quantity === 1 ? "×" : "−"}</button></div></div>` : ""}</label>`; }).join("")}</div>${showNestedCurrentPrice ? `<div class="selection-price hidden" data-option-current-price><span>${state.lang === "ar" ? "السعر الحالي" : "Current price"}</span><b></b></div>` : ""}<button type="button" class="primary" data-option-confirm ${config.required && !selectedOptionIds.size ? "disabled" : ""}>${actionText}</button>`;
   productOptionsPopover.place?.();
   productOptionsPopover.querySelector("[data-close-options]").onclick = closeProductOptions;
   productOptionsPopover.querySelectorAll(`input[name="${choiceName}"]`).forEach(input => input.onchange = () => {
@@ -2565,6 +2584,7 @@ function addSelectedOptionsToCart(id, selected, quantity = 1) {
   const wasEmpty = cartCount() === 0;
   const options = JSON.parse(JSON.stringify(Array.isArray(selected) ? selected : []));
   const item = product(id);
+  if (productOptions(item)?.detailsLine) options.forEach(option => { delete option.nameSuffix; });
   const pieceOptionSets = fatayerPieceOptionSets(item, options, quantity);
   const lines = pieceOptionSets || [options];
   const lineQuantity = pieceOptionSets ? 1 : Math.max(1, Number(quantity) || 1);
