@@ -211,6 +211,24 @@ for (const cover of covers) {
   }
 }
 
+// روابط قديمة لمنتجات تصحّح اسمها الإنجليزي: تبقى توديه لرابطه الجديد.
+const RENAMED_PRODUCT_SLUGS = {
+  "barley-oat-sourdough-indian-chapati-bread-2-piecs": "14191",
+  "sprouted-ientils-indian-chapatti-bread-2-pcs": "Pmseqm4tc16",
+  "sprouted-ientils-indian-chapatti-bread-with-mixture-2-pcs": "P1788621479529",
+  "almond-flour-indian-chapati-bread-kito-diet-2-pieces": "Pmser35he6",
+  "fermented-gauliflower-probiotic-food": "14565",
+  "beef-bone-broth-with-vegtable": "R44515"
+};
+for (const [slug, id] of Object.entries(RENAMED_PRODUCT_SLUGS)) {
+  const item = products.find(product => String(product.id) === id);
+  if (!item) continue;
+  for (const lang of ["ar", "en"]) {
+    const dir = langSegments(lang, [slug]).join("/");
+    if (!redirects.has(dir)) redirects.set(dir, redirectPage({ lang, target: productUrl(item, "ar"), title: `${productName(item, lang)} | ${lang === "ar" ? BRAND_AR : BRAND_EN}`, description: clip(productDesc(item, lang) || productName(item, lang)), image: images(item)[0] || "" }));
+  }
+}
+
 for (const [dir, html] of redirects) if (!pages.has(dir) && !RESERVED.has(dir)) pages.set(dir, html);
 
 // امسح الصفحات القديمة اللي انشالت (من القائمة السابقة بس، ما نلمس غيرها).
