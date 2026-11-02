@@ -1,4 +1,4 @@
-// يبني صفحة حقيقية لكل غلاف ولكل منتج داخل الأغلفة (بالعربي والإنجليزي) + sitemap.xml،
+// يبني صفحة حقيقية لكل غلاف ولكل منتج داخل الأغلفة (/slug/ بالعربي و /en/slug/ بالإنجليزي) + sitemap.xml،
 // عشان محركات البحث تلقى لكل رابط عنوان ووصف وصورة خاصة فيه.
 // كل صفحة نسخة من index.html (نفس المنصة ونفس الشكل)، يتغير فيها رأس الصفحة والنص المخفي بس.
 // التشغيل: node scripts/seo-pages.mjs [--site https://figsolives.online] [--base /] [--noindex]
@@ -14,7 +14,7 @@ const API = arg("api", "https://162-35-27-249.sslip.io/platform-api/catalog");
 const ROOT = path.resolve(arg("root", "."));
 const MANIFEST = path.join(ROOT, "seo-pages.json");
 // أسماء مجلدات موجودة في الموقع أصلاً، ما نكتب فوقها.
-const RESERVED = new Set(["qr", "rest", "scripts", "assets", "edara", "local-data", ".github", "404.html", "index.html"]);
+const RESERVED = new Set(["en", "qr", "rest", "scripts", "assets", "edara", "local-data", ".github", "404.html", "index.html"]);
 const BRAND_AR = "مخبز التين والزيتون";
 const BRAND_EN = "Figs & Olives Bakery";
 
@@ -28,8 +28,13 @@ const coverName = (cover, lang) => lang === "ar" ? cover.nameAr : (cover.nameEn 
 const coverDesc = (cover, lang) => lang === "ar" ? cover.descriptionAr : (cover.descriptionEn || cover.descriptionAr);
 const productName = (item, lang) => lang === "ar" ? item.name : (item.nameEn || item.name);
 const productDesc = (item, lang) => lang === "ar" ? (item.description || "") : (item.descriptionEn || item.description || "");
-const coverSlug = (cover, lang) => slugify(coverName(cover, lang)) || cover.id;
-const productSlug = (item, lang) => slugify(productName(item, lang)) || String(item.id);
+// أحرف إنجليزية وأرقام بس، عشان الرابط ما يتحول لرموز % لما ينسخ.
+const asciiSlug = text => slugify(text).normalize("NFKD").replace(/[^a-z0-9-]+/g, "").replace(/-+/g, "-").replace(/^-|-$/g, "");
+const coverSlug = cover => asciiSlug(cover.nameEn) || cover.id.toLowerCase();
+const productSlug = item => asciiSlug(item.nameEn) || String(item.id).toLowerCase();
+const legacyCoverSlug = (cover, lang) => slugify(coverName(cover, lang)) || cover.id;
+const legacyProductSlug = (item, lang) => slugify(productName(item, lang)) || String(item.id);
+const langSegments = (lang, segments) => lang === "en" ? ["en", ...segments] : segments;
 const same = (a, b) => String(a ?? "") === String(b ?? "");
 const esc = value => String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
 const clip = (text, max = 155) => { const flat = String(text || "").replace(/\s+/g, " ").trim(); return flat.length > max ? `${flat.slice(0, max - 1).replace(/\s+\S*$/, "")}…` : flat; };
@@ -64,18 +69,24 @@ const covers = catalog.covers
 const primaryCover = new Map();
 covers.forEach(cover => cover.list.forEach(item => { if (!primaryCover.has(String(item.id))) primaryCover.set(String(item.id), cover); }));
 // رابط المنتج باسمه بس (/اسم-المنتج/)، إلا لو اسمه نفس اسم غلاف فيبقى تحت غلافه (نفس script.js).
-const coverSlugs = new Set(covers.flatMap(cover => [coverSlug(cover, "ar"), coverSlug(cover, "en"), cover.id.toLowerCase()]));
+const coverSlugs = new Set(covers.flatMap(cover => [coverSlug(cover), slugify(cover.nameAr), slugify(cover.nameEn), cover.id.toLowerCase()]));
 // منتجين مختلفين بنفس الاسم: كل واحد يبقى تحت غلافه.
-const sharedSlugs = Object.fromEntries(["ar", "en"].map(lang => {
+const sharedBy = slugOf => {
   const owners = new Map();
-  covers.forEach(cover => cover.list.forEach(item => { const key = productSlug(item, lang); if (!owners.has(key)) owners.set(key, new Set()); owners.get(key).add(String(item.id)); }));
-  return [lang, new Set([...owners].filter(([, ids]) => ids.size > 1).map(([key]) => key))];
-}));
-const productSegments = (item, lang) => {
-  const slug = productSlug(item, lang);
-  return coverSlugs.has(slug) || sharedSlugs[lang].has(slug) ? [coverSlug(primaryCover.get(String(item.id)), lang), slug] : [slug];
+  covers.forEach(cover => cover.list.forEach(item => { const key = slugOf(item); if (!owners.has(key)) owners.set(key, new Set()); owners.get(key).add(String(item.id)); }));
+  return new Set([...owners].filter(([, ids]) => ids.size > 1).map(([key]) => key));
 };
-const productUrl = (item, lang) => urlOf(...productSegments(item, lang));
+const sharedSlugs = sharedBy(productSlug);
+const legacyShared = { ar: sharedBy(item => legacyProductSlug(item, "ar")), en: sharedBy(item => legacyProductSlug(item, "en")) };
+const productSegments = item => {
+  const slug = productSlug(item);
+  return coverSlugs.has(slug) || sharedSlugs.has(slug) ? [coverSlug(primaryCover.get(String(item.id))), slug] : [slug];
+};
+const legacyProductSegments = (item, lang) => {
+  const slug = legacyProductSlug(item, lang);
+  return coverSlugs.has(slug) || legacyShared[lang].has(slug) ? [legacyCoverSlug(primaryCover.get(String(item.id)), lang), slug] : [slug];
+};
+const productUrl = (item, lang) => urlOf(...langSegments(lang, productSegments(item)));
 
 const template = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
 
@@ -113,18 +124,39 @@ function page({ lang, title, description, canonical, alternates, image, imageAlt
   return html;
 }
 
+// الروابط القديمة: GitHub Pages ما يسوي تحويل 301، فكل رابط قديم صفحة تحول للرابط الجديد (يفتح بالعربي) وتحتفظ بالمعاينة.
+function redirectPage({ lang, target, title, description, image }) {
+  return `<!doctype html>
+<html lang="${lang}" dir="${lang === "ar" ? "rtl" : "ltr"}">
+<head>
+  <meta charset="UTF-8">
+  <title>${esc(title)}</title>
+  <meta name="description" content="${esc(description)}">
+  <link rel="canonical" href="${esc(target)}">
+  <meta http-equiv="refresh" content="0;url=${esc(target)}">
+  <meta property="og:title" content="${esc(title)}">
+  <meta property="og:description" content="${esc(description)}">
+  <meta property="og:url" content="${esc(target)}">
+  <meta property="og:image" content="${esc(image)}">
+  <script>location.replace(${JSON.stringify(target).replace(/</g, "\\u003c")} + location.search + location.hash);</script>
+</head>
+<body><a href="${esc(target)}">${esc(title)}</a></body>
+</html>
+`;
+}
+
 const pages = new Map(); // relative dir -> html
+const redirects = new Map(); // old relative dir -> html
 const sitemap = [];
 const stamp = Number(catalog.updatedAt);
 const lastmod = (Number.isFinite(stamp) && stamp > 0 ? new Date(stamp < 1e12 ? stamp * 1000 : stamp) : new Date(catalog.updatedAt || Date.now())).toISOString().slice(0, 10);
 const crumb = (items) => ({ "@type": "BreadcrumbList", itemListElement: items.map(([name, item], index) => ({ "@type": "ListItem", position: index + 1, name, item })) });
 
 for (const cover of covers) {
-  const slugs = { ar: coverSlug(cover, "ar"), en: coverSlug(cover, "en") };
-  if (RESERVED.has(slugs.ar) || RESERVED.has(slugs.en)) continue;
-  const urls = { ar: urlOf(slugs.ar), en: urlOf(slugs.en) };
+  const slug = coverSlug(cover);
+  if (RESERVED.has(slug)) continue;
+  const urls = { ar: urlOf(slug), en: urlOf("en", slug) };
   for (const lang of ["ar", "en"]) {
-    if (lang === "en" && slugs.en === slugs.ar) continue;
     const ar = lang === "ar";
     const name = coverName(cover, lang);
     const brand = ar ? BRAND_AR : BRAND_EN;
@@ -143,7 +175,8 @@ for (const cover of covers) {
       breadcrumb: crumb([[brand, `${SITE}${BASE}`], [name, urls[lang]]]),
       mainEntity: { "@type": "ItemList", itemListElement: cover.list.map((item, index) => ({ "@type": "ListItem", position: index + 1, name: productName(item, lang), url: productUrl(item, lang) })) }
     };
-    pages.set(slugs[lang], page({ lang, title: `${name} | ${brand}`, description, canonical: urls[lang], alternates: urls, image: coverImage(cover), imageAlt: name, seoHtml, jsonLd }));
+    pages.set(langSegments(lang, [slug]).join("/"), page({ lang, title: `${name} | ${brand}`, description, canonical: urls[lang], alternates: urls, image: coverImage(cover), imageAlt: name, seoHtml, jsonLd }));
+    redirects.set(legacyCoverSlug(cover, lang), redirectPage({ lang, target: urls.ar, title: `${name} | ${brand}`, description, image: coverImage(cover) }));
     sitemap.push({ loc: urls[lang], alternates: urls, image: coverImage(cover) });
   }
 
@@ -152,9 +185,8 @@ for (const cover of covers) {
     if (primaryCover.get(String(item.id)) !== cover) continue;
     const canonicalUrls = { ar: productUrl(item, "ar"), en: productUrl(item, "en") };
     for (const lang of ["ar", "en"]) {
-      if (lang === "en" && canonicalUrls.en === canonicalUrls.ar) continue;
-      const dir = productSegments(item, lang).join("/");
-      if (pages.has(dir) || RESERVED.has(dir)) continue; // اسمين بنفس الرابط: المنصة تفتح الأول، فنفس الشي هني.
+      const dir = langSegments(lang, productSegments(item)).join("/");
+      if (pages.has(dir) || RESERVED.has(productSegments(item).join("/"))) continue; // اسمين بنفس الرابط: المنصة تفتح الأول، فنفس الشي هني.
       const ar = lang === "ar";
       const brand = ar ? BRAND_AR : BRAND_EN;
       const name = productName(item, lang);
@@ -163,7 +195,7 @@ for (const cover of covers) {
       const description = clip(text ? `${name} — ${text}` : (ar ? `اطلب ${name} من ${BRAND_AR} بسعر ${price(item.price, "ar")}. توصيل لجميع مناطق الكويت.` : `Order ${name} from ${BRAND_EN} for ${price(item.price, "en")}. Delivery across Kuwait.`));
       const photo = images(item)[0] || coverImage(cover);
       const available = (item.availability?.status || "available") === "available";
-      const seoHtml = `      <div class="seo-intro">\n        <span class="kicker"><a href="${esc(urlOf(slugs[lang]))}">${esc(cname)}</a></span>\n        <h1 id="seoTitle">${esc(name)}</h1>\n        <p>${esc(text || description)}</p>\n        <p>${esc(price(item.price, lang))}</p>\n      </div>`;
+      const seoHtml = `      <div class="seo-intro">\n        <span class="kicker"><a href="${esc(urls[lang])}">${esc(cname)}</a></span>\n        <h1 id="seoTitle">${esc(name)}</h1>\n        <p>${esc(text || description)}</p>\n        <p>${esc(price(item.price, lang))}</p>\n      </div>`;
       const jsonLd = {
         "@context": "https://schema.org",
         "@type": "Product",
@@ -174,9 +206,12 @@ for (const cover of covers) {
       };
       pages.set(dir, page({ lang, title: `${name} | ${cname} | ${brand}`, description, canonical: canonicalUrls[lang], alternates: canonicalUrls, image: photo, imageAlt: name, seoHtml, jsonLd }));
       sitemap.push({ loc: canonicalUrls[lang], alternates: canonicalUrls, image: photo, priority: "0.6" });
+      redirects.set(legacyProductSegments(item, lang).join("/"), redirectPage({ lang, target: canonicalUrls.ar, title: `${name} | ${cname} | ${brand}`, description, image: photo }));
     }
   }
 }
+
+for (const [dir, html] of redirects) if (!pages.has(dir) && !RESERVED.has(dir)) pages.set(dir, html);
 
 // امسح الصفحات القديمة اللي انشالت (من القائمة السابقة بس، ما نلمس غيرها).
 const previous = fs.existsSync(MANIFEST) ? JSON.parse(fs.readFileSync(MANIFEST, "utf8")) : [];

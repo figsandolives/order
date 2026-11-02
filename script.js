@@ -330,7 +330,8 @@ const state = {
   catalogType: entryCatalogType(),
   restaurantEnabled: true,
   // صفحات الأغلفة والمنتجات المولّدة تحدد لغتها (رابط إنجليزي يفتح بالإنجليزي).
-  lang: (document.documentElement.dataset.pageLang || localStorage.getItem("storeLanguage")) === "en" ? "en" : "ar",
+  // الموقع يفتح بالعربي دايماً؛ صفحات /en/ لمحركات البحث بس، وزر اللغة يغير الزيارة الحالية.
+  lang: document.documentElement.dataset.pageLang === "en" ? "en" : "ar",
   step: 1, mode: "delivery", area: null, branch: "", addressId: "", address: "",
   name: "", phone: "", order: "", paymentRequestId: "", detailProductId: "",
   paymentMethod: "", deliveryTiming: "asap", scheduledDate: "", scheduledHour: "1",
@@ -1812,7 +1813,7 @@ function renderCoverStage() {
 }
 
 // ---------- روابط بالاسم ----------
-// figsolives.online/الإفطار (أو /breakfast بالإنجليزي) يفتح الغلاف، و /الإفطار/<اسم-المنتج> يفتح المنتج داخله.
+// الرابط دايماً بالإنجليزي مهما كانت لغة الصفحة: /breakfast يفتح الغلاف بالعربي، والروابط العربية القديمة بعدها تشتغل.
 // GitHub Pages يعرض 404.html لأي رابط غير موجود، وهي نفس الصفحة، فالمنصة تقرا الرابط هني.
 const APP_BASE = (() => { const href = document.querySelector("base")?.getAttribute("href") || "/"; return href.endsWith("/") ? href : `${href}/`; })();
 function slugify(text) {
@@ -1820,22 +1821,25 @@ function slugify(text) {
     .replace(/[()[\]{}.,،؛:;!?؟"'«»\/\\|#%&+*=<>~`^]/g, " ")
     .replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase();
 }
-function coverSlug(cover, lang = state.lang) { return slugify(lang === "ar" ? cover.nameAr : (cover.nameEn || cover.nameAr)) || cover.id; }
-function productSlug(item, lang = state.lang) { return slugify(lang === "ar" ? item.name : (item.nameEn || item.name)) || String(item.id); }
+// أحرف إنجليزية وأرقام بس، عشان الرابط ما يتحول لرموز % لما ينسخ.
+function asciiSlug(text) { return slugify(text).normalize("NFKD").replace(/[^a-z0-9-]+/g, "").replace(/-+/g, "-").replace(/^-|-$/g, ""); }
+function coverSlug(cover) { return asciiSlug(cover.nameEn) || String(cover.id).toLowerCase(); }
+function productSlug(item) { return asciiSlug(item.nameEn) || String(item.id).toLowerCase(); }
 function routeSegments() {
   let path = location.pathname;
   try { path = decodeURIComponent(path); } catch { /* keep raw */ }
   const base = decodeURIComponent(APP_BASE);
   if (path.startsWith(base)) path = path.slice(base.length);
-  return path.split("/").map(part => part.trim().toLowerCase()).filter(Boolean).filter(part => !/\.html?$/i.test(part));
+  const segments = path.split("/").map(part => part.trim().toLowerCase()).filter(Boolean).filter(part => !/\.html?$/i.test(part));
+  return segments[0] === "en" ? segments.slice(1) : segments;
 }
 function coverFromSegment(segment) {
   if (!segment) return null;
-  return (state.covers || []).find(cover => cover.id.toLowerCase() === segment || coverSlug(cover, "ar") === segment || coverSlug(cover, "en") === segment) || null;
+  return (state.covers || []).find(cover => cover.id.toLowerCase() === segment || coverSlug(cover) === segment || slugify(cover.nameAr) === segment || slugify(cover.nameEn) === segment) || null;
 }
 function productFromSegment(cover, segment) {
   if (!cover || !segment) return null;
-  return coverProducts(cover).find(item => String(item.id).toLowerCase() === segment || productSlug(item, "ar") === segment || productSlug(item, "en") === segment) || null;
+  return coverProducts(cover).find(item => String(item.id).toLowerCase() === segment || productSlug(item) === segment || slugify(item.name) === segment || slugify(item.nameEn) === segment) || null;
 }
 // The cover a product page belongs to: the open cover, or the first cover that has it.
 function coverForProduct(id) {
@@ -1844,14 +1848,14 @@ function coverForProduct(id) {
   return open && holds(open) ? open : (state.covers || []).find(holds) || null;
 }
 // منتجين بنفس الاسم (نسخ في أغلفة مختلفة) أو اسم منتج نفس اسم غلاف: الرابط يبقى /الغلاف/المنتج/.
-let sharedSlugCache = { covers: null, lang: "", slugs: new Set() };
+let sharedSlugCache = { covers: null, slugs: new Set() };
 function productNeedsCover(item) {
   const slug = productSlug(item);
   if (coverFromSegment(slug)) return true;
-  if (sharedSlugCache.covers !== state.covers || sharedSlugCache.lang !== state.lang) {
+  if (sharedSlugCache.covers !== state.covers) {
     const owners = new Map();
     (state.covers || []).forEach(cover => coverProducts(cover).forEach(entry => { const key = productSlug(entry); if (!owners.has(key)) owners.set(key, new Set()); owners.get(key).add(String(entry.id)); }));
-    sharedSlugCache = { covers: state.covers, lang: state.lang, slugs: new Set([...owners].filter(([, ids]) => ids.size > 1).map(([key]) => key)) };
+    sharedSlugCache = { covers: state.covers, slugs: new Set([...owners].filter(([, ids]) => ids.size > 1).map(([key]) => key)) };
   }
   return sharedSlugCache.slugs.has(slug);
 }
