@@ -6,6 +6,102 @@
     <priority>1.0</priority>
   </url>
   <url>
+    <loc>https://figsolives.online/school-meals/</loc>
+    <lastmod>2026-11-02</lastmod>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meals/"/>
+    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meals/"/>
+    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/appearance/covers/cover-school-meals-1793632841485.webp</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://figsolives.online/en/school-meals/</loc>
+    <lastmod>2026-11-02</lastmod>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meals/"/>
+    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meals/"/>
+    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/appearance/covers/cover-school-meals-1793632841485.webp</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://figsolives.online/school-meal-box-for-6-days/</loc>
+    <lastmod>2026-11-02</lastmod>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meal-box-for-6-days/"/>
+    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meal-box-for-6-days/"/>
+    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P-school-box/main.webp?v=1793632667325</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://figsolives.online/en/school-meal-box-for-6-days/</loc>
+    <lastmod>2026-11-02</lastmod>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meal-box-for-6-days/"/>
+    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meal-box-for-6-days/"/>
+    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P-school-box/main.webp?v=1793632667325</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://figsolives.online/school-meal-no-1/</loc>
+    <lastmod>2026-11-02</lastmod>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meal-no-1/"/>
+    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meal-no-1/"/>
+    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P-school-meal-1/main.webp?v=1793632667325</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://figsolives.online/en/school-meal-no-1/</loc>
+    <lastmod>2026-11-02</lastmod>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meal-no-1/"/>
+    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meal-no-1/"/>
+    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P-school-meal-1/main.webp?v=1793632667325</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://figsolives.online/school-meal-no-2/</loc>
+    <lastmod>2026-11-02</lastmod>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meal-no-2/"/>
+    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meal-no-2/"/>
+    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P-school-meal-2/main.webp?v=1793632667325</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://figsolives.online/en/school-meal-no-2/</loc>
+    <lastmod>2026-11-02</lastmod>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meal-no-2/"/>
+    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meal-no-2/"/>
+    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P-school-meal-2/main.webp?v=1793632667325</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://figsolives.online/school-meal-no-3/</loc>
+    <lastmod>2026-11-02</lastmod>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meal-no-3/"/>
+    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meal-no-3/"/>
+    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P-school-meal-3/main.webp?v=1793632667325</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://figsolives.online/en/school-meal-no-3/</loc>
+    <lastmod>2026-11-02</lastmod>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meal-no-3/"/>
+    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meal-no-3/"/>
+    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P-school-meal-3/main.webp?v=1793632667325</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://figsolives.online/school-meal-no-4/</loc>
+    <lastmod>2026-11-02</lastmod>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meal-no-4/"/>
+    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meal-no-4/"/>
+    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P-school-meal-4/main.webp?v=1793632667325</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://figsolives.online/en/school-meal-no-4/</loc>
+    <lastmod>2026-11-02</lastmod>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meal-no-4/"/>
+    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meal-no-4/"/>
+    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P-school-meal-4/main.webp?v=1793632667325</image:loc></image:image>
+  </url>
+  <url>
     <loc>https://figsolives.online/combating-insulin-resistance/</loc>
     <lastmod>2026-11-02</lastmod>
     <priority>0.8</priority>
@@ -4406,19 +4502,19 @@
     <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P1787597855316203/P1787597855316203-1788636457642-vxdur.webp</image:loc></image:image>
   </url>
   <url>
-    <loc>https://figsolives.online/coconut-and-orange-cupcakes-keto-friendly-gluten-free-suitable-for-diabetics-4-pcs-made-with-whole-wheat-and-natural-sourdough/</loc>
+    <loc>https://figsolives.online/coconut-and-orange-cupcakes-keto-friendly-gluten-free-suitable-for-diabetics-4-pcs/</loc>
     <lastmod>2026-11-02</lastmod>
     <priority>0.6</priority>
-    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/coconut-and-orange-cupcakes-keto-friendly-gluten-free-suitable-for-diabetics-4-pcs-made-with-whole-wheat-and-natural-sourdough/"/>
-    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/coconut-and-orange-cupcakes-keto-friendly-gluten-free-suitable-for-diabetics-4-pcs-made-with-whole-wheat-and-natural-sourdough/"/>
+    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/coconut-and-orange-cupcakes-keto-friendly-gluten-free-suitable-for-diabetics-4-pcs/"/>
+    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/coconut-and-orange-cupcakes-keto-friendly-gluten-free-suitable-for-diabetics-4-pcs/"/>
     <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P1787597855316204/P1787597855316204-1788636509566-xo06c.webp</image:loc></image:image>
   </url>
   <url>
-    <loc>https://figsolives.online/en/coconut-and-orange-cupcakes-keto-friendly-gluten-free-suitable-for-diabetics-4-pcs-made-with-whole-wheat-and-natural-sourdough/</loc>
+    <loc>https://figsolives.online/en/coconut-and-orange-cupcakes-keto-friendly-gluten-free-suitable-for-diabetics-4-pcs/</loc>
     <lastmod>2026-11-02</lastmod>
     <priority>0.6</priority>
-    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/coconut-and-orange-cupcakes-keto-friendly-gluten-free-suitable-for-diabetics-4-pcs-made-with-whole-wheat-and-natural-sourdough/"/>
-    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/coconut-and-orange-cupcakes-keto-friendly-gluten-free-suitable-for-diabetics-4-pcs-made-with-whole-wheat-and-natural-sourdough/"/>
+    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/coconut-and-orange-cupcakes-keto-friendly-gluten-free-suitable-for-diabetics-4-pcs/"/>
+    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/coconut-and-orange-cupcakes-keto-friendly-gluten-free-suitable-for-diabetics-4-pcs/"/>
     <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P1787597855316204/P1787597855316204-1788636509566-xo06c.webp</image:loc></image:image>
   </url>
   <url>
