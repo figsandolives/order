@@ -2774,6 +2774,8 @@ async function sendLoginCode(isResend = false) {
     const data = await orderingApi(orderingConfig.sendLoginCodeWebhookUrl, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone: authPhone })
     });
+    // إيقاف رمز الواتساب مؤقتاً: السيرفر يرجع الجلسة مباشرة.
+    if (data.bypass && data.sessionToken) return await finishCodeLogin(data);
     if (!isResend || !$("#otpInput")) renderOtpAuth();
     else {
       setAuthMessage(tr("codeSent"), true);
@@ -2836,6 +2838,16 @@ async function verifyLoginCode(code) {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone: authPhone, code })
     });
     if (!data.ok) throw new Error(data.error || tr("invalidCode"));
+    await finishCodeLogin(data);
+  } catch (error) {
+    input.disabled = false;
+    input.value = "";
+    input.focus();
+    setAuthMessage(error.message || tr("verifyFailed"));
+  }
+}
+
+async function finishCodeLogin(data) {
     clearInterval(resendTimer);
     if (authMode === "changePhone" && state.user) {
       const profiles = readJson(PROFILE_KEY, {});
@@ -2862,12 +2874,6 @@ async function verifyLoginCode(code) {
     if (!state.user.name) return renderUsernameAuth();
     persistUser();
     completeLogin();
-  } catch (error) {
-    input.disabled = false;
-    input.value = "";
-    input.focus();
-    setAuthMessage(error.message || tr("verifyFailed"));
-  }
 }
 
 function renderUsernameAuth() {
