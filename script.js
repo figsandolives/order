@@ -851,7 +851,8 @@ function productPriceMarkup(item) {
   const current = productPriceLabel(item);
   const original = Number(item?.originalPrice || 0);
   if (original > Number(item?.price || 0) && !productOptions(item)?.priceBased && !productSelectionFlow(item)) {
-    return `<span class="sale-price"><del>${money(original)}</del><b>${current}</b></span>`;
+    const saving = state.lang === "ar" ? `وفّر ${money(original - Number(item.price || 0))}` : `Save ${money(original - Number(item.price || 0))}`;
+    return `<span class="sale-price"><del>${money(original)}</del><b>${current}</b><i class="sale-badge">${saving}</i></span>`;
   }
   return `<span>${current}</span>`;
 }

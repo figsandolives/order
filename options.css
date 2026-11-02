@@ -267,3 +267,9 @@
 .product-options-popover .product-option-choice:has(input:checked) em.option-sale{background:#2d6a4f;box-shadow:none}
 .product-options-popover .product-option-choice:has(input:checked) em.option-sale del{color:rgba(255,255,255,.7)}
 .product-options-popover .product-option-choice:has(input:checked) em.option-sale .option-sale-price{color:#fff}
+
+/* منتج عليه خصم: نفس شكل خصم الخيارات (السعر القديم مشطوب بالأحمر + الجديد + شارة التوفير) */
+.sale-price{display:inline-flex;flex-wrap:wrap;align-items:center;gap:3px 7px}
+.sale-price del{color:#a3a3a3;font-weight:700;text-decoration-color:#c0392b;text-decoration-thickness:1.5px}
+.sale-price b{color:#1f5a40;font-weight:900}
+.sale-price .sale-badge{padding:2px 8px;border-radius:999px;background:#c0392b;color:#fff;font-size:10px;font-style:normal;font-weight:900;white-space:nowrap}
