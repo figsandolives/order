@@ -115,7 +115,7 @@ const translations = {
     details: "تفاصيل المنتج", addToCart: "إضافة إلى السلة", image: "صورة المنتج", chooseOptions: "اختر الخيارات", optionsRequired: "يرجى اختيار خيار واحد على الأقل", optionOptional: "يمكنك اختيار ما يناسبك", optionSingle: "اختر خياراً واحداً", optionMultiple: "يمكنك اختيار أكثر من خيار",
     login: "تسجيل الدخول", myAccount: "حسابي", loginFirst: "يرجى تسجيل الدخول أولاً",
     phone: "رقم الهاتف", phoneHint: "اكتب رقم الهاتف من 8 أرقام", confirmPhone: "تأكيد الرقم",
-    invalidPhone: "رقم الهاتف يجب أن يتكون من 8 أرقام", codeSent: "أرسلنا رمز الدخول إلى واتساب",
+    invalidPhone: "رقم الهاتف يجب أن يتكون من 8 أرقام", codeSent: "أرسلنا رمز الدخول إلى واتساب", loggedIn: "تم تسجيل الدخول ✓",
     enterCode: "اكتب رمز الدخول المكون من 4 أرقام", resendCode: "إعادة إرسال رمز الدخول",
     resendAfter: "إعادة إرسال رمز الدخول بعد", invalidCode: "رمز الدخول غير صحيح", verifying: "جارٍ التحقق…",
     welcome: "أهلاً بك.. في مخبز التين والزيتون", username: "اسم المستخدم", confirm: "تأكيد",
@@ -181,7 +181,7 @@ const translations = {
     details: "Product details", addToCart: "Add to cart", image: "Product image", chooseOptions: "Choose options", optionsRequired: "Please select at least one option", optionOptional: "You may choose what suits you", optionSingle: "Choose one option", optionMultiple: "You may choose more than one option",
     login: "Login", myAccount: "My account", loginFirst: "Please login first", phone: "Phone number",
     phoneHint: "Enter your 8-digit phone number", confirmPhone: "Confirm number", invalidPhone: "Phone number must be exactly 8 digits",
-    codeSent: "We sent your login code on WhatsApp", enterCode: "Enter the 4-digit login code",
+    codeSent: "We sent your login code on WhatsApp", loggedIn: "Signed in ✓", enterCode: "Enter the 4-digit login code",
     resendCode: "Resend login code", resendAfter: "Resend login code in", invalidCode: "Incorrect login code",
     verifying: "Verifying…", welcome: "Welcome to Figs & Olives Bakery", username: "Username", confirm: "Confirm",
     nameRequired: "Please enter your username", myInfo: "My information", myAddresses: "My addresses",
@@ -2901,6 +2901,7 @@ function completeLogin() {
   $("#authModal").classList.add("hidden");
   $("#authModal").setAttribute("aria-hidden", "true");
   updateAccountButton();
+  toast(tr("loggedIn"));
   reportVisitorPresence();
   renderCartBar();
   syncAllProductQuantityControls();
