@@ -100,7 +100,7 @@ function page({ lang, title, description, canonical, alternates, image, imageAlt
   const ar = lang === "ar";
   let html = template;
   const set = (pattern, value) => { html = html.replace(pattern, value); };
-  set(/<html[^>]*>/, `<html lang="${ar ? "ar" : "en"}" dir="${ar ? "rtl" : "ltr"}" data-page-lang="${lang}">`);
+  set(/<html[^>]*>/, `<html lang="${ar ? "ar" : "en"}" dir="${ar ? "rtl" : "ltr"}" data-page-lang="${lang}" class="catalog-booting">`);
   set(/<title>[\s\S]*?<\/title>/, `<title>${esc(title)}</title>`);
   set(/<meta name="description"[^>]*>/, `<meta name="description" content="${esc(description)}">`);
   if (NOINDEX) set(/<meta name="robots"[^>]*>/, '<meta name="robots" content="noindex">');
@@ -208,6 +208,38 @@ for (const cover of covers) {
       sitemap.push({ loc: canonicalUrls[lang], alternates: canonicalUrls, image: photo, priority: "0.6" });
       redirects.set(legacyProductSegments(item, lang).join("/"), redirectPage({ lang, target: canonicalUrls.ar, title: `${name} | ${cname} | ${brand}`, description, image: photo }));
     }
+  }
+}
+
+// صفحة لكل قسم داخل الغلاف (/الغلاف/القسم/)، عشان رابط القسم يفتح بمعاينة صحيحة لما ينرسل.
+// المنصة تفتح الغلاف وتنزل للقسم. canonical = رابط الغلاف (نفس المحتوى)، وما تدخل خريطة الموقع.
+const categorySlug = category => asciiSlug(category.nameEn) || String(category.id).toLowerCase();
+for (const cover of covers) {
+  const slug = coverSlug(cover);
+  if (RESERVED.has(slug)) continue;
+  const ids = cover.filtered
+    ? cover.list.map(item => String(item.category))
+    : (cover.items || []).flatMap(entry => entry?.type === "heading" ? headingCategoryIds(headings.find(heading => same(heading.id, entry.id))) : [String(entry?.id || "")]);
+  const seen = new Set();
+  for (const id of ids) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const category = categories.find(entry => same(entry.id, id));
+    const list = category ? cover.list.filter(item => same(item.category, id)) : [];
+    if (!list.length) continue;
+    const coverUrls = { ar: urlOf(slug), en: urlOf("en", slug) };
+    const dir = [slug, categorySlug(category)].join("/");
+    if (pages.has(dir)) continue; // منتج بنفس الاسم تحت الغلاف: المنتج يغلب (نفس script.js).
+    const name = category.nameAr || category.nameEn;
+    const cname = coverName(cover, "ar");
+    const names = list.slice(0, 6).map(item => productName(item, "ar")).join("، ");
+    const description = clip(`${name} من ${cname} — ${names}`);
+    const photo = images(list[0])[0] || coverImage(cover);
+    const seoHtml = `      <div class="seo-intro">\n        <span class="kicker"><a href="${esc(coverUrls.ar)}">${esc(cname)}</a></span>\n        <h1 id="seoTitle">${esc(name)}</h1>\n      </div>\n      <ul>\n${list.map(item => `        <li><a href="${esc(productUrl(item, "ar"))}">${esc(productName(item, "ar"))}</a> — ${esc(price(item.price, "ar"))}</li>`).join("\n")}\n      </ul>`;
+    const jsonLd = { "@context": "https://schema.org", "@type": "CollectionPage", name, description, url: urlOf(slug, categorySlug(category)), inLanguage: "ar-KW", breadcrumb: crumb([[BRAND_AR, `${SITE}${BASE}`], [cname, coverUrls.ar], [name, urlOf(slug, categorySlug(category))]]) };
+    let html = page({ lang: "ar", title: `${name} | ${cname} | ${BRAND_AR}`, description, canonical: coverUrls.ar, alternates: coverUrls, image: photo, imageAlt: name, seoHtml, jsonLd });
+    html = html.replace(/<meta property="og:url"[^>]*>/, `<meta property="og:url" content="${esc(urlOf(slug, categorySlug(category)))}">`);
+    pages.set(dir, html);
   }
 }
 

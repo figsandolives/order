@@ -213,6 +213,9 @@ const REMEMBERED_SESSION_COOKIE = "figsOlivesRememberedSession";
 const LEGACY_CART_KEY = "figsOlivesCartV1";
 const CART_KEY = "figsOlivesCartV2";
 const CATALOG_CACHE_KEY = "figsOlivesCatalogV2";
+// يصير true بعد أول عرض للمنيو (قبله تظهر المربعات الرمادية).
+let catalogReady = false;
+const CATALOG_SLOW_FALLBACK_MS = 12000;
 const VISITOR_KEY = "figsOlivesVisitorV1";
 const visitorId = localStorage.getItem(VISITOR_KEY) || (crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`);
 localStorage.setItem(VISITOR_KEY, visitorId);
@@ -1845,6 +1848,25 @@ function slugify(text) {
 function asciiSlug(text) { return slugify(text).normalize("NFKD").replace(/[^a-z0-9-]+/g, "").replace(/-+/g, "-").replace(/^-|-$/g, ""); }
 function coverSlug(cover) { return asciiSlug(cover.nameEn) || String(cover.id).toLowerCase(); }
 function productSlug(item) { return asciiSlug(item.nameEn) || String(item.id).toLowerCase(); }
+// رابط القسم داخل الغلاف: /اسم-الغلاف/اسم-القسم/ (بالإنجليزي)، يتغير وانت تنزل بين الأقسام.
+function categorySlug(category) { return asciiSlug(category.nameEn) || String(category.id).toLowerCase(); }
+function coverSectionCategories(cover) {
+  if (!cover) return [];
+  const ids = new Set((cover.filtered ? coverProducts(cover).map(item => item.category) : coverCategoryIds(cover)).map(String));
+  return (state.categories || []).filter(category => ids.has(String(category.id)));
+}
+function categoryFromSegment(cover, segment) {
+  if (!cover || !segment) return null;
+  return coverSectionCategories(cover).find(category => categorySlug(category) === segment || String(category.id).toLowerCase() === segment || slugify(category.nameAr) === segment) || null;
+}
+// المنتج يغلب لو نفس الاسم (روابط المنتجات القديمة /الغلاف/المنتج/ تبقى تشتغل).
+function categoryFromRoute() {
+  const segments = routeSegments();
+  if (segments.length < 2) return null;
+  const cover = coverFromSegment(segments[0]);
+  if (!cover || productFromSegment(cover, segments[1])) return null;
+  return categoryFromSegment(cover, segments[1]);
+}
 function routeSegments() {
   let path = location.pathname;
   try { path = decodeURIComponent(path); } catch { /* keep raw */ }
@@ -1879,8 +1901,9 @@ function productNeedsCover(item) {
   }
   return sharedSlugCache.slugs.has(slug);
 }
-function prettyPath(cover, item = null) {
+function prettyPath(cover, item = null, category = null) {
   if (!cover) return APP_BASE;
+  if (!item && category) return `${APP_BASE}${coverSlug(cover)}/${categorySlug(category)}/`;
   // الشرطة بالآخر تطابق مجلدات الصفحات المولّدة، فما يصير تحويل من GitHub.
   // المنتج رابطه باسمه بس، إلا لو اسمه نفس اسم غلاف (نادر) فيبقى تحت غلافه.
   if (item) return productNeedsCover(item) ? `${APP_BASE}${coverSlug(cover)}/${productSlug(item)}/` : `${APP_BASE}${productSlug(item)}/`;
@@ -1925,7 +1948,10 @@ function syncPrettyUrl(mode = "replace") {
   updateDocumentTitle();
   const detail = state.detailProductId ? product(state.detailProductId) : null;
   const cover = detail ? coverForProduct(detail.id) : activeCover();
-  const path = detail && !cover ? `${APP_BASE}${keptSearch()}#product=${encodeURIComponent(detail.id)}` : `${prettyPath(cover, detail)}${keptSearch()}`;
+  // أول قسم = بداية الغلاف، فيبقى رابط الغلاف نفسه (/الغلاف/)؛ باقي الأقسام لها رابطها الخاص.
+  const firstSection = document.querySelector("[data-category-section]")?.dataset.categorySection;
+  const section = !detail && cover && state.activeCategory !== "all" && state.activeCategory !== firstSection ? (state.categories || []).find(category => category.id === state.activeCategory) || null : null;
+  const path = detail && !cover ? `${APP_BASE}${keptSearch()}#product=${encodeURIComponent(detail.id)}` : `${prettyPath(cover, detail, section)}${keptSearch()}`;
   const current = `${location.pathname}${location.search}${location.hash}`;
   if (decodeURIComponent(current) === decodeURIComponent(path)) return;
   history[mode === "push" ? "pushState" : "replaceState"]({ cover: state.activeCoverId, product: state.detailProductId || "", catalogScrollPosition }, "", path);
@@ -2130,8 +2156,8 @@ function observeImages() {
   $$("img[data-src]").forEach(image => imageObserver.observe(image));
 }
 
-function scrollToCategory(categoryId) {
-  if (categoryId !== "all") trackStoreEvent("category_click", { categoryId, categoryName: categoryName(state.categories.find(item => item.id === categoryId) || {}) });
+function scrollToCategory(categoryId, { track = true, instant = false } = {}) {
+  if (categoryId !== "all" && track) trackStoreEvent("category_click", { categoryId, categoryName: categoryName(state.categories.find(item => item.id === categoryId) || {}) });
   if (categoryId === "all") return window.scrollTo({ top: 0, behavior: "smooth" });
   const section = document.querySelector(`[data-category-section="${CSS.escape(categoryId)}"]`);
   if (!section) return;
@@ -2144,7 +2170,7 @@ function scrollToCategory(categoryId) {
   // Far sections are reached in one jump: a long smooth scroll would start
   // loading every product photo on the way before the wanted section's.
   const far = Math.abs(top - window.scrollY) > window.innerHeight * 2;
-  window.scrollTo({ top: Math.max(0, top), left: 0, behavior: far ? "auto" : "smooth" });
+  window.scrollTo({ top: Math.max(0, top), left: 0, behavior: far || instant ? "auto" : "smooth" });
   window.setTimeout(() => {
     if (pendingScrollCategoryId !== categoryId) return;
     pendingScrollCategoryId = "";
@@ -2186,6 +2212,7 @@ function syncActiveNavigation() {
   else if (state.activeHeadingId) document.querySelector(`[data-heading-link="${CSS.escape(state.activeHeadingId)}"]`)?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
   else centerCategoryButton(state.activeCategory);
   updateHeadingNavigation();
+  if (catalogReady && activeCover() && !state.detailProductId) syncPrettyUrl("replace");
 }
 
 function updateCategoryFromScroll() {
@@ -4526,6 +4553,9 @@ function applyCatalog(catalog, cache = true) {
     state.activeHeadingId = "";
     state.activeSubheadingId = "";
   }
+  // أول تحميل من رابط قسم (/الغلاف/القسم/): نفتح الغلاف وننزل للقسم على طول.
+  const routedCategory = !catalogReady && !PICKER_MODE && state.activeCoverId ? categoryFromRoute() : null;
+  if (routedCategory) { state.activeCategory = routedCategory.id; pendingScrollCategoryId = routedCategory.id; pendingScrollUntil = Date.now() + 5000; }
   if (cache) {
     try { localStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(catalog)); } catch { /* يتوفر products.json كنسخة احتياطية */ }
   }
@@ -4534,6 +4564,11 @@ function applyCatalog(catalog, cache = true) {
   renderCartBar();
   syncProductRoute();
   syncPrettyUrl("replace");
+  if (!catalogReady) {
+    catalogReady = true;
+    document.documentElement.classList.remove("catalog-booting");
+    if (routedCategory && !state.detailProductId) requestAnimationFrame(() => scrollToCategory(routedCategory.id, { track: false, instant: true }));
+  }
   setTimeout(() => showAdvertisement(state.advertisement), 250);
   return true;
 }
@@ -4567,8 +4602,10 @@ let liveCatalogVersion = null;
 
 async function refreshCatalogFromServer() {
   try {
-    const version = await orderingApi("/catalog/version").then(result => result.version, () => null);
-    const catalog = await orderingApi("/catalog");
+    const [version, catalog] = await Promise.all([
+      orderingApi("/catalog/version").then(result => result.version, () => null),
+      orderingApi("/catalog")
+    ]);
     if (version) liveCatalogVersion = version;
     return applyCatalog(catalog);
   } catch (error) {
@@ -4627,11 +4664,15 @@ async function initializeStoreData() {
   // Do not restore the previously viewed catalogue after a refresh. Cart data
   // lives in its own local-storage key and is intentionally left unchanged.
   resetCatalogToEntry();
+  // ما نعرض النسخة المحفوظة من الزيارة السابقة (كانت تطلع قديمة ثم تتبدل):
+  // تبقى المربعات الرمادية لين يوصل المنيو الجديد من السيرفر.
+  // النسخة المحفوظة تستخدم بس لو السيرفر ما رد (بدون نت) أو تأخر كثير.
   const cachedCatalog = readJson(CATALOG_CACHE_KEY, null);
-  let hasCatalog = applyCatalog(cachedCatalog, false);
-  // Always prefer the server catalogue. This also replaces any former cached
-  // cached asset links with the VPS asset URLs during the migration.
-  hasCatalog = (await refreshCatalogFromServer()) || hasCatalog;
+  const fromServer = refreshCatalogFromServer();
+  const slowTimer = setTimeout(() => { if (!catalogReady) applyCatalog(cachedCatalog, false); }, CATALOG_SLOW_FALLBACK_MS);
+  let hasCatalog = await fromServer;
+  clearTimeout(slowTimer);
+  if (!hasCatalog) hasCatalog = catalogReady || applyCatalog(cachedCatalog, false);
   if (!hasCatalog) hasCatalog = applyCatalog(await loadLocalCatalog());
   if (hasCatalog) resumePendingPayment();
   if (state.user?.phone) {
@@ -4647,6 +4688,7 @@ async function initializeStoreData() {
 
 initializeStoreData().catch(error => {
   console.error(error);
+  document.documentElement.classList.remove("catalog-booting");
   $("#productSections").innerHTML = `<div class="loading">${tr("loadingError")}</div>`;
 });
 
