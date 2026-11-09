@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ar" dir="rtl" data-page-lang="ar">
+<html lang="ar" dir="rtl" data-page-lang="ar" class="catalog-booting">
 <head>
   <meta charset="UTF-8">
   <base href="/">
@@ -39,6 +39,7 @@
   <link rel="stylesheet" href="footer.css?v=1">
   <link rel="stylesheet" href="options.css?v=20261102-sale-badge">
   <link rel="stylesheet" href="imagemap.css?v=2">
+  <link rel="stylesheet" href="skeleton.css?v=1">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -111,6 +112,18 @@
       <div class="legacy-header-hooks" hidden><button class="account-trigger" id="accountButton" aria-label="تسجيل الدخول"><span id="accountButtonLabel">تسجيل الدخول</span></button></div>
     </div>
   </header>
+  <script>
+    // أثناء التحميل: رابط غلاف/قسم/منتج يعرض هيكل صفحة الغلاف، والرئيسية تعرض هيكل الأغلفة.
+    (function () {
+      var path = location.pathname.replace(/^\/(en\/)?/, "").replace(/\/+$/, "");
+      if (!path || /^(rest|qr)(\/|$)|\.html?$/i.test(path) || /[?&]picker(=|&|$)/.test(location.search) || window.FO_PICKER === true) return;
+      document.documentElement.classList.add("boot-cover");
+      document.body.classList.add("cover-mode");
+      var title = document.getElementById("headerTitle"), cover = document.getElementById("headerCover");
+      if (title) title.classList.add("hidden");
+      if (cover) cover.classList.remove("hidden");
+    })();
+  </script>
 
   <div class="side-menu-layer hidden" id="sideMenu" aria-hidden="true">
     <button class="side-menu-backdrop" type="button" data-side-menu-close aria-label="إغلاق القائمة"></button>
@@ -149,20 +162,21 @@
     </section>
     </div>
 
-    <section class="catalog-worlds" id="catalogWorlds" aria-label="تصفّح حسب النوع"></section>
+    <section class="catalog-worlds" id="catalogWorlds" aria-label="تصفّح حسب النوع"><div class="catalog-worlds-grid sk-worlds" aria-hidden="true"><span class="sk-tile size-full"></span><span class="sk-tile"></span><span class="sk-tile"></span><span class="sk-tile"></span><span class="sk-tile"></span><span class="sk-tile size-full"></span><span class="sk-tile"></span><span class="sk-tile"></span></div></section>
 
     <section class="catalog">
       <div class="cover-stage" id="coverStage"></div>
       <div class="cover-photo-strip hidden" id="coverPhotoStrip" aria-hidden="true"></div>
-      <div class="categories" id="categories"></div>
+      <div class="categories" id="categories"><div class="sk-chips" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div></div>
       <div class="category-menu hidden" id="categoryMenu" role="menu" aria-label="كل الأقسام"></div>
       <div class="heading-navigation hidden" id="headingNavigation" aria-label="تنقل الأقسام المرتبطة">
         <div class="heading-navigation-row hidden" id="subheadingNavigation"></div>
         <div class="heading-navigation-row hidden" id="linkedCategoryNavigation"></div>
       </div>
       <div class="product-sections" id="productSections">
-        <div class="catalog-skeleton" aria-label="Loading products">
-          <i></i><i></i><i></i><i></i>
+        <div class="sk-products" role="status" aria-label="جاري التحميل">
+          <div class="sk-heading"><i class="sk-line sk-title"></i><i class="sk-line sk-count"></i></div>
+          <div class="product-grid sk-grid"><div class="sk-card"><i class="sk-img"></i><i class="sk-line w40"></i><i class="sk-line w90"></i><i class="sk-line w70"></i><span class="sk-foot"><i class="sk-line w30"></i><i class="sk-btn"></i></span></div><div class="sk-card"><i class="sk-img"></i><i class="sk-line w40"></i><i class="sk-line w90"></i><i class="sk-line w70"></i><span class="sk-foot"><i class="sk-line w30"></i><i class="sk-btn"></i></span></div><div class="sk-card"><i class="sk-img"></i><i class="sk-line w40"></i><i class="sk-line w90"></i><i class="sk-line w70"></i><span class="sk-foot"><i class="sk-line w30"></i><i class="sk-btn"></i></span></div><div class="sk-card"><i class="sk-img"></i><i class="sk-line w40"></i><i class="sk-line w90"></i><i class="sk-line w70"></i><span class="sk-foot"><i class="sk-line w30"></i><i class="sk-btn"></i></span></div><div class="sk-card"><i class="sk-img"></i><i class="sk-line w40"></i><i class="sk-line w90"></i><i class="sk-line w70"></i><span class="sk-foot"><i class="sk-line w30"></i><i class="sk-btn"></i></span></div><div class="sk-card"><i class="sk-img"></i><i class="sk-line w40"></i><i class="sk-line w90"></i><i class="sk-line w70"></i><span class="sk-foot"><i class="sk-line w30"></i><i class="sk-btn"></i></span></div></div>
         </div>
       </div>
       <div class="cover-inner-image-host hidden" id="coverInnerImage"></div>
@@ -279,6 +293,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="config.js?v=20261006-server-api-v1"></script>
-  <script src="script.js?v=20261102-phone-confirm"></script>
+  <script src="script.js?v=20261109-section-links"></script>
 </body>
 </html>
