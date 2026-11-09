@@ -3318,6 +3318,7 @@ function openCheckout() {
   state.name = state.user.name;
   state.phone = state.user.phone;
   state.step = 1;
+  state.precautionAcks = [];
   delete $("#checkoutModal").dataset.tableFlow;
   $("#closeCheckout").textContent = "×";
   $("#closeCheckout").classList.remove("table-back-button");
@@ -3352,6 +3353,7 @@ function renderCheckout() {
   if (state.step === 1) renderReview();
   else if (state.step === 2) renderDelivery();
   else if (state.step === 3) renderDeliveryTime();
+  else if (state.step === PRECAUTION_STEP) renderPrecautionStep();
   else renderConfirmation();
 }
 
@@ -3380,7 +3382,8 @@ function renderReview() {
     if (cartItems().some(cartItemMinimumIssue)) return toast(state.lang === "ar" ? "ارجو إكمال كمية المنتج المطلوبة" : "Please complete the required product quantity", "error");
     if (cartItems().some(cartItemFillingIssue)) return toast(state.lang === "ar" ? "عدد الحشوات لا يطابق الحجم المختار. عدّل الصنف الظاهر بالتنبيه أولاً." : "The fillings count does not match the selected size. Please correct the highlighted item first.", "error");
     if (!hasMinimumOrderValue()) return toast(minimumOrderNotice(), "error");
-    state.step = tableReservationActive() ? 4 : 2;
+    if (tableReservationActive()) return goToPaymentStep();
+    state.step = 2;
     renderCheckout();
   };
 }
@@ -3623,9 +3626,120 @@ function renderDeliveryTime() {
       if (state.mode === "pickup" && !isWithinPickupHours(selected)) return toast(tr("pickupHoursNotice"), "error");
       if (!isScheduledTimeAllowed(selected)) return toast(tr("chooseTimeAfterMinimum"));
     }
-    state.step = 4;
-    renderCheckout();
+    goToPaymentStep();
   };
+}
+
+// ---------- الأسئلة الاحترازية ----------
+// خطوة مخفية بين «وقت التوصيل» و«تأكيد ودفع»: إذا في السلة منتج من منتجات سؤال احترازي
+// (مثال: السيلياك مع المنتجات الخالية من الجلوتين) نسأل العميل وتنحفظ إجابته في حسابه.
+// «نعم» ثم «أعلم، المتابعة للدفع» → الطلب يحمل الإقرار ويطبع في الفاتورة.
+// إجابة «لا» محفوظة: ما يرجع ينسأل. إجابة «نعم» محفوظة: يطلع له التنبيه على طول.
+const PRECAUTION_STEP = 3.5;
+const DEFAULT_PRECAUTION_WARNING = "يرجى العلم أن بعض المنتجات المضافة في سلتك غير مناسبة لحالتك.";
+function normalizePrecautionQuestions(list) {
+  return (Array.isArray(list) ? list : [])
+    .filter(item => item && item.id && item.active !== false && String(item.text || "").trim())
+    .map(item => ({ id: String(item.id), text: String(item.text).trim(), warning: String(item.warning || "").trim(), productIds: new Set((Array.isArray(item.productIds) ? item.productIds : []).map(String)) }))
+    .filter(item => item.productIds.size);
+}
+function savedPrecautionAnswer(questionId) {
+  return state.user?.precautions?.[questionId]?.answer || "";
+}
+function cartPrecautionQuestions() {
+  const ids = new Set(cartItems().map(({ product }) => String(product.id)));
+  return (state.precautionQuestions || []).filter(question => [...ids].some(id => question.productIds.has(id)));
+}
+function acknowledgedPrecautions() {
+  const relevant = new Set(cartPrecautionQuestions().map(question => question.id));
+  return (state.precautionAcks || []).filter(id => relevant.has(id) && savedPrecautionAnswer(id) === "yes");
+}
+function nextPrecautionQuestion() {
+  const acks = new Set(state.precautionAcks || []);
+  return cartPrecautionQuestions().find(question => !acks.has(question.id) && savedPrecautionAnswer(question.id) !== "no");
+}
+function goToPaymentStep() {
+  const question = nextPrecautionQuestion();
+  if (question) { state.precautionQuestionId = question.id; state.step = PRECAUTION_STEP; }
+  else state.step = 4;
+  renderCheckout();
+}
+async function savePrecautionAnswer(questionId, answer) {
+  state.user.precautions = { ...(state.user.precautions || {}), [questionId]: { answer, answeredAt: new Date().toISOString() } };
+  persistUser();
+  try {
+    const result = await orderingApi("/customer/precautions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ questionId, answer }) }, true);
+    if (result?.precautions) { state.user.precautions = result.precautions; persistUser(); }
+  } catch (error) {
+    console.warn("Precaution answer not saved on the server", error);
+  }
+}
+function precautionChoiceButtons(prefix) {
+  return `<div class="precaution-choices"><button type="button" class="secondary" data-${prefix}-answer="yes">${state.lang === "ar" ? "نعم" : "Yes"}</button><button type="button" class="secondary" data-${prefix}-answer="no">${state.lang === "ar" ? "لا" : "No"}</button></div>`;
+}
+function setPrecautionLoading(button) {
+  button.closest(".precaution-choices")?.querySelectorAll("button").forEach(item => { item.disabled = true; });
+  button.innerHTML = `<span class="precaution-loader" aria-label="جاري الحفظ"></span>`;
+}
+function precautionAnsweredNo(questionId) {
+  state.precautionAcks = (state.precautionAcks || []).filter(id => id !== questionId);
+  state.paymentRequestId = "";
+  goToPaymentStep();
+}
+function renderPrecautionStep() {
+  const question = (state.precautionQuestions || []).find(item => item.id === state.precautionQuestionId);
+  if (!question) { state.step = 4; return renderCheckout(); }
+  const ar = state.lang === "ar";
+  if (savedPrecautionAnswer(question.id) !== "yes") {
+    $("#checkoutBody").innerHTML = `<section class="precaution-step">
+      <span class="precaution-kicker">${ar ? "سؤال احترازي:" : "Precaution question:"}</span>
+      <h3>${escapeHtml(question.text)}</h3>
+      ${precautionChoiceButtons("precaution")}
+    </section>`;
+    $$("[data-precaution-answer]").forEach(button => button.onclick = async () => {
+      const answer = button.dataset.precautionAnswer;
+      setPrecautionLoading(button);
+      await savePrecautionAnswer(question.id, answer);
+      if (answer === "no") return precautionAnsweredNo(question.id);
+      renderPrecautionStep();
+    });
+    return;
+  }
+  $("#checkoutBody").innerHTML = `<section class="precaution-step">
+    <span class="precaution-kicker">${ar ? "تنبيه" : "Notice"}</span>
+    <p class="precaution-warning">${escapeHtml(question.warning || DEFAULT_PRECAUTION_WARNING)} <button type="button" class="precaution-edit" id="precautionEdit">${ar ? "تعديل حالتي" : "Edit my status"}</button></p>
+    <div class="actions precaution-actions"><button type="button" class="secondary" id="precautionBackToCart">${ar ? "العودة الى السلة" : "Back to cart"}</button><button type="button" class="primary" id="precautionContinue">${ar ? "أعلم، المتابعة للدفع" : "I understand, continue to payment"}</button></div>
+  </section>`;
+  $("#precautionBackToCart").onclick = () => { state.step = 1; renderCheckout(); };
+  $("#precautionContinue").onclick = () => {
+    state.precautionAcks = [...new Set([...(state.precautionAcks || []), question.id])];
+    state.paymentRequestId = "";
+    goToPaymentStep();
+  };
+  $("#precautionEdit").onclick = () => openPrecautionEdit(question);
+}
+function openPrecautionEdit(question) {
+  document.querySelector(".precaution-popup")?.remove();
+  const popup = document.createElement("div");
+  popup.className = "modal precaution-popup";
+  popup.innerHTML = `<section class="precaution-popup-card" role="dialog" aria-modal="true">
+    <button type="button" class="precaution-popup-close" aria-label="إغلاق">×</button>
+    <span class="precaution-kicker">${state.lang === "ar" ? "سؤال احترازي:" : "Precaution question:"}</span>
+    <h3>${escapeHtml(question.text)}</h3>
+    ${precautionChoiceButtons("precaution-edit")}
+  </section>`;
+  document.body.append(popup);
+  const close = () => popup.remove();
+  popup.querySelector(".precaution-popup-close").onclick = close;
+  popup.addEventListener("click", event => { if (event.target === popup) close(); });
+  popup.querySelectorAll("[data-precaution-edit-answer]").forEach(button => button.onclick = async () => {
+    const answer = button.dataset.precautionEditAnswer;
+    if (answer === "yes") return close();
+    setPrecautionLoading(button);
+    await savePrecautionAnswer(question.id, "no");
+    close();
+    precautionAnsweredNo(question.id);
+  });
 }
 
 function renderWhatsappDeliveryTime() {
@@ -3638,7 +3752,7 @@ function renderWhatsappDeliveryTime() {
       <div class="actions"><button class="secondary" id="backTime">${tr("back")}</button><button class="primary" id="confirmTime">${tr("confirmContinue")}</button></div>
     </section>`;
   $("#backTime").onclick = () => { state.step = 2; renderCheckout(); };
-  $("#confirmTime").onclick = () => { state.deliveryTiming = "notify"; state.paymentRequestId = ""; state.step = 4; renderCheckout(); };
+  $("#confirmTime").onclick = () => { state.deliveryTiming = "notify"; state.paymentRequestId = ""; goToPaymentStep(); };
 }
 
 // A scheduled time on the same day as the order needs no date, only the hours.
@@ -3782,6 +3896,7 @@ function paymentPayload(paymentMethod = state.paymentMethod) {
     items: cartItems().map(({ product: item, quantity, note, options }) => ({ id: String(item.id), quantity, note, options })),
     delivery: { mode: state.mode, areaName: state.area?.name || "", branchId: state.branch || "", address: state.address || "" },
     paymentMethod,
+    ...(acknowledgedPrecautions().length ? { precautions: acknowledgedPrecautions().map(questionId => ({ questionId })) } : {}),
     tableReservation: tableReservationActive() ? state.tableReservation : null,
     deliveryTime: {
       type: state.deliveryTiming,
@@ -4493,13 +4608,14 @@ function applyCatalog(catalog, cache = true) {
     catalog.version || "", catalog.updatedAt || "",
     catalog.restaurantEnabled !== false,
     catalog.appearance || {}, catalog.advertisement || {},
-    catalog.headings || [], catalog.productFilters || [], catalog.covers || [], catalog.qualityStrip || null,
+    catalog.headings || [], catalog.productFilters || [], catalog.precautionQuestions || [], catalog.covers || [], catalog.qualityStrip || null,
     catalog.categories.map(category => [category.id, category.catalogType || "bakery", category.active !== false, category.order, category.nameAr, category.nameEn]),
     catalog.products.map(item => [item.id, item.catalogType || "bakery", item.active !== false, item.availability || null, item.inventory || null, item.originalPrice || 0, item.category, item.order, item.price, item.name, item.nameEn, item.image, item.options || null, item.preparation || null]),
     catalog.deliveryAreas.map(area => [area.id, area.nameAr || area.name, area.nameEn, area.price, area.order])
   ]);
   if (signature === catalogSignature) return true;
   catalogSignature = signature;
+  state.precautionQuestions = normalizePrecautionQuestions(catalog.precautionQuestions);
   const visibleCategories = catalog.categories.filter(category => category.active !== false);
   const visibleCategoryIds = new Set(visibleCategories.map(category => String(category.id)));
   const visibleProducts = catalog.products.filter(item =>

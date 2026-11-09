@@ -1,0 +1,15 @@
+/* الأسئلة الاحترازية: الخطوة المخفية قبل «تأكيد ودفع» ونافذة «تعديل حالتي». */
+.precaution-step{display:grid;gap:14px;padding:22px 4px 6px;text-align:center}
+.precaution-kicker{justify-self:center;padding:5px 14px;border-radius:999px;background:#fff3dc;color:#8a5a00;font-size:13px;font-weight:800}
+.precaution-step h3,.precaution-popup-card h3{margin:0;font-size:20px;line-height:1.8;color:var(--ink)}
+.precaution-choices{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+.precaution-choices button{min-height:54px;font-size:17px}
+.precaution-choices button:disabled{opacity:.6;cursor:default}
+.precaution-loader{display:inline-block;width:22px;height:22px;border:3px solid #dce5df;border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle}
+.precaution-warning{margin:0;padding:18px 16px;border:1px solid #f0d9a8;border-radius:18px;background:#fffaf0;font-size:16px;font-weight:700;line-height:2;color:#5a3d00}
+.precaution-edit{border:0;padding:0;background:none;color:#1a6fd6;font:inherit;font-size:14px;font-weight:800;text-decoration:underline;cursor:pointer;white-space:nowrap}
+.precaution-actions{margin-top:4px}
+.precaution-popup{z-index:160}
+.precaution-popup-card{position:relative;display:grid;gap:14px;width:min(440px,calc(100% - 32px));padding:28px 20px 20px;border-radius:24px;background:var(--paper);text-align:center;box-shadow:0 30px 80px #071c1452}
+.precaution-popup-close{position:absolute;top:10px;left:10px;width:36px;height:36px;border:0;border-radius:50%;background:#eef0eb;font-size:22px}
+@media(max-width:760px){.precaution-popup{place-items:center;padding:16px}.precaution-step h3{font-size:18px}}
