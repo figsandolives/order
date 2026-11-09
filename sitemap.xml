@@ -6,102 +6,6 @@
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://figsolives.online/school-meals/</loc>
-    <lastmod>2026-11-09</lastmod>
-    <priority>0.8</priority>
-    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meals/"/>
-    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meals/"/>
-    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/appearance/covers/cover-school-meals-1793632841485.webp</image:loc></image:image>
-  </url>
-  <url>
-    <loc>https://figsolives.online/en/school-meals/</loc>
-    <lastmod>2026-11-09</lastmod>
-    <priority>0.8</priority>
-    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meals/"/>
-    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meals/"/>
-    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/appearance/covers/cover-school-meals-1793632841485.webp</image:loc></image:image>
-  </url>
-  <url>
-    <loc>https://figsolives.online/school-meal-box-for-6-days/</loc>
-    <lastmod>2026-11-09</lastmod>
-    <priority>0.6</priority>
-    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meal-box-for-6-days/"/>
-    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meal-box-for-6-days/"/>
-    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P-school-box/main.webp?v=1793632667325</image:loc></image:image>
-  </url>
-  <url>
-    <loc>https://figsolives.online/en/school-meal-box-for-6-days/</loc>
-    <lastmod>2026-11-09</lastmod>
-    <priority>0.6</priority>
-    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meal-box-for-6-days/"/>
-    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meal-box-for-6-days/"/>
-    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P-school-box/main.webp?v=1793632667325</image:loc></image:image>
-  </url>
-  <url>
-    <loc>https://figsolives.online/school-meal-no-1/</loc>
-    <lastmod>2026-11-09</lastmod>
-    <priority>0.6</priority>
-    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meal-no-1/"/>
-    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meal-no-1/"/>
-    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P-school-meal-1/main.webp?v=1793632667325</image:loc></image:image>
-  </url>
-  <url>
-    <loc>https://figsolives.online/en/school-meal-no-1/</loc>
-    <lastmod>2026-11-09</lastmod>
-    <priority>0.6</priority>
-    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meal-no-1/"/>
-    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meal-no-1/"/>
-    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P-school-meal-1/main.webp?v=1793632667325</image:loc></image:image>
-  </url>
-  <url>
-    <loc>https://figsolives.online/school-meal-no-2/</loc>
-    <lastmod>2026-11-09</lastmod>
-    <priority>0.6</priority>
-    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meal-no-2/"/>
-    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meal-no-2/"/>
-    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P-school-meal-2/main.webp?v=1793632667325</image:loc></image:image>
-  </url>
-  <url>
-    <loc>https://figsolives.online/en/school-meal-no-2/</loc>
-    <lastmod>2026-11-09</lastmod>
-    <priority>0.6</priority>
-    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meal-no-2/"/>
-    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meal-no-2/"/>
-    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P-school-meal-2/main.webp?v=1793632667325</image:loc></image:image>
-  </url>
-  <url>
-    <loc>https://figsolives.online/school-meal-no-3/</loc>
-    <lastmod>2026-11-09</lastmod>
-    <priority>0.6</priority>
-    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meal-no-3/"/>
-    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meal-no-3/"/>
-    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P-school-meal-3/main.webp?v=1793632667325</image:loc></image:image>
-  </url>
-  <url>
-    <loc>https://figsolives.online/en/school-meal-no-3/</loc>
-    <lastmod>2026-11-09</lastmod>
-    <priority>0.6</priority>
-    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meal-no-3/"/>
-    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meal-no-3/"/>
-    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P-school-meal-3/main.webp?v=1793632667325</image:loc></image:image>
-  </url>
-  <url>
-    <loc>https://figsolives.online/school-meal-no-4/</loc>
-    <lastmod>2026-11-09</lastmod>
-    <priority>0.6</priority>
-    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meal-no-4/"/>
-    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meal-no-4/"/>
-    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P-school-meal-4/main.webp?v=1793632667325</image:loc></image:image>
-  </url>
-  <url>
-    <loc>https://figsolives.online/en/school-meal-no-4/</loc>
-    <lastmod>2026-11-09</lastmod>
-    <priority>0.6</priority>
-    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meal-no-4/"/>
-    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meal-no-4/"/>
-    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P-school-meal-4/main.webp?v=1793632667325</image:loc></image:image>
-  </url>
-  <url>
     <loc>https://figsolives.online/combating-insulin-resistance/</loc>
     <lastmod>2026-11-09</lastmod>
     <priority>0.8</priority>
@@ -5931,7 +5835,7 @@
     <priority>0.6</priority>
     <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/brown-propolis-10ml/"/>
     <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/brown-propolis-10ml/"/>
-    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/20004/main.webp</image:loc></image:image>
+    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/20004/20004-1794209059786-svdk2.webp</image:loc></image:image>
   </url>
   <url>
     <loc>https://figsolives.online/en/brown-propolis-10ml/</loc>
@@ -5939,7 +5843,7 @@
     <priority>0.6</priority>
     <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/brown-propolis-10ml/"/>
     <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/brown-propolis-10ml/"/>
-    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/20004/main.webp</image:loc></image:image>
+    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/20004/20004-1794209059786-svdk2.webp</image:loc></image:image>
   </url>
   <url>
     <loc>https://figsolives.online/green-propolis-30ml/</loc>
@@ -5947,7 +5851,7 @@
     <priority>0.6</priority>
     <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/green-propolis-30ml/"/>
     <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/green-propolis-30ml/"/>
-    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/20004/main.webp</image:loc></image:image>
+    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P1794208212619/P1794208212619-1794209071349-wwhpy.webp</image:loc></image:image>
   </url>
   <url>
     <loc>https://figsolives.online/en/green-propolis-30ml/</loc>
@@ -5955,7 +5859,7 @@
     <priority>0.6</priority>
     <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/green-propolis-30ml/"/>
     <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/green-propolis-30ml/"/>
-    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/20004/main.webp</image:loc></image:image>
+    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P1794208212619/P1794208212619-1794209071349-wwhpy.webp</image:loc></image:image>
   </url>
   <url>
     <loc>https://figsolives.online/frankincense-essential-oil-30ml/</loc>
@@ -6756,5 +6660,101 @@
     <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/clay-cooking-large-bowl/"/>
     <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/clay-cooking-large-bowl/"/>
     <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/76553/main.webp</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://figsolives.online/school-meals/</loc>
+    <lastmod>2026-11-09</lastmod>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meals/"/>
+    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meals/"/>
+    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/appearance/covers/cover-school-meals-1793632841485.webp</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://figsolives.online/en/school-meals/</loc>
+    <lastmod>2026-11-09</lastmod>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meals/"/>
+    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meals/"/>
+    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/appearance/covers/cover-school-meals-1793632841485.webp</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://figsolives.online/school-meal-box-for-6-days/</loc>
+    <lastmod>2026-11-09</lastmod>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meal-box-for-6-days/"/>
+    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meal-box-for-6-days/"/>
+    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P-school-box/main.webp?v=1793632667325</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://figsolives.online/en/school-meal-box-for-6-days/</loc>
+    <lastmod>2026-11-09</lastmod>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meal-box-for-6-days/"/>
+    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meal-box-for-6-days/"/>
+    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P-school-box/main.webp?v=1793632667325</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://figsolives.online/school-meal-no-1/</loc>
+    <lastmod>2026-11-09</lastmod>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meal-no-1/"/>
+    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meal-no-1/"/>
+    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P-school-meal-1/main.webp?v=1793632667325</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://figsolives.online/en/school-meal-no-1/</loc>
+    <lastmod>2026-11-09</lastmod>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meal-no-1/"/>
+    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meal-no-1/"/>
+    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P-school-meal-1/main.webp?v=1793632667325</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://figsolives.online/school-meal-no-2/</loc>
+    <lastmod>2026-11-09</lastmod>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meal-no-2/"/>
+    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meal-no-2/"/>
+    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P-school-meal-2/main.webp?v=1793632667325</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://figsolives.online/en/school-meal-no-2/</loc>
+    <lastmod>2026-11-09</lastmod>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meal-no-2/"/>
+    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meal-no-2/"/>
+    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P-school-meal-2/main.webp?v=1793632667325</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://figsolives.online/school-meal-no-3/</loc>
+    <lastmod>2026-11-09</lastmod>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meal-no-3/"/>
+    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meal-no-3/"/>
+    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P-school-meal-3/main.webp?v=1793632667325</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://figsolives.online/en/school-meal-no-3/</loc>
+    <lastmod>2026-11-09</lastmod>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meal-no-3/"/>
+    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meal-no-3/"/>
+    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P-school-meal-3/main.webp?v=1793632667325</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://figsolives.online/school-meal-no-4/</loc>
+    <lastmod>2026-11-09</lastmod>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meal-no-4/"/>
+    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meal-no-4/"/>
+    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P-school-meal-4/main.webp?v=1793632667325</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://figsolives.online/en/school-meal-no-4/</loc>
+    <lastmod>2026-11-09</lastmod>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="ar-KW" href="https://figsolives.online/school-meal-no-4/"/>
+    <xhtml:link rel="alternate" hreflang="en-KW" href="https://figsolives.online/en/school-meal-no-4/"/>
+    <image:image><image:loc>https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/P-school-meal-4/main.webp?v=1793632667325</image:loc></image:image>
   </url>
 </urlset>
