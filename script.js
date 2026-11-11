@@ -220,6 +220,51 @@ const VISITOR_KEY = "figsOlivesVisitorV1";
 const visitorId = localStorage.getItem(VISITOR_KEY) || (crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`);
 localStorage.setItem(VISITOR_KEY, visitorId);
 
+// كود الرابط المتتبع (?ref=…&cid=…) اللي تضيفه روابط السوشل ميديا: نحفظه 30 يوم (أول رابط وآخر رابط)
+// وينرسل مع أحداث الزيارة ومع طلب الدفع، وينشال من شريط العنوان عشان ما ينتقل مع الرابط إذا الزبون نسخه.
+// ما يظهر للزبون شي، وأي خطأ هني ما يوقف الصفحة.
+const ATTRIBUTION_KEY = "figsOlivesAttributionV1";
+const storeAttribution = (() => {
+  const result = { first: null, last: null, sessionReferrer: "", landed: false };
+  try {
+    const now = Date.now(), maxAge = 30 * 86400000;
+    const fresh = touch => touch && typeof touch === "object" && Number(touch.at) > 0 && now - Number(touch.at) < maxAge ? touch : null;
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem(ATTRIBUTION_KEY) || "{}") || {}; } catch { saved = {}; }
+    let first = fresh(saved.first), last = fresh(saved.last);
+    let referrer = "";
+    try { const host = document.referrer ? new URL(document.referrer).hostname : ""; referrer = host && host !== location.hostname ? host : ""; } catch { referrer = ""; }
+    try {
+      result.sessionReferrer = sessionStorage.getItem(`${ATTRIBUTION_KEY}:referrer`) ?? referrer;
+      sessionStorage.setItem(`${ATTRIBUTION_KEY}:referrer`, result.sessionReferrer);
+    } catch { result.sessionReferrer = referrer; }
+    const params = new URLSearchParams(location.search);
+    if (params.has("ref") || params.has("cid")) {
+      const rawRef = String(params.get("ref") || "").toLowerCase(), rawCid = String(params.get("cid") || "");
+      const ref = /^[a-z0-9._-]{1,80}$/.test(rawRef) ? rawRef : "", cid = /^[A-Za-z0-9_-]{1,40}$/.test(rawCid) ? rawCid : "";
+      if (ref || cid) {
+        let path = location.pathname;
+        try { path = decodeURIComponent(path); } catch { /* keep raw */ }
+        last = { ref, cid, at: now, path: path.slice(0, 200), referrer };
+        if (!first) first = last;
+        result.landed = true;
+      }
+      params.delete("ref"); params.delete("cid");
+      const rest = params.toString();
+      history.replaceState(history.state, "", `${location.pathname}${rest ? `?${rest}` : ""}${location.hash}`);
+    }
+    result.first = first || last; result.last = last || first;
+    if (result.last) localStorage.setItem(ATTRIBUTION_KEY, JSON.stringify({ first: result.first, last: result.last }));
+    else localStorage.removeItem(ATTRIBUTION_KEY);
+  } catch { /* التتبع اختياري */ }
+  return result;
+})();
+function attributionEventFields() {
+  let path = location.pathname;
+  try { path = decodeURIComponent(path); } catch { /* keep raw */ }
+  return { ...(storeAttribution.last?.ref ? { ref: storeAttribution.last.ref } : {}), ...(storeAttribution.last?.cid ? { cid: storeAttribution.last.cid } : {}), path, referrer: storeAttribution.sessionReferrer };
+}
+
 function readJson(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch { return fallback; }
 }
@@ -1110,12 +1155,13 @@ function trackStoreEvent(type, details = {}) {
   const endpoint = orderingConfig.analyticsWebhookUrl;
   if (!endpoint) return;
   const onceKey = `figsOlivesEvent:${type}:${new Date().toISOString().slice(0, 10)}`;
-  if (type === "visit" && sessionStorage.getItem(onceKey)) return;
+  // الدخول من رابط متتبع جديد ينحسب دايماً، حتى لو الزيارة انحسبت اليوم.
+  if (type === "visit" && sessionStorage.getItem(onceKey) && !storeAttribution.landed) return;
   if (type === "visit") sessionStorage.setItem(onceKey, "1");
   fetch(orderingApiUrl(endpoint), {
     method: "POST",
     headers: { "Content-Type": "application/json", "Accept": "application/json" },
-    body: JSON.stringify({ type, visitorId, customer: state.user?.name ? { name: state.user.name, phone: state.user.phone } : null, details }),
+    body: JSON.stringify({ type, visitorId, customer: state.user?.name ? { name: state.user.name, phone: state.user.phone } : null, details, ...attributionEventFields() }),
     cache: "no-store"
   }).catch(() => undefined);
 }
@@ -3963,6 +4009,7 @@ function paymentPayload(paymentMethod = state.paymentMethod) {
     delivery: { mode: state.mode, areaName: state.area?.name || "", branchId: state.branch || "", address: state.address || "" },
     paymentMethod,
     ...(acknowledgedPrecautions().length ? { precautions: acknowledgedPrecautions().map(questionId => ({ questionId })) } : {}),
+    ...(storeAttribution.last ? { attribution: { first: storeAttribution.first, last: storeAttribution.last, sessionReferrer: storeAttribution.sessionReferrer } } : {}),
     tableReservation: tableReservationActive() ? state.tableReservation : null,
     deliveryTime: {
       type: state.deliveryTiming,
