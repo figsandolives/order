@@ -8,8 +8,8 @@
 .precaution-loader{display:inline-block;width:22px;height:22px;border:3px solid #dce5df;border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle}
 .precaution-warning{margin:0;padding:18px 16px;border:1px solid #f0d9a8;border-radius:18px;background:#fffaf0;font-size:16px;font-weight:700;line-height:2;color:#5a3d00}
 .precaution-edit{border:0;padding:0;background:none;color:#1a6fd6;font:inherit;font-size:14px;font-weight:800;text-decoration:underline;cursor:pointer;white-space:nowrap}
-.precaution-actions{margin-top:4px}
-.precaution-popup{z-index:160}
+.precaution-actions{margin-top:4px;grid-template-columns:1fr 1.5fr}.precaution-actions button{white-space:nowrap;padding:0 12px}
+.modal.precaution-popup{z-index:400}
 .precaution-popup-card{position:relative;display:grid;gap:14px;width:min(440px,calc(100% - 32px));padding:28px 20px 20px;border-radius:24px;background:var(--paper);text-align:center;box-shadow:0 30px 80px #071c1452}
 .precaution-popup-close{position:absolute;top:10px;left:10px;width:36px;height:36px;border:0;border-radius:50%;background:#eef0eb;font-size:22px}
 @media(max-width:760px){.precaution-popup{place-items:center;padding:16px}.precaution-step h3{font-size:18px}}
