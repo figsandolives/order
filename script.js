@@ -1180,6 +1180,7 @@ async function hydrateUserFromServer() {
       ...remote,
       phone: normalizePhone(remote.phone),
       addresses: Array.isArray(remote.addresses) ? remote.addresses : [],
+      precautions: remote.precautions && typeof remote.precautions === "object" ? remote.precautions : {},
       orders: Array.isArray(state.user.orders) ? state.user.orders : []
     };
     if (cartRevision) queueUserSync();
@@ -3060,8 +3061,9 @@ function renderAccountInfo() {
       <label>${tr("username")}<input id="profileName" value="${escapeHtml(state.user.name)}" maxlength="80"></label>
       <label>${tr("phone")}<div class="profile-phone"><input value="${escapeHtml(state.user.phone)}" readonly><button class="secondary" id="changePhoneButton" type="button">${tr("changePhone")}</button></div></label>
       <button class="primary" type="submit">${tr("save")}</button>
-    </form>`;
+    </form>${accountHealthSection()}`;
   bindDrawerBack();
+  bindAccountHealthSection();
   $("#changePhoneButton").onclick = () => openAuth("changePhone");
   $("#profileForm").onsubmit = event => {
     event.preventDefault();
@@ -3634,9 +3636,11 @@ function renderDeliveryTime() {
 // خطوة مخفية بين «وقت التوصيل» و«تأكيد ودفع»: إذا في السلة منتج من منتجات سؤال احترازي
 // (مثال: السيلياك مع المنتجات الخالية من الجلوتين) نسأل العميل وتنحفظ إجابته في حسابه.
 // «نعم» ثم «أعلم، المتابعة للدفع» → الطلب يحمل الإقرار ويطبع في الفاتورة.
-// إجابة «لا» محفوظة: ما يرجع ينسأل. إجابة «نعم» محفوظة: يطلع له التنبيه على طول.
+// «لا» → شاشة شكر وعداد ٣ ثواني ثم الدفع تلقائياً. إجابة «لا» محفوظة: ما يرجع ينسأل.
+// العميل يقدر يعدل أو يحذف إجابته من «معلوماتي» → «الحالة الصحية».
 const PRECAUTION_STEP = 3.5;
 const DEFAULT_PRECAUTION_WARNING = "يرجى العلم أن بعض المنتجات المضافة في سلتك غير مناسبة لحالتك.";
+let precautionThanksTimer = 0;
 function normalizePrecautionQuestions(list) {
   return (Array.isArray(list) ? list : [])
     .filter(item => item && item.id && item.active !== false && String(item.text || "").trim())
@@ -3644,7 +3648,8 @@ function normalizePrecautionQuestions(list) {
     .filter(item => item.productIds.size);
 }
 function savedPrecautionAnswer(questionId) {
-  return state.user?.precautions?.[questionId]?.answer || "";
+  const answer = state.user?.precautions?.[questionId]?.answer;
+  return answer === "yes" || answer === "no" ? answer : "";
 }
 function cartPrecautionQuestions() {
   const ids = new Set(cartItems().map(({ product }) => String(product.id)));
@@ -3659,16 +3664,21 @@ function nextPrecautionQuestion() {
   return cartPrecautionQuestions().find(question => !acks.has(question.id) && savedPrecautionAnswer(question.id) !== "no");
 }
 function goToPaymentStep() {
+  clearInterval(precautionThanksTimer);
   const question = nextPrecautionQuestion();
   if (question) { state.precautionQuestionId = question.id; state.step = PRECAUTION_STEP; }
   else state.step = 4;
   renderCheckout();
 }
+// answer: "yes" | "no" | "" (حذف الإجابة).
 async function savePrecautionAnswer(questionId, answer) {
-  state.user.precautions = { ...(state.user.precautions || {}), [questionId]: { answer, answeredAt: new Date().toISOString() } };
+  const precautions = { ...(state.user.precautions || {}) };
+  if (answer) precautions[questionId] = { answer, answeredAt: new Date().toISOString() };
+  else delete precautions[questionId];
+  state.user.precautions = precautions;
   persistUser();
   try {
-    const result = await orderingApi("/customer/precautions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ questionId, answer }) }, true);
+    const result = await orderingApi("/customer/precautions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ questionId, answer: answer || "clear" }) }, true);
     if (result?.precautions) { state.user.precautions = result.precautions; persistUser(); }
   } catch (error) {
     console.warn("Precaution answer not saved on the server", error);
@@ -3686,7 +3696,30 @@ function precautionAnsweredNo(questionId) {
   state.paymentRequestId = "";
   goToPaymentStep();
 }
+// بعد «لا»: شكر + عداد صغير ٣ ثواني فوق زر «المتابعة للدفع»، وينتقل للدفع تلقائياً.
+function renderPrecautionThanks(questionId) {
+  clearInterval(precautionThanksTimer);
+  const ar = state.lang === "ar";
+  let seconds = 3;
+  const label = () => ar ? `الانتقال للدفع خلال ${({ 3: "٣ ثوانٍ", 2: "ثانيتين", 1: "ثانية" })[seconds] || ""}` : `Continuing to payment in ${seconds}s`;
+  $("#checkoutBody").innerHTML = `<section class="precaution-step precaution-thanks">
+    <div class="precaution-thanks-check">✓</div>
+    <h3>${ar ? "شكراً لك، تم تسجيل حالتك" : "Thank you, your status has been saved"}</h3>
+    <small class="precaution-countdown" id="precautionCountdown">${label()}</small>
+    <button type="button" class="primary" id="precautionThanksContinue">${ar ? "المتابعة للدفع" : "Continue to payment"}</button>
+  </section>`;
+  const go = () => { clearInterval(precautionThanksTimer); if (state.step === PRECAUTION_STEP) precautionAnsweredNo(questionId); };
+  $("#precautionThanksContinue").onclick = go;
+  precautionThanksTimer = setInterval(() => {
+    // العميل سكّر نافذة الطلب أو رجع: نوقف العداد.
+    if (state.step !== PRECAUTION_STEP || $("#checkoutModal").classList.contains("hidden") || !$("#precautionCountdown")) return clearInterval(precautionThanksTimer);
+    seconds -= 1;
+    if (seconds <= 0) return go();
+    $("#precautionCountdown").textContent = label();
+  }, 1000);
+}
 function renderPrecautionStep() {
+  clearInterval(precautionThanksTimer);
   const question = (state.precautionQuestions || []).find(item => item.id === state.precautionQuestionId);
   if (!question) { state.step = 4; return renderCheckout(); }
   const ar = state.lang === "ar";
@@ -3700,7 +3733,7 @@ function renderPrecautionStep() {
       const answer = button.dataset.precautionAnswer;
       setPrecautionLoading(button);
       await savePrecautionAnswer(question.id, answer);
-      if (answer === "no") return precautionAnsweredNo(question.id);
+      if (answer === "no") return renderPrecautionThanks(question.id);
       renderPrecautionStep();
     });
     return;
@@ -3716,9 +3749,14 @@ function renderPrecautionStep() {
     state.paymentRequestId = "";
     goToPaymentStep();
   };
-  $("#precautionEdit").onclick = () => openPrecautionEdit(question);
+  $("#precautionEdit").onclick = () => openPrecautionPopup(question, async answer => {
+    if (answer === "yes") return;
+    await savePrecautionAnswer(question.id, "no");
+    renderPrecautionThanks(question.id);
+  });
 }
-function openPrecautionEdit(question) {
+// نافذة السؤال نفسه (نعم / لا) — من «تعديل حالتي» ومن «معلوماتي».
+function openPrecautionPopup(question, onAnswer) {
   document.querySelector(".precaution-popup")?.remove();
   const popup = document.createElement("div");
   popup.className = "modal precaution-popup";
@@ -3726,19 +3764,47 @@ function openPrecautionEdit(question) {
     <button type="button" class="precaution-popup-close" aria-label="إغلاق">×</button>
     <span class="precaution-kicker">${state.lang === "ar" ? "سؤال احترازي:" : "Precaution question:"}</span>
     <h3>${escapeHtml(question.text)}</h3>
-    ${precautionChoiceButtons("precaution-edit")}
+    ${precautionChoiceButtons("precaution-popup")}
   </section>`;
   document.body.append(popup);
   const close = () => popup.remove();
   popup.querySelector(".precaution-popup-close").onclick = close;
   popup.addEventListener("click", event => { if (event.target === popup) close(); });
-  popup.querySelectorAll("[data-precaution-edit-answer]").forEach(button => button.onclick = async () => {
-    const answer = button.dataset.precautionEditAnswer;
-    if (answer === "yes") return close();
+  popup.querySelectorAll("[data-precaution-popup-answer]").forEach(button => button.onclick = async () => {
     setPrecautionLoading(button);
-    await savePrecautionAnswer(question.id, "no");
+    await onAnswer(button.dataset.precautionPopupAnswer);
     close();
-    precautionAnsweredNo(question.id);
+  });
+}
+// «معلوماتي» → «الحالة الصحية»: كل سؤال احترازي مع إجابة العميل، وزر تعديل وحذف.
+function accountHealthSection() {
+  const questions = state.precautionQuestions || [];
+  if (!questions.length) return "";
+  const ar = state.lang === "ar";
+  const answerText = answer => answer === "yes" ? (ar ? "نعم" : "Yes") : answer === "no" ? (ar ? "لا" : "No") : (ar ? "لم تحدد بعد" : "Not answered");
+  const rows = questions.map((question, index) => {
+    const answer = savedPrecautionAnswer(question.id);
+    return `<li class="health-item">
+      <p><b>${new Intl.NumberFormat(ar ? "ar-KW" : "en-US").format(index + 1)}-</b> ${escapeHtml(question.text)}</p>
+      <strong class="health-answer ${answer ? `is-${answer}` : "is-empty"}">${answerText(answer)}</strong>
+      <div class="health-actions"><button type="button" data-health-edit="${escapeHtml(question.id)}">${ar ? "تعديل" : "Edit"}</button>${answer ? `<button type="button" class="is-delete" data-health-delete="${escapeHtml(question.id)}">${ar ? "حذف" : "Delete"}</button>` : ""}</div>
+    </li>`;
+  }).join("");
+  return `<section class="health-status"><h3>${ar ? "الحالة الصحية:" : "Health status:"}</h3><ol>${rows}</ol></section>`;
+}
+function bindAccountHealthSection() {
+  const questionOf = id => (state.precautionQuestions || []).find(question => question.id === id);
+  $$("[data-health-edit]").forEach(button => button.onclick = () => {
+    const question = questionOf(button.dataset.healthEdit);
+    if (question) openPrecautionPopup(question, async answer => { await savePrecautionAnswer(question.id, answer); renderAccountInfo(); });
+  });
+  $$("[data-health-delete]").forEach(button => button.onclick = async () => {
+    const question = questionOf(button.dataset.healthDelete);
+    if (!question || !confirm(state.lang === "ar" ? "حذف إجابتك على هذا السؤال؟" : "Delete your answer to this question?")) return;
+    button.disabled = true;
+    button.innerHTML = `<span class="precaution-loader"></span>`;
+    await savePrecautionAnswer(question.id, "");
+    renderAccountInfo();
   });
 }
 
