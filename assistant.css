@@ -1,0 +1,105 @@
+/* «مساعدك الذكي» — الزر بجانب البحث واللوحة. ألوان المتجر: أخضر مع لمسة ذهبية. */
+.home-assistant{
+  flex:0 0 auto;height:52px;display:inline-flex;align-items:center;gap:7px;padding:0 15px;
+  border:1px solid #1f5a41;border-radius:16px;background:linear-gradient(135deg,#2d6a4f,#194433);color:#fff;
+  font:inherit;font-size:13px;font-weight:900;cursor:pointer;white-space:nowrap;
+  box-shadow:0 6px 18px rgba(16,47,34,.16),inset 0 0 0 1px rgba(220,168,62,.35);
+}
+.home-assistant[hidden]{display:none}
+.home-assistant svg,.fa-title svg{width:20px;height:20px;flex:0 0 auto;fill:#dca83e;stroke:none}
+.home-assistant:hover{filter:brightness(1.08)}
+.home-assistant:focus-visible,.fa-panel button:focus-visible,.fa-panel a:focus-visible{outline:3px solid #dca83e;outline-offset:2px}
+.home-assistant[aria-expanded="true"]{box-shadow:0 0 0 4px rgba(220,168,62,.3)}
+
+.fa-layer{position:fixed;inset:0;z-index:205;pointer-events:none}
+.fa-layer[hidden]{display:none}
+.fa-backdrop{display:none;position:absolute;inset:0;border:0;padding:0;background:rgba(13,33,25,.45);pointer-events:auto}
+.fa-panel{
+  position:absolute;inset-block:12px;inset-inline-end:12px;width:min(400px,calc(100vw - 24px));
+  display:flex;flex-direction:column;pointer-events:auto;overflow:hidden;
+  background:#fffefb;color:#18352a;border:1px solid #dfe3d8;border-radius:20px;
+  box-shadow:0 24px 60px rgba(16,47,34,.28);font-size:14px;line-height:1.7;
+  opacity:0;transform:translateY(10px);transition:opacity .18s,transform .18s;
+}
+.fa-in .fa-panel{opacity:1;transform:none}
+.fa-head{display:flex;align-items:center;gap:6px;padding:12px 14px;background:linear-gradient(135deg,#2d6a4f,#194433);color:#fff;border-bottom:2px solid #dca83e}
+.fa-title{flex:1;min-width:0;display:flex;align-items:center;gap:8px}
+.fa-title h2{margin:0;font-size:15px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fa-badge{padding:1px 8px;border-radius:999px;background:rgba(220,168,62,.22);color:#f6dfa6;font-size:10px;font-weight:800;white-space:nowrap}
+.fa-icon{flex:0 0 auto;width:36px;height:36px;display:grid;place-items:center;border:0;border-radius:10px;background:rgba(255,255,255,.1);color:#fff;cursor:pointer}
+.fa-icon:hover{background:rgba(255,255,255,.2)}
+.fa-icon svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.fa-confirm{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 14px;background:#fdf6e4;border-bottom:1px solid #ecd9a6;font-size:13px;font-weight:700}
+.fa-confirm[hidden]{display:none}
+.fa-confirm span{flex:1 1 100%}
+.fa-confirm button{height:34px;padding:0 14px;border:1px solid #dfe3d8;border-radius:10px;background:#fff;color:#18352a;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+.fa-confirm .fa-danger{background:#b82e2e;border-color:#b82e2e;color:#fff}
+
+.fa-log{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:14px;display:flex;flex-direction:column;gap:10px;background:#f7f2e8}
+.fa-msg{max-width:92%;display:grid;gap:8px}
+.fa-msg p{margin:0;padding:9px 13px;border-radius:16px;white-space:pre-wrap;overflow-wrap:anywhere}
+.fa-user{align-self:flex-end}
+.fa-user p{background:#2d6a4f;color:#fff;border-end-end-radius:5px}
+.fa-bot{align-self:flex-start}
+.fa-bot p{background:#fff;border:1px solid #e6e7df;border-end-start-radius:5px}
+.fa-note{color:#708078;font-size:11px}
+.fa-status{margin:auto;text-align:center;color:#708078;font-weight:700;display:grid;gap:8px;justify-items:center}
+.fa-typing{display:inline-flex;align-items:center;gap:4px;padding:9px 13px;border-radius:16px;background:#fff;border:1px solid #e6e7df;color:#708078;font-size:12px;font-weight:700;width:fit-content}
+.fa-typing[hidden]{display:none}
+.fa-typing i{width:6px;height:6px;border-radius:50%;background:#dca83e;animation:fa-dot 1s infinite ease-in-out}
+.fa-typing i:nth-child(2){animation-delay:.15s}.fa-typing i:nth-child(3){animation-delay:.3s}
+.fa-typing span{margin-inline-start:4px}
+@keyframes fa-dot{0%,80%,100%{opacity:.25;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
+
+.fa-chips{display:flex;flex-wrap:wrap;gap:6px}
+.fa-chip{min-height:38px;display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border:1px solid #2d6a4f;border-radius:999px;background:#fff;color:#194433;font:inherit;font-size:12.5px;font-weight:800;cursor:pointer;text-align:start}
+.fa-chip small{color:#9a6f14;font-weight:800;white-space:nowrap}
+.fa-chip:hover:not(:disabled){background:#eef5f0}
+.fa-chip-qty{min-width:44px;justify-content:center}
+.fa-panel button:disabled{opacity:.5;cursor:default}
+.fa-choice,.fa-support,.fa-cart{display:grid;gap:7px;padding:11px 13px;border-radius:16px;background:#fff;border:1px solid #e6e7df}
+.fa-choice strong,.fa-support strong{font-size:13.5px}
+.fa-summary{color:#4f6258;font-size:12.5px}
+.fa-price{color:#194433;font-weight:900;font-size:13px}
+.fa-cards{display:grid;gap:8px}
+.fa-card{display:grid;grid-template-columns:64px minmax(0,1fr);gap:4px 10px;align-items:center;padding:8px;border-radius:16px;background:#fff;border:1px solid #e6e7df}
+.fa-card img{grid-row:span 2;width:64px;height:64px;border-radius:12px;object-fit:cover;background:#f1efe6}
+.fa-card-body{display:grid;gap:2px;min-width:0}
+.fa-card-body strong{font-size:13px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.fa-add,.fa-view-cart,.fa-retry,.fa-whatsapp{min-height:38px;display:inline-flex;align-items:center;justify-content:center;padding:6px 14px;border:0;border-radius:11px;background:#2d6a4f;color:#fff;font:inherit;font-size:12.5px;font-weight:900;cursor:pointer;text-decoration:none;width:fit-content}
+.fa-card .fa-add{justify-self:start}
+.fa-view-cart{background:#fff;color:#194433;border:1px solid #2d6a4f}
+.fa-whatsapp{background:#25d366;color:#06361b}
+.fa-cart{border-inline-start:4px solid #dca83e}
+.fa-cart[data-status="confirmed"]{border-inline-start-color:#2d6a4f;background:#f2f8f4}
+.fa-ok{color:#1f6a45}.fa-bad{color:#b82e2e}.fa-wait{color:#8a6410}
+.fa-total{font-weight:900;color:#194433}
+.fa-error{display:grid;gap:8px;padding:10px 13px;border-radius:16px;background:#fdecec;border:1px solid #f1c4c4;color:#8e2020;font-weight:700;font-size:12.5px}
+.fa-status.fa-error{background:none;border:0}
+.fa-retry{background:#8e2020}
+
+.fa-form{display:flex;align-items:flex-end;gap:8px;padding:10px 12px;background:#fff;border-top:1px solid #e6e7df}
+/* 16px تمنع تكبير الصفحة تلقائياً في آيفون عند الكتابة */
+.fa-input{flex:1;min-width:0;min-height:44px;max-height:110px;resize:none;padding:10px 13px;border:1px solid #dfe3d8;border-radius:14px;background:#fffefb;color:#18352a;font:inherit;font-size:16px;line-height:1.5;outline:0}
+.fa-input:focus{border-color:#2d6a4f;box-shadow:0 0 0 3px rgba(45,106,79,.14)}
+.fa-send{flex:0 0 auto;width:44px;height:44px;display:grid;place-items:center;border:0;border-radius:14px;background:#2d6a4f;color:#fff;cursor:pointer}
+.fa-send svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+[dir="rtl"] .fa-send svg{transform:scaleX(-1)}
+
+@media(max-width:760px){
+  .home-assistant{height:46px;padding:0 10px;border-radius:14px;font-size:12px;gap:5px}
+  .home-assistant svg{width:17px;height:17px}
+  /* على الجوال: ورقة سفلية فوق شريط السلة وزر واتساب، وترتفع مع لوحة المفاتيح */
+  .fa-backdrop{display:block}
+  .fa-panel{inset-block:auto var(--fa-bottom,0px);inset-inline:0;width:auto;height:min(88dvh,calc(var(--fa-height,100dvh) - 10px));border-radius:20px 20px 0 0;border-bottom:0;transform:translateY(24px)}
+  .fa-form{padding-bottom:max(10px,env(safe-area-inset-bottom))}
+  .fa-msg{max-width:96%}
+}
+@media(max-width:480px){
+  .home-assistant{padding:0 8px;font-size:11.5px;gap:4px}
+  .home-tools .home-language{padding:0 9px;gap:5px}
+  .home-tools .home-search-field{padding:0 10px;gap:7px}
+  .fa-title h2{font-size:14px}
+  .fa-badge{display:none}
+}
+@media(prefers-reduced-motion:reduce){.fa-panel{transition:none}.fa-typing i{animation:none}}
