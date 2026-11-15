@@ -85,6 +85,8 @@
 .fa-send{flex:0 0 auto;width:44px;height:44px;display:grid;place-items:center;border:0;border-radius:14px;background:#2d6a4f;color:#fff;cursor:pointer}
 .fa-send svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 [dir="rtl"] .fa-send svg{transform:scaleX(-1)}
+.fa-send.fa-stop{background:#8e2020}
+.fa-send .fa-stop-icon{fill:currentColor;stroke:none}
 
 @media(max-width:760px){
   .home-assistant{height:46px;padding:0 10px;border-radius:14px;font-size:12px;gap:5px}

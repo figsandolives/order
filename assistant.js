@@ -12,7 +12,7 @@
   const TEXT = {
     ar: {
       button: "مساعدك الذكي", title: "مساعدك الذكي", pilot: "تجربة أولية", close: "إغلاق", fresh: "محادثة جديدة", clear: "مسح السجل",
-      placeholder: "اكتب طلبك… مثل: ضيف لي فطاير زعتر", send: "إرسال", greeting: name => `هلا${name ? ` ${name}` : ""} 👋 قول لي شنو تبي من المنيو وأضيفه لسلتك.`,
+      placeholder: "اكتب طلبك… مثل: ضيف لي فطاير زعتر", send: "إرسال", stop: "إيقاف", stopped: "تم الإيقاف.", greeting: name => `هلا${name ? ` ${name}` : ""} 👋 قول لي شنو تبي من المنيو وأضيفه لسلتك.`,
       starters: ["شنو عندكم زعتر؟", "ضيف لي بالسلة فطاير زعتر", "أبي أقدم شكوى"], retention: days => `المحادثة تنحفظ ${days} يوم، وتقدر تمسحها بأي وقت.`,
       thinking: "أفكر…", searching: "أدور بالمنيو…", cart: "أجهّز السلة…", loading: "جاري التحميل…", retry: "إعادة المحاولة",
       cut: "انقطع الاتصال قبل اكتمال الرد.", failed: "تعذر الاتصال بالمساعد.", busy: "المساعد يرد على رسالتك السابقة، لحظة وجرّب.",
@@ -24,7 +24,7 @@
     },
     en: {
       button: "Smart assistant", title: "Your smart assistant", pilot: "Pilot", close: "Close", fresh: "New chat", clear: "Clear history",
-      placeholder: "Ask for anything on the menu…", send: "Send", greeting: name => `Hi${name ? ` ${name}` : ""} 👋 Tell me what you want from the menu and I will add it to your cart.`,
+      placeholder: "Ask for anything on the menu…", send: "Send", stop: "Stop", stopped: "Stopped.", greeting: name => `Hi${name ? ` ${name}` : ""} 👋 Tell me what you want from the menu and I will add it to your cart.`,
       starters: ["What zaatar items do you have?", "Add zaatar fatayer to my cart", "I want to file a complaint"], retention: days => `Chats are kept for ${days} days. You can clear them any time.`,
       thinking: "Thinking…", searching: "Searching the menu…", cart: "Preparing your cart…", loading: "Loading…", retry: "Try again",
       cut: "The connection dropped before the reply finished.", failed: "Could not reach the assistant.", busy: "Still replying to your previous message. Try again in a moment.",
@@ -76,7 +76,9 @@
   const form = el("form", "fa-form");
   const input = el("textarea", "fa-input"); input.rows = 1; input.maxLength = MAX_CHARS; input.setAttribute("enterkeyhint", "send"); input.autocomplete = "off";
   const sendButton = el("button", "fa-send"); sendButton.type = "submit";
-  sendButton.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M12 6l6 6-6 6"/></svg>`;
+  const SEND_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M12 6l6 6-6 6"/></svg>`;
+  const STOP_ICON = `<svg class="fa-stop-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2"/></svg>`;
+  sendButton.innerHTML = SEND_ICON;
   form.append(input, sendButton);
   panel.append(head, confirmBar, log, form);
   layer.append(backdrop, panel);
@@ -198,7 +200,14 @@
   // ---------- العرض ----------
   const scrollDown = () => { log.scrollTop = log.scrollHeight; };
   const fils = value => money(Number(value) / 1000);
-  function syncComposer() { sendButton.disabled = busy || !input.value.trim(); input.disabled = false; log.classList.toggle("fa-busy", busy); }
+  // أثناء تفكير المساعد يتحول زر الإرسال إلى زر إيقاف؛ بعد الإيقاف تقدر ترسل رسالة جديدة مباشرة.
+  let stopRequested = false, shownStop = null;
+  function syncComposer() {
+    if (shownStop !== busy) { shownStop = busy; sendButton.innerHTML = busy ? STOP_ICON : SEND_ICON; sendButton.classList.toggle("fa-stop", busy); sendButton.setAttribute("aria-label", t(busy ? "stop" : "send")); sendButton.title = busy ? t("stop") : ""; }
+    sendButton.disabled = !busy && !input.value.trim();
+    input.disabled = false; log.classList.toggle("fa-busy", busy);
+  }
+  function stopReply() { if (busy && controller) { stopRequested = true; controller.abort(); } }
   function disableOldControls() { log.querySelectorAll(".fa-live").forEach(node => { node.classList.remove("fa-live"); node.querySelectorAll("button[data-fa-input]").forEach(control => { control.disabled = true; }); }); }
   function userBubble(text) { const node = el("div", "fa-msg fa-user"); node.append(el("p", "", text)); log.append(node); scrollDown(); return node; }
   function showGreeting() {
@@ -528,10 +537,16 @@
       scrollDown();
     };
     try {
-      const response = await fetch(orderingApiUrl("/assistant/messages"), {
-        method: "POST", cache: "no-store", signal: controller.signal,
-        headers: { "Content-Type": "application/json", Accept: "text/event-stream", Authorization: `Bearer ${customerSessionToken}` }, body: JSON.stringify(payload)
-      });
+      // بعد الإيقاف قد يكون السيرفر ما زال ينهي الرد السابق (409): ننتظر لحظات ونعيد تلقائياً.
+      let response;
+      for (let attempt = 0; ; attempt += 1) {
+        response = await fetch(orderingApiUrl("/assistant/messages"), {
+          method: "POST", cache: "no-store", signal: controller.signal,
+          headers: { "Content-Type": "application/json", Accept: "text/event-stream", Authorization: `Bearer ${customerSessionToken}` }, body: JSON.stringify(payload)
+        });
+        if (response.status !== 409 || attempt >= 6 || mine !== epoch) break;
+        await new Promise(resolve => setTimeout(resolve, 700));
+      }
       if (mine !== epoch) return;
       if (!response.ok || !response.body) {
         const data = await response.json().catch(() => ({}));
@@ -555,10 +570,12 @@
       if (!finished && !failure) throw Object.assign(new Error(t("cut")), { retryable: true });
     } catch (error) {
       if (mine !== epoch) return;
-      failure = { message: error?.name === "AbortError" ? t("cut") : error?.retryable === undefined ? t("cut") : error.message, retryable: error?.retryable !== false };
+      if (stopRequested) failure = null;
+      else failure = { message: error?.name === "AbortError" ? t("cut") : error?.retryable === undefined ? t("cut") : error.message, retryable: error?.retryable !== false };
     } finally {
       if (mine === epoch) {
         status.remove();
+        if (stopRequested) { stopRequested = false; bubble.append(el("small", "fa-note", t("stopped"))); }
         if (failure) {
           const box = el("div", "fa-error", failure.message);
           if (failure.retryable) {
@@ -578,13 +595,14 @@
 
   form.addEventListener("submit", event => {
     event.preventDefault();
+    if (busy) return stopReply();
     const text = input.value.trim();
-    if (!text || busy) return;
+    if (!text) return;
     input.value = ""; input.style.height = ""; syncComposer();
     send({ text });
   });
   input.addEventListener("input", () => { input.style.height = "auto"; input.style.height = `${Math.min(input.scrollHeight, 110)}px`; syncComposer(); });
-  input.addEventListener("keydown", event => { if (event.key === "Enter" && !event.shiftKey && !event.isComposing) { event.preventDefault(); form.requestSubmit(); } });
+  input.addEventListener("keydown", event => { if (event.key === "Enter" && !event.shiftKey && !event.isComposing) { event.preventDefault(); if (!busy) form.requestSubmit(); } });
 
   freshButton.addEventListener("click", async () => {
     if (busy) return;
