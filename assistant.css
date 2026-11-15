@@ -105,3 +105,5 @@
   .fa-badge{display:none}
 }
 @media(prefers-reduced-motion:reduce){.fa-panel{transition:none}.fa-typing i{animation:none}}
+
+.fa-time{display:block;font-size:11px;color:#617268;margin-inline:8px;line-height:1.25;text-align:end}

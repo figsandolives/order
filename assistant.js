@@ -209,6 +209,16 @@
   }
   function stopReply() { if (busy && controller) { stopRequested = true; controller.abort(); } }
   function disableOldControls() { log.querySelectorAll(".fa-live").forEach(node => { node.classList.remove("fa-live"); node.querySelectorAll("button[data-fa-input]").forEach(control => { control.disabled = true; }); }); }
+  function stamp(node, at) {
+    if (!node || !Number.isFinite(at) || at <= 0 || at > 8.64e15) return;
+    const time = node.querySelector(".fa-time") || el("time", "fa-time");
+    const date = new Date(at);
+    const locale = lang() === "en" ? "en-KW" : "ar-KW";
+    time.dateTime = date.toISOString();
+    time.textContent = new Intl.DateTimeFormat(locale, { timeZone: "Asia/Kuwait", hour: "numeric", minute: "2-digit" }).format(date);
+    time.title = new Intl.DateTimeFormat(locale, { timeZone: "Asia/Kuwait", dateStyle: "medium", timeStyle: "short" }).format(date);
+    node.append(time);
+  }
   function userBubble(text) { const node = el("div", "fa-msg fa-user"); node.append(el("p", "", text)); log.append(node); scrollDown(); return node; }
   function showGreeting() {
     const node = el("div", "fa-msg fa-bot fa-greeting");
@@ -481,12 +491,12 @@
       const messages = Array.isArray(data.messages) ? data.messages.slice(-60) : [];
       if (!messages.length) return showGreeting();
       messages.forEach((message, index) => {
-        if (message.role === "user") return isText(message.text, 2000) && userBubble(message.text);
+        if (message.role === "user") return isText(message.text, 2000) && stamp(userBubble(message.text), message.at);
         const node = el("div", "fa-msg fa-bot");
         const live = index === messages.length - 1;
         for (const part of Array.isArray(message.parts) ? message.parts : []) { const child = partNode(part, data.actions, live); if (child) node.append(child); }
         if (message.interrupted) node.append(el("small", "fa-note", t("interrupted")));
-        if (node.childNodes.length) log.append(node);
+        if (node.childNodes.length) { stamp(node, message.at); log.append(node); }
         if (!live) node.querySelectorAll(".fa-live").forEach(group => { group.classList.remove("fa-live"); group.querySelectorAll("button[data-fa-input]").forEach(control => { control.disabled = true; }); });
       });
       scrollDown();
@@ -510,6 +520,7 @@
     log.querySelector(".fa-greeting")?.remove();
     disableOldControls();
     const mineBubble = retryOf ? null : userBubble(payload.input ? request.label || "…" : payload.text);
+    stamp(mineBubble, Date.now());
     const bubble = el("div", "fa-msg fa-bot");
     const status = el("div", "fa-typing"); status.append(el("i"), el("i"), el("i"), el("span", "", t("thinking")));
     bubble.append(status);
@@ -518,9 +529,9 @@
     const showStatus = label => { status.querySelector("span").textContent = label; bubble.append(status); status.hidden = false; };
     const handle = event => {
       if (!event || typeof event !== "object") return;
-      if (event.type === "start") { if (mineBubble && isText(event.userText, 2000)) mineBubble.firstChild.textContent = event.userText; return; }
+      if (event.type === "start") { if (mineBubble && isText(event.userText, 2000)) mineBubble.firstChild.textContent = event.userText; stamp(mineBubble, event.at); return; }
       if (event.type === "status") return showStatus(t(["searching", "cart"].includes(event.state) ? event.state : "thinking"));
-      if (event.type === "done") { finished = true; return; }
+      if (event.type === "done") { finished = true; if (bubble.children.length > 1) stamp(bubble, event.at); return; }
       if (event.type === "error") { failure = { message: isText(event.message, 300) ? event.message : t("failed"), retryable: event.retryable === true }; return; }
       if (event.type === "text") {
         if (!isText(event.delta, 8000)) return;
