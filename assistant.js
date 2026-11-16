@@ -12,7 +12,7 @@
   const TEXT = {
     ar: {
       button: "مساعدك الذكي", title: "مساعدك الذكي", pilot: "تجربة أولية", close: "إغلاق", fresh: "محادثة جديدة", clear: "مسح السجل",
-      placeholder: "اكتب طلبك… مثل: ضيف لي فطاير زعتر", send: "إرسال", stop: "إيقاف", stopped: "تم الإيقاف.", greeting: name => `هلا${name ? ` ${name}` : ""} 👋 قول لي شنو تبي من المنيو وأضيفه لسلتك.`,
+      placeholder: "اكتب..", send: "إرسال", stop: "إيقاف", stopped: "تم الإيقاف.", greeting: name => `هلا${name ? ` ${name}` : ""} 👋 قول لي شنو تبي من المنيو وأضيفه لسلتك.`,
       starters: ["شنو عندكم زعتر؟", "ضيف لي بالسلة فطاير زعتر", "أبي أقدم شكوى"], retention: days => `المحادثة تنحفظ ${days} يوم، وتقدر تمسحها بأي وقت.`,
       thinking: "أفكر…", searching: "أدور بالمنيو…", cart: "أجهّز السلة…", loading: "جاري التحميل…", retry: "إعادة المحاولة",
       cut: "انقطع الاتصال قبل اكتمال الرد.", failed: "تعذر الاتصال بالمساعد.", busy: "المساعد يرد على رسالتك السابقة، لحظة وجرّب.",
@@ -24,7 +24,7 @@
     },
     en: {
       button: "Smart assistant", title: "Your smart assistant", pilot: "Pilot", close: "Close", fresh: "New chat", clear: "Clear history",
-      placeholder: "Ask for anything on the menu…", send: "Send", stop: "Stop", stopped: "Stopped.", greeting: name => `Hi${name ? ` ${name}` : ""} 👋 Tell me what you want from the menu and I will add it to your cart.`,
+      placeholder: "Type..", send: "Send", stop: "Stop", stopped: "Stopped.", greeting: name => `Hi${name ? ` ${name}` : ""} 👋 Tell me what you want from the menu and I will add it to your cart.`,
       starters: ["What zaatar items do you have?", "Add zaatar fatayer to my cart", "I want to file a complaint"], retention: days => `Chats are kept for ${days} days. You can clear them any time.`,
       thinking: "Thinking…", searching: "Searching the menu…", cart: "Preparing your cart…", loading: "Loading…", retry: "Try again",
       cut: "The connection dropped before the reply finished.", failed: "Could not reach the assistant.", busy: "Still replying to your previous message. Try again in a moment.",
@@ -243,7 +243,7 @@
   function validPart(part) {
     if (!part || typeof part !== "object") return false;
     if (part.type === "text") return isText(part.text ?? part.delta, 8000);
-    if (part.type === "products") return Array.isArray(part.items) && part.items.length <= 8 && part.items.every(item => item && isId(item.id) && isText(item.nameAr) && (item.priceFils === null || isFils(item.priceFils)));
+    if (part.type === "products") return Array.isArray(part.items) && part.items.length <= 12 && part.items.every(item => item && isId(item.id) && isText(item.nameAr) && (item.priceFils === null || isFils(item.priceFils)));
     if (part.type === "choices") {
       if (!isId(part.productId) || !["option", "quantity", "confirm"].includes(part.kind)) return false;
       if (part.kind === "option") return isId(part.stepId) && Array.isArray(part.options) && part.options.length <= 40 && part.options.every(option => option && isId(option.id) && isText(option.ar));
@@ -263,7 +263,7 @@
     return control;
   }
   function productsNode(part) {
-    const list = el("div", "fa-cards fa-live");
+    const list = el("div", `fa-cards${part.items.length > 1 ? " fa-grid" : ""}${part.items.length === 2 ? " fa-grid-2" : ""}`);
     for (const card of part.items) {
       const local = product(card.id);
       const node = el("article", "fa-card");
@@ -612,7 +612,7 @@
     input.value = ""; input.style.height = ""; syncComposer();
     send({ text });
   });
-  input.addEventListener("input", () => { input.style.height = "auto"; input.style.height = `${Math.min(input.scrollHeight, 110)}px`; syncComposer(); });
+  input.addEventListener("input", () => { input.style.height = "auto"; input.style.height = `${Math.min(input.scrollHeight, 96)}px`; syncComposer(); });
   input.addEventListener("keydown", event => { if (event.key === "Enter" && !event.shiftKey && !event.isComposing) { event.preventDefault(); if (!busy) form.requestSubmit(); } });
 
   freshButton.addEventListener("click", async () => {

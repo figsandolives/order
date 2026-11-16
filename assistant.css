@@ -18,7 +18,7 @@
   position:absolute;inset-block:12px;inset-inline-end:12px;width:min(400px,calc(100vw - 24px));
   display:flex;flex-direction:column;pointer-events:auto;overflow:hidden;
   background:#fffefb;color:#18352a;border:1px solid #dfe3d8;border-radius:20px;
-  box-shadow:0 24px 60px rgba(16,47,34,.28);font-size:14px;line-height:1.7;
+  box-shadow:0 24px 60px rgba(16,47,34,.28);font-size:12.5px;line-height:1.6;
   opacity:0;transform:translateY(10px);transition:opacity .18s,transform .18s;
 }
 .fa-in .fa-panel{opacity:1;transform:none}
@@ -35,9 +35,9 @@
 .fa-confirm button{height:34px;padding:0 14px;border:1px solid #dfe3d8;border-radius:10px;background:#fff;color:#18352a;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
 .fa-confirm .fa-danger{background:#b82e2e;border-color:#b82e2e;color:#fff}
 
-.fa-log{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:14px;display:flex;flex-direction:column;gap:10px;background:#f7f2e8}
+.fa-log{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:10px;display:flex;flex-direction:column;gap:7px;background:#f7f2e8}
 .fa-msg{max-width:92%;display:grid;gap:8px}
-.fa-msg p{margin:0;padding:9px 13px;border-radius:16px;white-space:pre-wrap;overflow-wrap:anywhere}
+.fa-msg p{margin:0;padding:6px 11px;border-radius:14px;white-space:pre-wrap;overflow-wrap:anywhere}
 .fa-user{align-self:flex-end}
 .fa-user p{background:#2d6a4f;color:#fff;border-end-end-radius:5px}
 .fa-bot{align-self:flex-start}
@@ -78,12 +78,14 @@
 .fa-status.fa-error{background:none;border:0}
 .fa-retry{background:#8e2020}
 
-.fa-form{display:flex;align-items:flex-end;gap:8px;padding:10px 12px;background:#fff;border-top:1px solid #e6e7df}
+.fa-form{display:flex;align-items:flex-end;gap:6px;padding:7px 10px;background:#fff;border-top:1px solid #e6e7df}
 /* 16px تمنع تكبير الصفحة تلقائياً في آيفون عند الكتابة */
-.fa-input{flex:1;min-width:0;min-height:44px;max-height:110px;resize:none;padding:10px 13px;border:1px solid #dfe3d8;border-radius:14px;background:#fffefb;color:#18352a;font:inherit;font-size:16px;line-height:1.5;outline:0}
+.fa-input{flex:1;min-width:0;height:36px;min-height:36px;max-height:96px;resize:none;padding:7px 11px;border:1px solid #dfe3d8;border-radius:12px;background:#fffefb;color:#18352a;font:inherit;font-size:13px;line-height:1.5;outline:0}
+/* آيفون يكبّر الصفحة إذا كان خط الحقل أقل من 16px */
+@supports(-webkit-touch-callout:none){.fa-input{font-size:16px;padding:5px 11px}}
 .fa-input:focus{border-color:#2d6a4f;box-shadow:0 0 0 3px rgba(45,106,79,.14)}
-.fa-send{flex:0 0 auto;width:44px;height:44px;display:grid;place-items:center;border:0;border-radius:14px;background:#2d6a4f;color:#fff;cursor:pointer}
-.fa-send svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.fa-send{flex:0 0 auto;width:36px;height:36px;display:grid;place-items:center;border:0;border-radius:12px;background:#2d6a4f;color:#fff;cursor:pointer}
+.fa-send svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 [dir="rtl"] .fa-send svg{transform:scaleX(-1)}
 .fa-send.fa-stop{background:#8e2020}
 .fa-send .fa-stop-icon{fill:currentColor;stroke:none}
@@ -94,7 +96,7 @@
   /* على الجوال: ورقة سفلية فوق شريط السلة وزر واتساب، وترتفع مع لوحة المفاتيح */
   .fa-backdrop{display:block}
   .fa-panel{inset-block:auto var(--fa-bottom,0px);inset-inline:0;width:auto;height:min(88dvh,calc(var(--fa-height,100dvh) - 10px));border-radius:20px 20px 0 0;border-bottom:0;transform:translateY(24px)}
-  .fa-form{padding-bottom:max(10px,env(safe-area-inset-bottom))}
+  .fa-form{padding-bottom:max(7px,env(safe-area-inset-bottom))}
   .fa-msg{max-width:96%}
 }
 @media(max-width:480px){
@@ -106,4 +108,17 @@
 }
 @media(prefers-reduced-motion:reduce){.fa-panel{transition:none}.fa-typing i{animation:none}}
 
-.fa-time{display:block;font-size:11px;color:#617268;margin-inline:8px;line-height:1.25;text-align:end}
+.fa-time{display:block;font-size:10px;color:#617268;margin-inline:8px;line-height:1.25;text-align:end}
+
+/* شبكة البطاقات المصغّرة: أربع منتجات في السطر */
+.fa-msg:has(.fa-grid){max-width:100%;width:100%}
+.fa-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
+.fa-grid.fa-grid-2{grid-template-columns:repeat(4,minmax(0,1fr))}
+.fa-grid .fa-card{grid-template-columns:minmax(0,1fr);grid-template-rows:auto 1fr auto;gap:3px;padding:4px;border-radius:10px;align-items:start}
+.fa-grid .fa-card img{grid-row:auto;width:100%;height:auto;aspect-ratio:1;border-radius:7px}
+.fa-grid .fa-card-body{gap:0}
+.fa-grid .fa-card-body strong{font-size:9.5px;line-height:1.4;font-weight:800}
+.fa-grid .fa-price{font-size:10px;line-height:1.5}
+.fa-grid .fa-add{width:100%;min-height:24px;padding:2px 3px;border-radius:7px;font-size:9.5px;justify-self:stretch;white-space:nowrap}
+.fa-add,.fa-view-cart,.fa-retry,.fa-whatsapp{min-height:34px;font-size:12px}
+.fa-chip{min-height:32px;padding:4px 11px;font-size:12px}
