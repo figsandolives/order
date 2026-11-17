@@ -784,6 +784,8 @@ function productSelectionFlow(item) {
       basePriceOverrideBySize: option.basePriceOverrideBySize && typeof option.basePriceOverrideBySize === "object" ? option.basePriceOverrideBySize : null,
       groupAr: String(option.groupAr || ""),
       groupEn: String(option.groupEn || ""),
+      // يُخفى الخيار إذا اختار العميل في خطوة سابقة أحد هذه الخيارات (مثل الزعتر بالنخالة مع عجينة الرز أو اللوز).
+      excludeWith: Array.isArray(option.excludeWith) ? option.excludeWith.map(String) : [],
       maxFillingSelections: option.maxFillingSelections ?? null,
       pieces: Math.max(1, Number(option.pieces) || 1),
       quantity: Math.max(1, Number(option.quantity) || 1)
@@ -2376,15 +2378,23 @@ function autoSelectSingleFilteredFlowSteps() {
   const flow = pendingSelectionFlow;
   while (item && flow?.steps?.[pendingFlowStep]) {
     const step = flow.steps[pendingFlowStep];
-    const allowedIds = filterOptionIds(item.id, step.id);
-    if (!Array.isArray(allowedIds)) break;
-    const choices = step.items.filter(option => allowedIds.includes(String(option.id)));
+    if (!Array.isArray(filterOptionIds(item.id, step.id))) break;
+    const choices = visibleFlowItems(item, flow, pendingFlowStep);
     if (choices.length !== 1) break;
     const choice = choices[0];
     const quantity = step.distributeQuantity ? Math.max(1, flowFillingRequirement(step) || 1) : 1;
     pendingFlowSelections[step.id] = [{ ...choice, quantity, flowStepId: step.id, isFilling: step.distributeQuantity === true, nameSuffix: step.required !== false }];
     pendingFlowStep++;
   }
+}
+
+// خيارات الخطوة بعد تطبيق فلتر القسم وقواعد الاستبعاد حسب ما اختاره العميل في الخطوات السابقة.
+function visibleFlowItems(item, flow, stepIndex) {
+  const step = flow.steps[stepIndex];
+  const allowedIds = filterOptionIds(item.id, step.id);
+  const earlierIds = new Set(flow.steps.slice(0, stepIndex).flatMap(flowStep => (pendingFlowSelections[flowStep.id] || []).map(option => String(option.id))));
+  return step.items.filter(option => (!Array.isArray(allowedIds) || allowedIds.includes(String(option.id)))
+    && !(option.excludeWith || []).some(id => earlierIds.has(id)));
 }
 
 function flowLimit(step) {
@@ -2418,8 +2428,7 @@ function renderSelectionFlowStep() {
   const flow = pendingSelectionFlow;
   const step = flow?.steps[pendingFlowStep];
   if (!item || !step || !productOptionsPopover) return closeProductOptions();
-  const allowedIds = filterOptionIds(item.id, step.id);
-  const visibleItems = Array.isArray(allowedIds) ? step.items.filter(option => allowedIds.includes(String(option.id))) : step.items;
+  const visibleItems = visibleFlowItems(item, flow, pendingFlowStep);
   const selected = pendingFlowSelections[step.id] || [];
   const limit = flowLimit(step);
   const fillingRequirement = flowFillingRequirement(step);
