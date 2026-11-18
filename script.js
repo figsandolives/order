@@ -1837,10 +1837,17 @@ function renderNewArrivals() {
     const cover = coverForProduct(item.id);
     const href = cover ? `${prettyPath(cover, item)}${keptSearch()}` : `${APP_BASE}${keptSearch()}#product=${encodeURIComponent(item.id)}`;
     const image = productImages(item)[0];
-    return `<a class="new-arrival" href="${escapeHtml(href)}" data-new-arrival="${escapeHtml(item.id)}">
-      ${image ? `<img src="${escapeHtml(thumbnailUrl(image))}" alt="" loading="lazy" decoding="async">` : ""}
-      <span>${escapeHtml(productName(item))}</span>
-    </a>`;
+    const id = escapeHtml(item.id);
+    return `<article class="new-arrival">
+      <a class="new-arrival-link" href="${escapeHtml(href)}" data-new-arrival="${id}">
+        <span class="new-arrival-image">
+          ${image ? `<img data-src="${escapeHtml(thumbnailUrl(image))}" data-full="${escapeHtml(image)}" alt="" decoding="async">` : '<img src="logo.png" alt="" loading="lazy" decoding="async">'}
+        </span>
+        <h3>${escapeHtml(productName(item))}</h3>
+      </a>
+      <strong class="new-arrival-price">${productPriceMarkup(item)}</strong>
+      <div class="product-quantity-slot" data-product-quantity="${id}">${productQuantityControl(item.id, cartQuantity(item.id))}</div>
+    </article>`;
   }).join("");
   if (newArrivalsMarkup === markup) return;
   newArrivalsMarkup = markup;
@@ -1848,6 +1855,7 @@ function renderNewArrivals() {
 }
 
 $("#newArrivalsTrack")?.addEventListener("click", event => {
+  if (handleProductQuantityEvent(event)) return;
   const link = event.target.closest("[data-new-arrival]");
   if (!link || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
   event.preventDefault();
