@@ -1845,8 +1845,10 @@ function renderNewArrivals() {
         </span>
         <h3>${escapeHtml(productName(item))}</h3>
       </a>
-      <strong class="new-arrival-price">${productPriceMarkup(item)}</strong>
-      <div class="product-quantity-slot" data-product-quantity="${id}">${productQuantityControl(item.id, cartQuantity(item.id))}</div>
+      <div class="new-arrival-purchase">
+        <strong class="new-arrival-price">${productPriceMarkup(item)}</strong>
+        <div class="product-quantity-slot" data-product-quantity="${id}">${productQuantityControl(item.id, cartQuantity(item.id))}</div>
+      </div>
     </article>`;
   }).join("");
   if (newArrivalsMarkup === markup) return;

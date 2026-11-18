@@ -132,13 +132,13 @@ html.side-menu-open,html.side-menu-open body{overflow:hidden}
 /* ---------- البحث والترجمة فوق الشريط ---------- */
 .home-tools{
   width:min(1320px,calc(100% - 32px));
-  margin:14px auto 14px;
+  margin:9px auto;
   display:flex;align-items:center;gap:10px;
 }
 .home-search{position:relative;flex:1 1 auto;min-width:0}
 .home-search-field{
   display:flex;align-items:center;gap:10px;
-  height:52px;padding:0 16px;
+  height:44px;padding:0 14px;
   border:1px solid #dfe3d8;border-radius:16px;
   background:#fff;
   box-shadow:0 6px 18px rgba(16,47,34,.06);
@@ -158,7 +158,7 @@ html.side-menu-open,html.side-menu-open body{overflow:hidden}
 }
 .home-language{
   flex:0 0 auto;
-  height:52px;
+  height:44px;
   display:inline-flex;align-items:center;gap:7px;
   padding:0 16px;
   border:1px solid #dfe3d8;border-radius:16px;
@@ -169,10 +169,12 @@ html.side-menu-open,html.side-menu-open body{overflow:hidden}
 .home-language:hover{background:#f1f5f2}
 .home-tools + .quality-strip-host{margin-top:0}
 @media(max-width:760px){
-  .home-tools{width:calc(100% - 24px);margin:10px auto 12px;gap:8px}
-  .home-search-field{height:46px;padding:0 13px;border-radius:14px}
-  .home-search-field input{font-size:13px}
-  .home-language{height:46px;padding:0 12px;border-radius:14px;font-size:12px}
+  .home-tools{width:calc(100% - 24px);margin:5px auto 6px;gap:6px}
+  .home-search-field{height:40px;padding:0 9px;border-radius:12px;gap:6px}
+  .home-search-field input{font-size:16px}
+  .home-search-field input::placeholder{font-size:12px}
+  .home-search-field svg,.home-language svg{width:16px;height:16px}
+  .home-language{height:40px;padding:0 8px;border-radius:12px;font-size:10.5px;gap:4px}
 }
 
 /* وضع الاختيار داخل الإدارة: بدون قائمة ولا بحث ولا ترجمة */
