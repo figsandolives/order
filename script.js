@@ -1823,7 +1823,39 @@ function coverTileMarkup(cover) {
   </a>`;
 }
 
+let newArrivalsMarkup;
+function renderNewArrivals() {
+  const section = $("#newArrivals");
+  if (!section) return;
+  const track = $("#newArrivalsTrack");
+  const items = PICKER_MODE || activeCover() || activeProductFilter() ? [] : state.products
+    .filter(item => item.isNew === true && isCurrentCatalog(item))
+    .sort((a, b) => (Number(a.newOrder) || Infinity) - (Number(b.newOrder) || Infinity));
+  section.classList.toggle("hidden", !items.length);
+  $("#newArrivalsTitle").textContent = state.lang === "ar" ? "جديدنا" : "What's new";
+  const markup = items.map(item => {
+    const cover = coverForProduct(item.id);
+    const href = cover ? `${prettyPath(cover, item)}${keptSearch()}` : `${APP_BASE}${keptSearch()}#product=${encodeURIComponent(item.id)}`;
+    const image = productImages(item)[0];
+    return `<a class="new-arrival" href="${escapeHtml(href)}" data-new-arrival="${escapeHtml(item.id)}">
+      ${image ? `<img src="${escapeHtml(thumbnailUrl(image))}" alt="" loading="lazy" decoding="async">` : ""}
+      <span>${escapeHtml(productName(item))}</span>
+    </a>`;
+  }).join("");
+  if (newArrivalsMarkup === markup) return;
+  newArrivalsMarkup = markup;
+  track.innerHTML = markup;
+}
+
+$("#newArrivalsTrack")?.addEventListener("click", event => {
+  const link = event.target.closest("[data-new-arrival]");
+  if (!link || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  event.preventDefault();
+  openProductPage(link.dataset.newArrival);
+});
+
 function renderCatalogWorlds() {
+  renderNewArrivals();
   const host = $("#catalogWorlds");
   if (!host) return;
   if (PICKER_MODE) { host.classList.add("hidden"); host.innerHTML = ""; return; }
@@ -4732,7 +4764,7 @@ function applyCatalog(catalog, cache = true) {
     catalog.appearance || {}, catalog.advertisement || {},
     catalog.headings || [], catalog.productFilters || [], catalog.precautionQuestions || [], catalog.covers || [], catalog.qualityStrip || null,
     catalog.categories.map(category => [category.id, category.catalogType || "bakery", category.active !== false, category.order, category.nameAr, category.nameEn]),
-    catalog.products.map(item => [item.id, item.catalogType || "bakery", item.active !== false, item.availability || null, item.inventory || null, item.originalPrice || 0, item.category, item.order, item.price, item.name, item.nameEn, item.image, item.options || null, item.preparation || null]),
+    catalog.products.map(item => [item.id, item.catalogType || "bakery", item.active !== false, item.availability || null, item.inventory || null, item.originalPrice || 0, item.category, item.order, item.price, item.name, item.nameEn, item.image, item.isNew, item.newOrder, item.options || null, item.preparation || null]),
     catalog.deliveryAreas.map(area => [area.id, area.nameAr || area.name, area.nameEn, area.price, area.order])
   ]);
   if (signature === catalogSignature) return true;

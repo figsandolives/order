@@ -1,0 +1,96 @@
+.new-arrivals {
+  width: min(1320px, calc(100% - 32px));
+  margin: 0 auto 14px;
+}
+
+.new-arrivals h2 {
+  margin: 0 0 5px;
+  color: #194433;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.new-arrivals-track {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scroll-snap-type: inline proximity;
+  scrollbar-width: thin;
+  scrollbar-color: #a5b9a8 transparent;
+  padding: 3px 3px 6px;
+  scroll-padding-inline: 3px;
+}
+
+.new-arrival {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  align-items: end;
+  flex: 0 0 clamp(112px, 32vw, 174px);
+  min-width: 0;
+  height: clamp(64px, 18vw, 90px);
+  overflow: hidden;
+  border-radius: 13px;
+  background: #194433;
+  color: #fff;
+  text-decoration: none;
+  scroll-snap-align: start;
+}
+
+.new-arrival img,
+.new-arrival::after {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.new-arrival img {
+  z-index: -2;
+  object-fit: cover;
+}
+
+.new-arrival::after {
+  content: "";
+  z-index: -1;
+  background: linear-gradient(180deg, transparent 12%, rgba(15, 42, 31, .94) 100%);
+}
+
+.new-arrival span {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  margin: 0 8px 6px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.4;
+  text-shadow: 0 1px 3px #102c20;
+}
+
+.new-arrival:focus-visible {
+  outline: 2px solid #194433;
+  outline-offset: 1px;
+}
+
+@media (max-width: 760px) {
+  .new-arrivals { width: calc(100% - 24px); margin-bottom: 9px; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .new-arrival:nth-child(-n+5) { animation: new-arrival-reveal .42s ease-out backwards; }
+  .new-arrival:nth-child(2) { animation-delay: .04s; }
+  .new-arrival:nth-child(3) { animation-delay: .08s; }
+  .new-arrival:nth-child(4) { animation-delay: .12s; }
+  .new-arrival:nth-child(5) { animation-delay: .16s; }
+
+  @keyframes new-arrival-reveal {
+    from { opacity: .35; transform: translateY(5px); }
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .new-arrival img { transition: transform .35s ease-out; }
+    .new-arrival:hover img { transform: scale(1.06); }
+  }
+}
