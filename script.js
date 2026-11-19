@@ -1633,6 +1633,7 @@ const QUALITY_POINTS = {
 const QUALITY_SEAL = `<svg viewBox="0 0 24 24" aria-hidden="true"><path class="seal" d="M12 1.8l2.3 1.7 2.8-.3 1.1 2.6 2.6 1.1-.3 2.8 1.7 2.3-1.7 2.3.3 2.8-2.6 1.1-1.1 2.6-2.8-.3L12 22.2l-2.3-1.7-2.8.3-1.1-2.6-2.6-1.1.3-2.8L1.8 12l1.7-2.3-.3-2.8 2.6-1.1 1.1-2.6 2.8.3z"/><path class="tick" d="M7.6 12.3l2.9 2.9 5.9-6.1"/></svg>`;
 
 // إعدادات الشريط من الإدارة (catalog.qualityStrip): العنوان، النقاط (كل سطر نقطة)، السرعة، والتوقف عند مرور الماوس.
+let qualityStripConfirmed = false;
 function normalizeQualityStrip(value) {
   const points = (Array.isArray(value?.points) ? value.points : []).map(point => String(point || "").trim()).filter(Boolean);
   return {
@@ -1647,8 +1648,10 @@ function renderQualityStrip() {
   const track = $("#qualityStripTrack");
   if (!track) return;
   const settings = normalizeQualityStrip(state.qualityStrip);
-  track.closest(".quality-strip-host")?.classList.toggle("hidden", !settings.enabled);
-  if (!settings.enabled) return;
+  const hidden = !qualityStripConfirmed || !settings.enabled;
+  const host = track.closest(".quality-strip-host");
+  if (host) { host.hidden = hidden; host.classList.toggle("hidden", hidden); }
+  if (hidden) return;
   const custom = state.lang === "ar" && settings.points.length;
   const points = custom ? settings.points : (QUALITY_POINTS[state.lang] || QUALITY_POINTS.ar);
   const title = $("#qualityStrip [data-i18n='qualityTitle']");
@@ -4898,8 +4901,13 @@ if (state.user) {
   state.phone = state.user.phone;
 }
 
-function applyCatalog(catalog, cache = true) {
+function applyCatalog(catalog, cache = true, fromServer = false) {
   if (!Array.isArray(catalog?.products) || !Array.isArray(catalog?.categories) || !Array.isArray(catalog?.deliveryAreas)) return false;
+  if (fromServer) {
+    qualityStripConfirmed = true;
+    state.qualityStrip = catalog.qualityStrip || null;
+    renderQualityStrip();
+  }
   const signature = JSON.stringify([
     catalog.version || "", catalog.updatedAt || "",
     catalog.restaurantEnabled !== false,
@@ -5019,7 +5027,7 @@ async function refreshCatalogFromServer() {
       orderingApi("/catalog")
     ]);
     if (version) liveCatalogVersion = version;
-    return applyCatalog(catalog);
+    return applyCatalog(catalog, true, true);
   } catch (error) {
     console.error("Server catalog refresh failed", error);
     return false;
@@ -5057,7 +5065,7 @@ async function checkCatalogUpdates() {
     const catalog = await orderingApi("/catalog");
     const anchor = catalogScrollAnchor();
     const cartBefore = cartCount(), openProduct = state.detailProductId;
-    if (!applyCatalog(catalog)) return;
+    if (!applyCatalog(catalog, true, true)) return;
     restoreCatalogScrollAnchor(anchor);
     if (cartCount() < cartBefore) toast(state.lang === "ar" ? "تم تحديث المنتجات: أُزيل من سلتك منتج لم يعد متوفراً" : "Products updated: an item no longer available was removed from your cart", "error");
     else if (openProduct && !state.detailProductId) toast(state.lang === "ar" ? "هذا المنتج لم يعد متوفراً حالياً" : "This product is no longer available", "error");

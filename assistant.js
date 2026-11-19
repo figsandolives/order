@@ -6,7 +6,7 @@
 (() => {
   "use strict";
   if (typeof PICKER_MODE !== "undefined" && PICKER_MODE) return;
-  const tools = document.getElementById("homeTools");
+  const tools = document.getElementById("sideMenuAssistant");
   if (!tools || typeof orderingApiUrl !== "function") return;
 
   const TEXT = {
@@ -54,7 +54,7 @@
   button.type = "button"; button.id = "assistantButton"; button.hidden = true;
   button.setAttribute("aria-haspopup", "dialog"); button.setAttribute("aria-expanded", "false"); button.setAttribute("aria-controls", "assistantPanel");
   button.innerHTML = `${SPARK}<span></span>`;
-  tools.insertBefore(button, document.getElementById("homeLanguageToggle"));
+  tools.append(button);
 
   const layer = el("div", "fa-layer"); layer.id = "assistantLayer"; layer.hidden = true;
   const backdrop = el("button", "fa-backdrop"); backdrop.type = "button"; backdrop.tabIndex = -1;
@@ -121,6 +121,7 @@
   function setEligible(value) {
     eligible = Boolean(value);
     button.hidden = !eligible;
+    tools.hidden = !eligible;
     if (!eligible) { stopStream(); close(false); log.replaceChildren(); loadedKey = ""; }
   }
   function stopStream() { epoch += 1; controller?.abort(); controller = null; busy = false; syncComposer(); }
@@ -165,6 +166,7 @@
   window.visualViewport?.addEventListener("scroll", () => { if (isOpen) fitViewport(); });
   function open() {
     if (!eligible || isOpen) return;
+    if (typeof setSideMenu === "function") setSideMenu(false);
     isOpen = true;
     layer.hidden = false;
     panel.setAttribute("aria-modal", String(mobile()));
@@ -182,7 +184,10 @@
     confirmBar.hidden = true;
     button.setAttribute("aria-expanded", "false");
     document.documentElement.classList.remove("fa-open");
-    if (restoreFocus && !button.hidden) button.focus({ preventScroll: true });
+    if (restoreFocus && !button.hidden) {
+      const target = document.getElementById("sideMenu")?.classList.contains("hidden") ? document.getElementById("sideMenuToggle") : button;
+      target?.focus({ preventScroll: true });
+    }
   }
   button.addEventListener("click", () => (isOpen ? close() : open()));
   closeButton.addEventListener("click", () => close());

@@ -1,4 +1,4 @@
-/* «مساعدك الذكي» — الزر بجانب البحث واللوحة. ألوان المتجر: أخضر مع لمسة ذهبية. */
+/* «مساعدك الذكي» — زر القائمة واللوحة. ألوان المتجر: أخضر مع لمسة ذهبية. */
 .home-assistant{
   flex:0 0 auto;height:44px;display:inline-flex;align-items:center;gap:7px;padding:0 15px;
   border:1px solid #1f5a41;border-radius:16px;background:linear-gradient(135deg,#2d6a4f,#194433);color:#fff;
@@ -120,3 +120,6 @@
 .fa-grid .fa-add{width:100%;min-height:24px;padding:2px 3px;border-radius:7px;font-size:9.5px;justify-self:stretch;white-space:nowrap}
 .fa-add,.fa-view-cart,.fa-retry,.fa-whatsapp{min-height:34px;font-size:12px}
 .fa-chip{min-height:32px;padding:4px 11px;font-size:12px}
+
+.side-menu-assistant[hidden]{display:none!important}
+.side-menu-assistant .home-assistant{width:100%;height:46px;padding:0 14px;border-radius:12px;font-size:13px;justify-content:flex-start}

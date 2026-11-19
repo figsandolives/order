@@ -5,23 +5,15 @@
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  width: min(1320px, calc(100% - 32px));
-  margin: 0 auto 12px;
-  padding: 6px 7px 7px;
-  border: 1px solid #b18e50;
-  border-radius: 18px;
+  width: 100%;
+  margin: 14px 0 12px;
+  padding: 8px 12px 10px;
+  border: 0;
+  border-radius: 0;
   background: linear-gradient(115deg, #123b2c, #245c43 65%, #153c2e);
-  box-shadow: 0 5px 14px #173c2810;
+  box-shadow: none;
 }
-.new-arrivals::before {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  inset: 3px;
-  border: 1px solid #e2c68138;
-  border-radius: 14px;
-  pointer-events: none;
-}
+.new-arrivals::before { display: none; }
 .new-arrivals::after {
   content: "";
   position: absolute;
@@ -86,11 +78,12 @@ html[dir="ltr"] .arrivals-direction-icon { transform: rotate(180deg); }
   .new-arrivals-control:hover { background: #ffffff24; }
   .new-arrival .product-add:hover { background: #2c6348; }
 }
+.new-arrivals-heading, .new-arrivals-track { max-width: 1320px; margin-inline: auto; }
 @media (min-width: 761px) {
-  .new-arrivals:has(.new-arrival:only-child) { max-width: 520px; margin-inline-start: max(16px, calc((100% - 1320px) / 2)); }
+  .new-arrivals-track:has(.new-arrival:only-child) { max-width: 520px; margin-inline-start: max(0px, calc((100% - 1320px) / 2)); }
 }
 @media (max-width: 760px) {
-  .new-arrivals { width: calc(100% - 24px); margin: -9px auto 8px; }
+  .new-arrivals { width: 100%; margin: 14px 0 12px; }
   .new-arrival:not(:only-child) { flex-basis: min(300px, 92%); }
   .new-arrival:only-child { --photo-width: clamp(80px, 25vw, 108px); }
 }
@@ -113,7 +106,7 @@ html[dir="ltr"] .arrivals-direction-icon { transform: rotate(180deg); }
   .new-arrival:nth-child(even) img { animation-delay: -3s; }
   .new-arrivals.arrivals-outside::after,
   .new-arrivals.arrivals-outside .new-arrival img { animation-play-state: paused; }
-  @keyframes arrivals-unveil { from { opacity: 0; transform: translateY(10px) scaleX(.94); } }
+  @keyframes arrivals-unveil { from { opacity: 0; transform: translateY(10px); } }
   @keyframes arrival-place { from { opacity: 0; transform: translateX(-24px) rotate(-1deg); } }
   @keyframes arrivals-light { 0%, 12% { transform: translateX(0); opacity: 0; } 25% { opacity: 1; } 75%, 100% { transform: translateX(400%); opacity: 0; } }
   @keyframes arrival-float { 0%, 100% { transform: translateY(1px) rotate(-1deg); } 50% { transform: translateY(-2px) rotate(1deg); } }
