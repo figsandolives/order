@@ -33,7 +33,7 @@
   <link rel="stylesheet" href="payment.css?v=20260729-3">
   <link rel="stylesheet" href="account.css?v=20260731-3">
   <link rel="stylesheet" href="strip.css?v=20261119-reduced">
-  <link rel="stylesheet" href="new-arrivals.css?v=20261119-auto-1500">
+  <link rel="stylesheet" href="new-arrivals.css?v=20261119-full-width">
   <link rel="stylesheet" href="covers.css?v=20261102-strip-12">
   <link rel="stylesheet" href="showcase.css?v=3">
   <link rel="stylesheet" href="chrome.css?v=6">
@@ -91,7 +91,7 @@
     ]
   }
   </script>
-  <link rel="stylesheet" href="assistant.css?v=20261118-compact-tools">
+  <link rel="stylesheet" href="assistant.css?v=20261119-menu">
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"Product","name":"صابون اللبان الصلب","description":"-----","image":["https://162-35-27-249.sslip.io/platform-assets/orderingPlatform/catalog/products/15608/main.webp"],"sku":"15608","url":"https://figsolives.online/solid-liban-herbal-soap/","brand":{"@type":"Brand","name":"مخبز التين والزيتون"},"category":"العناية والصحة","offers":{"@type":"Offer","price":"4.500","priceCurrency":"KWD","availability":"https://schema.org/InStock","url":"https://figsolives.online/solid-liban-herbal-soap/","seller":{"@type":"Organization","name":"مخبز التين والزيتون"},"areaServed":"KW"}}</script>
 </head>
 <body>
@@ -137,6 +137,7 @@
         <button type="button" class="side-menu-close" data-side-menu-close aria-label="إغلاق">×</button>
       </header>
       <nav class="side-menu-section" id="sideMenuAccount"></nav>
+      <nav class="side-menu-section side-menu-assistant" id="sideMenuAssistant" hidden></nav>
       <nav class="side-menu-section side-menu-covers" id="sideMenuCovers"></nav>
       <footer class="side-menu-foot">
         <button class="language-toggle" id="languageToggle" type="button" aria-label="Change language"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.3 3.6 5.1 3.6 8.5s-1.2 6.2-3.6 8.5c-2.4-2.3-3.6-5.1-3.6-8.5s1.2-6.2 3.6-8.5Z"/></svg><span id="languageLabel">English</span></button>
@@ -158,7 +159,7 @@
       <button class="home-language" id="homeLanguageToggle" type="button" aria-label="Change language"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.3 3.6 5.1 3.6 8.5s-1.2 6.2-3.6 8.5c-2.4-2.3-3.6-5.1-3.6-8.5s1.2-6.2 3.6-8.5Z"/></svg><span class="lang-label">English</span></button>
     </div>
 
-    <div class="quality-strip-host">
+    <div class="quality-strip-host hidden" hidden>
     <section class="quality-strip pause-on-hover" id="qualityStrip" aria-label="جودة مخبوزاتنا">
       <div class="quality-strip-title"><span class="quality-seal" aria-hidden="true"></span><strong data-i18n="qualityTitle">جميع مخبوزاتنا من خبز وفطاير وبسكويت:</strong></div>
       <div class="quality-strip-viewport"><div class="quality-strip-track" id="qualityStripTrack"></div></div>
@@ -284,7 +285,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="config.js?v=20261006-server-api-v1"></script>
-  <script src="script.js?v=20261119-auto-1500"></script>
-  <script src="assistant.js?v=20261116-compact-1"></script>
+  <script src="script.js?v=20261119-layout-loading"></script>
+  <script src="assistant.js?v=20261119-menu"></script>
 </body>
 </html>

@@ -33,7 +33,7 @@
   <link rel="stylesheet" href="payment.css?v=20260729-3">
   <link rel="stylesheet" href="account.css?v=20260731-3">
   <link rel="stylesheet" href="strip.css?v=20261119-reduced">
-  <link rel="stylesheet" href="new-arrivals.css?v=20261119-auto-1500">
+  <link rel="stylesheet" href="new-arrivals.css?v=20261119-full-width">
   <link rel="stylesheet" href="covers.css?v=20261102-strip-12">
   <link rel="stylesheet" href="showcase.css?v=3">
   <link rel="stylesheet" href="chrome.css?v=6">
@@ -91,7 +91,7 @@
     ]
   }
   </script>
-  <link rel="stylesheet" href="assistant.css?v=20261118-compact-tools">
+  <link rel="stylesheet" href="assistant.css?v=20261119-menu">
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"CollectionPage","name":"الألبان","description":"الحيوانية و النباتية والجبن النابلسي — لبن الكفير الماعز، لبن الكفير البقر، لبن كفير الابل، مصل لبن ماعز، مصل لبن بقر، مصل لبن ابل","url":"https://figsolives.online/dairy/","inLanguage":"ar-KW","isPartOf":{"@type":"WebSite","name":"مخبز التين والزيتون","url":"https://figsolives.online/"},"breadcrumb":{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"مخبز التين والزيتون","item":"https://figsolives.online/"},{"@type":"ListItem","position":2,"name":"الألبان","item":"https://figsolives.online/dairy/"}]},"mainEntity":{"@type":"ItemList","itemListElement":[{"@type":"ListItem","position":1,"name":"لبن الكفير الماعز","url":"https://figsolives.online/laban-kefir-goat/"},{"@type":"ListItem","position":2,"name":"لبن الكفير البقر","url":"https://figsolives.online/laban-kefir-cow/"},{"@type":"ListItem","position":3,"name":"لبن كفير الابل","url":"https://figsolives.online/camel-kefir-laban/"},{"@type":"ListItem","position":4,"name":"مصل لبن ماعز","url":"https://figsolives.online/goat-whey/"},{"@type":"ListItem","position":5,"name":"مصل لبن بقر","url":"https://figsolives.online/cow-whey/"},{"@type":"ListItem","position":6,"name":"مصل لبن ابل","url":"https://figsolives.online/camel-whey/"},{"@type":"ListItem","position":7,"name":"لبنة  كيفر  الماعز","url":"https://figsolives.online/goat-kefir-labneh/"},{"@type":"ListItem","position":8,"name":"لبنة كفير البقر","url":"https://figsolives.online/cow-kefir-labneh/"},{"@type":"ListItem","position":9,"name":"روبة كفير ماعز","url":"https://figsolives.online/goat-kefir-yogurt/"},{"@type":"ListItem","position":10,"name":"روبة كفير بقر","url":"https://figsolives.online/cow-kefir-yogurt/"},{"@type":"ListItem","position":11,"name":"روبة كفير الماعز اليونانية","url":"https://figsolives.online/greek-goat-kefir-yoghurt/"},{"@type":"ListItem","position":12,"name":"روبة كفير البقر اليونانية","url":"https://figsolives.online/greek-cow-kefir-yoghurt/"},{"@type":"ListItem","position":13,"name":"هريسه الجبن النابلسي بالزيتون والنعناع","url":"https://figsolives.online/smashed-nabulsia-cheese-with-olives-mint/"},{"@type":"ListItem","position":14,"name":"هريسه الجبن النابلسي بالمحمرة","url":"https://figsolives.online/smashed-nabulsia-cheese-with-muhammarah/"},{"@type":"ListItem","position":15,"name":"جبنه نابلسيه بالفواكه المجففه","url":"https://figsolives.online/nabulsia-cheese-with-dried-fruits/"},{"@type":"ListItem","position":16,"name":"جبنه نابلسيه بالزيتون والاعشاب","url":"https://figsolives.online/nabulsia-cheese-with-olives-herbs/"},{"@type":"ListItem","position":17,"name":"جبنة نابلسية بخلطة الباذنجان","url":"https://figsolives.online/nabulsia-cheese-with-eggplant/"}]}}</script>
 </head>
 <body>
@@ -137,6 +137,7 @@
         <button type="button" class="side-menu-close" data-side-menu-close aria-label="إغلاق">×</button>
       </header>
       <nav class="side-menu-section" id="sideMenuAccount"></nav>
+      <nav class="side-menu-section side-menu-assistant" id="sideMenuAssistant" hidden></nav>
       <nav class="side-menu-section side-menu-covers" id="sideMenuCovers"></nav>
       <footer class="side-menu-foot">
         <button class="language-toggle" id="languageToggle" type="button" aria-label="Change language"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.3 3.6 5.1 3.6 8.5s-1.2 6.2-3.6 8.5c-2.4-2.3-3.6-5.1-3.6-8.5s1.2-6.2 3.6-8.5Z"/></svg><span id="languageLabel">English</span></button>
@@ -158,7 +159,7 @@
       <button class="home-language" id="homeLanguageToggle" type="button" aria-label="Change language"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.3 3.6 5.1 3.6 8.5s-1.2 6.2-3.6 8.5c-2.4-2.3-3.6-5.1-3.6-8.5s1.2-6.2 3.6-8.5Z"/></svg><span class="lang-label">English</span></button>
     </div>
 
-    <div class="quality-strip-host">
+    <div class="quality-strip-host hidden" hidden>
     <section class="quality-strip pause-on-hover" id="qualityStrip" aria-label="جودة مخبوزاتنا">
       <div class="quality-strip-title"><span class="quality-seal" aria-hidden="true"></span><strong data-i18n="qualityTitle">جميع مخبوزاتنا من خبز وفطاير وبسكويت:</strong></div>
       <div class="quality-strip-viewport"><div class="quality-strip-track" id="qualityStripTrack"></div></div>
@@ -301,7 +302,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="config.js?v=20261006-server-api-v1"></script>
-  <script src="script.js?v=20261119-auto-1500"></script>
-  <script src="assistant.js?v=20261116-compact-1"></script>
+  <script src="script.js?v=20261119-layout-loading"></script>
+  <script src="assistant.js?v=20261119-menu"></script>
 </body>
 </html>
