@@ -300,7 +300,7 @@ function normalizeLegacyOrder(order) {
   return {
     ...order,
     orderId,
-    items: Array.isArray(order.items) ? order.items : [],
+    items: Array.isArray(order.items) ? order.items.map(item => ({...item, nameAr:item.nameAr || item.name || item.nameEn, nameEn:item.nameEn || item.name || item.nameAr})) : [],
     subtotal: Number(order.subtotal ?? order.total ?? 0),
     deliveryFee: Number(order.deliveryFee || 0),
     total: Number(order.total || 0)
@@ -1080,7 +1080,7 @@ function deliveryFee() {
 }
 
 function total() {
-  return subtotal() + deliveryFee();
+  return Math.max(0, subtotal() + deliveryFee() - (typeof couponAmount === "function" ? couponAmount() : 0));
 }
 
 function toast(message, variant = "") {
@@ -1097,6 +1097,7 @@ function toast(message, variant = "") {
 let cartRevision = 0;
 
 function persistCart() {
+  if (typeof clearCheckoutCoupon === "function") clearCheckoutCoupon();
   cartRevision += 1;
   if (!state.user?.phone) return;
   localStorage.setItem(cartStorageKey(state.user.phone), JSON.stringify(state.cart));
@@ -3521,6 +3522,7 @@ async function renderOrderDetails(orderId, fromSuccess = false) {
         <div class="order-detail-totals">
           <span>${tr("productsTotal")} <b>${money(order.subtotal)}</b></span>
           <span>${tr("deliveryFee")} <b>${money(order.deliveryFee)}</b></span>
+          ${order.coupon?`<span>${state.lang==='ar'?'خصم الكوبون':'Coupon discount'} <bdi>${escapeHtml(order.coupon.code)}</bdi><b>−${money(order.discount)}</b></span>`:""}
           <strong>${tr("total")} <b>${money(order.total)}</b></strong>
           <small>${accountIcons.card} ${tr("payOnline")}</small>
         </div>
@@ -3577,6 +3579,7 @@ function setSteps() {
 }
 
 function renderCheckout() {
+  $("#checkoutModal").classList.toggle("coupon-confirming", state.step === 4);
   // توصيل بس: أي حالة استلام قديمة (من جلسة سابقة) ترجع توصيل قبل ما تنرسم الخطوات.
   if (state.mode !== "delivery") { state.mode = "delivery"; state.branch = ""; if (state.deliveryTiming === "notify" && !cartHasLongPreparationItems()) state.deliveryTiming = "asap"; }
   setSteps();
@@ -4123,29 +4126,29 @@ function renderConfirmation() {
     <button type="button" class="payment-choice ${state.paymentMethod === "knet" ? "selected" : ""}" data-payment-method="knet" role="radio" aria-checked="${state.paymentMethod === "knet"}"><span class="payment-radio"></span>${paymentMark("knet")}<strong>${tr("knet")}</strong></button>
   </div>` : "";
   $("#checkoutTitle").textContent = tr("confirmPay");
+  $("#checkoutModal").classList.add("coupon-confirming");
+  const applied = typeof currentCheckoutCoupon === "function" ? currentCheckoutCoupon() : null;
   $("#checkoutBody").innerHTML = `
-    <section class="confirmation-card">
-      <div class="confirmation-heading"><span class="detail-title-icon">${accountIcons.info}</span><div><small>${tr("customer")}</small><b>${tr("deliveryDetails")}</b></div></div>
-      <div class="customer-summary">
-        <div class="summary-box"><span class="summary-icon">${accountIcons.info}</span><span><small>${tr("customerName")}</small><strong>${escapeHtml(state.user.name)}</strong></span></div>
-        <div class="summary-box"><span class="summary-icon">${accountIcons.phone}</span><span><small>${tr("phone")}</small><strong class="phone">${escapeHtml(state.user.phone)}</strong></span></div>
-        ${tableReservationActive() ? `<div class="summary-box"><span class="summary-icon">⌂</span><span><small>حجز طاولة</small><strong>${escapeHtml(`${state.tableReservation.people} أشخاص — ${state.tableReservation.date} ${state.tableReservation.hour}:${state.tableReservation.minute} ${state.tableReservation.period === "am" ? "صباحاً" : "مساءً"}`)}</strong></span></div>` : `<div class="summary-box"><span class="summary-icon">${accountIcons.address}</span><span><small>${state.mode === "delivery" ? tr("deliveryAddress") : tr("pickupBranch")}</small><strong>${escapeHtml(deliverySummary())}</strong></span></div><div class="summary-box"><span class="summary-icon">${accountIcons.clock}</span><span><small>${state.mode === "pickup" ? tr("pickupTime") : tr("deliveryTime")}</small><strong class="delivery-time-lines">${deliveryTimeSummaryMarkup()}</strong></span></div>`}
+    <section class="confirmation-card coupon-confirmation">
+      <div class="compact-customer">
+        <div><small>${tr("customerName")}</small><strong>${escapeHtml(state.user.name)}</strong></div>
+        <div><small>${tr("phone")}</small><strong dir="ltr">${escapeHtml(state.user.phone)}</strong></div>
+        <div class="compact-address"><small>${tableReservationActive() ? "حجز طاولة" : tr("deliveryAddress")}</small><strong>${escapeHtml(tableReservationActive() ? `${state.tableReservation.people} أشخاص — ${state.tableReservation.date} ${state.tableReservation.hour}:${state.tableReservation.minute}` : deliverySummary())}</strong></div>
+        <div class="compact-address"><small>${tr("deliveryTime")}</small><strong>${escapeHtml(deliveryTimeSummary())}</strong></div>
       </div>
-      <div class="price-summary">
-        <button class="price-row products-toggle" id="productsToggle"><span><b class="arrow">‹</b> ${tr("productsTotal")}</span><strong>${money(subtotal())}</strong></button>
-        <div class="confirmation-products hidden" id="confirmationProducts">${cartItems().map(({ product: item, quantity, options }) => `
-          <div class="confirmation-product"><img src="${escapeHtml(thumbnailUrl(productImages(item)[0]) || "logo.png")}" alt=""><span>${escapeHtml(productName(item))} × ${quantity}</span><b>${money(selectionFlowTotal(item, options, quantity))}</b></div>`).join("")}</div>
-        ${tableReservationActive() ? "" : `<div class="price-row"><span>${tr("deliveryFee")}</span><strong>${money(deliveryFee())}</strong></div>`}
-        <div class="price-row total-row"><span>${tr("total")}</span><strong>${money(total())}</strong></div>
+      <div class="compact-items"><h3>${state.lang === "ar" ? "تفاصيل الأصناف" : "Order items"} <small>(${cartItems().length})</small></h3>
+        ${cartItems().map(({product:item,quantity,options,note})=>`<div class="compact-item"><span><b>${escapeHtml(cartDisplayName(item, options))}</b>${options?.length ? `<small>${escapeHtml(options.filter(o=>!o.nameSuffix).map(optionSummary).join("، "))}</small>` : ""}${note?`<small>${escapeHtml(note)}</small>`:""}</span><span class="compact-quantity">×${quantity}</span><strong>${money(selectionFlowTotal(item,options,quantity))}</strong></div>`).join("")}
       </div>
-      <div class="confirmation-sticky-actions">${paymentChoices}<div class="actions"><button class="secondary" id="back2">${tr("back")}</button><button class="primary pay-now" id="finish" aria-label="${tr("payNow")}">${state.paymentMethod ? paymentMark(state.paymentMethod) : ""}<span>${tr("payNow")}</span></button></div></div>
+      <div class="compact-totals">
+        <div><span>${tr("productsTotal")}</span><strong>${money(subtotal())}</strong></div>
+        <div><span>${tr("deliveryFee")}</span><strong>${money(deliveryFee())}</strong></div>
+        ${applied?`<div class="coupon-saving"><span>${state.lang==='ar'?'خصم الكوبون':'Coupon discount'} <bdi>${escapeHtml(applied.coupon.code)}</bdi></span><strong>−${money(applied.discount)}</strong></div>`:''}
+        <div class="compact-total"><span>${tr("total")}</span><strong>${money(total())}</strong></div>
+      </div>
+      ${typeof couponMarkup === "function" ? couponMarkup() : ""}
+      <div class="compact-payment">${paymentChoices}<div class="actions"><button class="secondary" id="back2">${tr("back")}</button><button class="primary pay-now" id="finish" aria-label="${tr("payNow")}">${state.paymentMethod ? paymentMark(state.paymentMethod) : ""}<span>${tr("payNow")}</span><b>${money(total())}</b></button></div></div>
     </section>`;
-  $("#productsToggle").onclick = () => {
-    const details = $("#confirmationProducts");
-    const open = details.classList.toggle("hidden") === false;
-    $("#productsToggle").classList.toggle("open", open);
-    $("#productsToggle").setAttribute("aria-label", open ? tr("hideProducts") : tr("showProducts"));
-  };
+  if (typeof bindCheckoutCoupon === "function") bindCheckoutCoupon();
   $("#back2").onclick = () => { state.step = 3; renderCheckout(); };
   $$('[data-payment-method]').forEach(button => button.onclick = () => { state.paymentMethod = button.dataset.paymentMethod; state.paymentRequestId = ""; renderConfirmation(); });
   $("#finish").onclick = beginPayment;
@@ -4190,6 +4193,7 @@ function isAllowedPaymentGatewayUrl(target) {
 function paymentPayload(paymentMethod = state.paymentMethod) {
   return {
     idempotencyKey: state.paymentRequestId,
+    ...(typeof couponPayloadFields === "function" ? couponPayloadFields() : {}),
     customer: { name: state.user.name.trim(), phone: normalizePhone(state.user.phone) },
     items: cartItems().map(({ product: item, quantity, note, options }) => ({ id: String(item.id), quantity, note, options })),
     delivery: { mode: state.mode, areaName: state.area?.name || "", branchId: state.branch || "", address: state.address || "" },
@@ -4304,6 +4308,7 @@ async function watchPayment(pending) {
       if (!data.ok) throw new Error(data.error || "Verification failed");
       errors = 0;
       if (data.status === "paid") {
+        state.paidOrder = data.order || null;
         if (data.orderId) {
           state.order = data.orderId;
           pending.orderId = data.orderId;
@@ -4404,6 +4409,7 @@ function resumePendingPayment() {
 }
 
 function currentInvoiceModel() {
+  if (state.paidOrder?.orderId === state.order) return normalizeLegacyOrder(state.paidOrder);
   const approvedAt = Date.now();
   const scheduled = state.deliveryTiming === "scheduled" ? scheduledDateTime() : null;
   const asapWindow = state.mode === "delivery" && state.deliveryTiming === "asap"
@@ -4479,7 +4485,7 @@ function buildInvoice(order) {
   const customerLine = [order.customerName || tr("customer"), order.phone || "—", destination].filter(Boolean).map(escapeHtml).join("&nbsp; · &nbsp;");
   const deliveryTime = invoiceDeliveryTime(order);
   const productsValue = Number.isFinite(Number(order.subtotal)) ? Number(order.subtotal) : Math.max(0, Number(order.total || 0) - Number(order.deliveryFee || 0));
-  $("#invoice").innerHTML = `<section class="a4-invoice"><header class="a4-head"><img src="logo.png" alt=""><div><h1>فاتورة شراء</h1><p>Purchase Invoice</p></div></header><section class="a4-meta"><div><b>رقم الفاتورة</b><strong>#${escapeHtml(order.orderId)}</strong><b>تاريخ الإصدار</b><strong>${createdAt.toLocaleDateString(locale)}</strong></div><div class="a4-company">شركة صحي ولذيذ للتجهيزات الغذائية<br>حولي، شارع تونس، مجمع علي فهد الخالد، دور الميزانين<br><span dir="ltr">66906605 · 22085888</span></div></section><p class="a4-customer-line">${customerLine}</p><table class="a4-items"><thead><tr><th>#</th><th>الصنف</th><th>الملاحظات</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead><tbody>${order.items.map((item, index) => { const detailOptions = (item.options || []).filter(option => !option?.nameSuffix); return `<tr><td>${index + 1}</td><td><b>${escapeHtml(item.nameAr || item.nameEn || item.id)}</b><small dir="ltr">${escapeHtml(item.nameEn || item.nameAr || item.id)}</small>${detailOptions.length ? `<small>${escapeHtml(detailOptions.map(optionSummary).join("، "))}</small>` : ""}</td><td>${escapeHtml(item.note || "—")}</td><td>${item.quantity}</td><td>${money(item.unitPrice || (item.total / item.quantity))}</td><td><b>${money(item.total)}</b></td></tr>`; }).join("")}</tbody></table>${invoicePreparationNotice(order)}<section class="a4-summary-row"><section class="a4-delivery-time"><small>${order.mode === "pickup" ? tr("pickup") : tr("deliveryTime")}</small><strong>${order.mode === "pickup" ? destination : deliveryTime}</strong></section><section class="a4-total"><span><b>${tr("productsTotal")}</b><strong>${money(productsValue)}</strong></span><span><b>${tr("deliveryFee")}</b><strong>${money(order.deliveryFee)}</strong></span><span class="a4-grand-total"><b>${tr("total")}</b><strong>${money(order.total)}</strong></span></section></section><div class="a4-paid">✓&nbsp; مدفوع: ${escapeHtml(String(order.paymentMethod || "KNET").toUpperCase())}</div></section>`;
+  $("#invoice").innerHTML = `<section class="a4-invoice"><header class="a4-head"><img src="logo.png" alt=""><div><h1>فاتورة شراء</h1><p>Purchase Invoice</p></div></header><section class="a4-meta"><div><b>رقم الفاتورة</b><strong>#${escapeHtml(order.orderId)}</strong><b>تاريخ الإصدار</b><strong>${createdAt.toLocaleDateString(locale)}</strong></div><div class="a4-company">شركة صحي ولذيذ للتجهيزات الغذائية<br>حولي، شارع تونس، مجمع علي فهد الخالد، دور الميزانين<br><span dir="ltr">66906605 · 22085888</span></div></section><p class="a4-customer-line">${customerLine}</p><table class="a4-items"><thead><tr><th>#</th><th>الصنف</th><th>الملاحظات</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead><tbody>${order.items.map((item, index) => { const detailOptions = (item.options || []).filter(option => !option?.nameSuffix); return `<tr><td>${index + 1}</td><td><b>${escapeHtml(item.nameAr || item.nameEn || item.id)}</b><small dir="ltr">${escapeHtml(item.nameEn || item.nameAr || item.id)}</small>${detailOptions.length ? `<small>${escapeHtml(detailOptions.map(optionSummary).join("، "))}</small>` : ""}</td><td>${escapeHtml(item.note || "—")}</td><td>${item.quantity}</td><td>${money(item.unitPrice || (item.total / item.quantity))}</td><td><b>${money(item.total)}</b></td></tr>`; }).join("")}</tbody></table>${invoicePreparationNotice(order)}<section class="a4-summary-row"><section class="a4-delivery-time"><small>${order.mode === "pickup" ? tr("pickup") : tr("deliveryTime")}</small><strong>${order.mode === "pickup" ? destination : deliveryTime}</strong></section><section class="a4-total"><span><b>${tr("productsTotal")}</b><strong>${money(productsValue)}</strong></span><span><b>${tr("deliveryFee")}</b><strong>${money(order.deliveryFee)}</strong></span>${order.coupon?`<span><b>${state.lang==='ar'?'خصم الكوبون':'Coupon discount'} ${escapeHtml(order.coupon.code)}</b><strong>−${money(order.discount)}</strong></span>`:""}<span class="a4-grand-total"><b>${tr("total")}</b><strong>${money(order.total)}</strong></span></section></section><div class="a4-paid">✓&nbsp; مدفوع: ${escapeHtml(String(order.paymentMethod || "KNET").toUpperCase())}</div></section>`;
   $("#invoice").setAttribute("dir", state.lang === "ar" ? "rtl" : "ltr");
   const phoneLabel = $("#invoice .a4-phone");
   if (phoneLabel) phoneLabel.textContent = `☎︎ ${order.phone || "—"}`;
@@ -4845,6 +4851,7 @@ $("#checkoutBtn").onclick = openCheckout;
 $("#cartSummary").onclick = openCheckout;
 $("#headerCart").onclick = openCheckout;
 $("#closeCheckout").onclick = () => {
+  if (typeof clearCheckoutCoupon === "function") clearCheckoutCoupon();
   if ($("#checkoutModal").dataset.tableFlow === "choice") {
     $("#checkoutModal").classList.add("hidden");
     delete $("#checkoutModal").dataset.tableFlow;
