@@ -1832,7 +1832,9 @@ const newArrivalsMotion = (() => {
   const track = $("#newArrivalsTrack");
   if (!section || !track) return { update() {} };
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
-  let paused = reduced.matches;
+  let pointerHeld = false;
+  let manualScroll = false;
+  let resumeAt = 0;
   let visible = false;
   let entered = false;
   let signature = "";
@@ -1841,7 +1843,7 @@ const newArrivalsMotion = (() => {
   let settleTimer;
   const cards = () => [...track.children];
   const overflowing = () => track.scrollWidth > track.clientWidth + 2;
-  const running = () => !paused && visible && !document.hidden && !section.classList.contains("hidden");
+  const running = () => !pointerHeld && visible && !document.hidden && !section.classList.contains("hidden");
   function schedule() {
     if (!running() || !overflowing() || track.children.length < 2) {
       clearTimeout(timer);
@@ -1849,7 +1851,12 @@ const newArrivalsMotion = (() => {
       return;
     }
     // Rendering or a slow/broken image must not keep restarting the countdown.
-    if (!timer) timer = setTimeout(() => { timer = null; move(1); }, 5500);
+    if (!timer) timer = setTimeout(() => {
+      timer = null;
+      resumeAt = 0;
+      manualScroll = false;
+      move(1);
+    }, resumeAt > Date.now() ? resumeAt - Date.now() : 1500);
   }
   function sync() {
     const english = state.lang === "en";
@@ -1862,15 +1869,16 @@ const newArrivalsMotion = (() => {
       button.hidden = !multiple;
       button.setAttribute("aria-label", label);
     }
-    const pause = section.querySelector("[data-arrivals-pause]");
-    pause.setAttribute("aria-label", paused ? (english ? "Play motion" : "تشغيل الحركة") : (english ? "Pause motion" : "إيقاف الحركة"));
-    pause.querySelector("[data-arrivals-motion-label]").textContent = paused ? (english ? "Play" : "تشغيل") : (english ? "Pause" : "إيقاف");
-    pause.setAttribute("aria-pressed", String(paused));
-    section.classList.toggle("arrivals-paused", paused);
     section.classList.toggle("arrivals-outside", !visible || document.hidden);
     schedule();
   }
-  function stop() { paused = true; sync(); }
+  function manualInteraction() {
+    manualScroll = true;
+    resumeAt = Date.now() + 2500;
+    clearTimeout(timer);
+    timer = null;
+    sync();
+  }
   function move(step) {
     const items = cards();
     if (!items.length) return;
@@ -1886,25 +1894,32 @@ const newArrivalsMotion = (() => {
     sync();
   }
   section.addEventListener("click", event => {
-    if (event.target.closest("[data-arrivals-pause]")) {
-      paused = !paused;
-      if (!paused && overflowing() && track.children.length > 1) move(1);
-      else sync();
-    }
-    if (event.target.closest("[data-arrivals-next]")) { stop(); move(1); }
-    if (event.target.closest("[data-arrivals-previous]")) { stop(); move(-1); }
+    if (event.target.closest("[data-arrivals-next]")) { manualInteraction(); move(1); }
+    if (event.target.closest("[data-arrivals-previous]")) { manualInteraction(); move(-1); }
   });
-  track.addEventListener("pointerdown", stop, { passive: true });
-  track.addEventListener("wheel", stop, { passive: true });
-  track.addEventListener("focusin", stop);
+  track.addEventListener("pointerdown", () => {
+    pointerHeld = true;
+    // Freeze an automatic transition before the customer starts dragging.
+    track.scrollTo({ left: track.scrollLeft, behavior: "instant" });
+    manualInteraction();
+  }, { passive: true });
+  const release = () => {
+    if (!pointerHeld) return;
+    pointerHeld = false;
+    manualInteraction();
+  };
+  window.addEventListener("pointerup", release, { passive: true });
+  window.addEventListener("pointercancel", release, { passive: true });
+  track.addEventListener("wheel", manualInteraction, { passive: true });
   section.addEventListener("keydown", event => {
     if (!track.contains(event.target) || !["ArrowLeft", "ArrowRight"].includes(event.key)) return;
     event.preventDefault();
-    stop();
+    manualInteraction();
     const rtl = getComputedStyle(track).direction === "rtl";
     move((event.key === "ArrowLeft") === rtl ? 1 : -1);
   });
   track.addEventListener("scroll", () => {
+    if (manualScroll) manualInteraction();
     clearTimeout(settleTimer);
     settleTimer = setTimeout(() => {
       const box = track.getBoundingClientRect();
@@ -1929,9 +1944,9 @@ const newArrivalsMotion = (() => {
   }, { threshold: .25 }).observe(section);
   document.addEventListener("visibilitychange", sync);
   window.addEventListener("resize", sync, { passive: true });
-  reduced.addEventListener("change", () => { if (reduced.matches) paused = true; sync(); });
+  reduced.addEventListener("change", sync);
   return { update(nextSignature) {
-    if (signature !== nextSignature) { signature = nextSignature; index = 0; track.scrollLeft = 0; }
+    if (signature !== nextSignature) { signature = nextSignature; index = 0; resumeAt = 0; manualScroll = false; track.scrollLeft = 0; }
     sync();
   } };
 })();

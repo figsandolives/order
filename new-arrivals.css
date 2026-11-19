@@ -41,8 +41,6 @@
 .new-arrivals-control svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .new-arrivals-control:active { transform: scale(.92); background: #ffffff24; }
 .new-arrivals [hidden] { display: none !important; }
-.new-arrivals:not(.arrivals-paused) .arrivals-play-icon,
-.new-arrivals.arrivals-paused .arrivals-pause-icon { display: none; }
 html[dir="ltr"] .arrivals-direction-icon { transform: rotate(180deg); }
 .new-arrivals-track { display: flex; gap: 8px; overflow-x: auto; overscroll-behavior-inline: contain; scroll-snap-type: x proximity; scrollbar-width: none; padding: 1px; scroll-padding-inline: 1px; }
 .new-arrivals-track::-webkit-scrollbar { display: none; }
@@ -113,8 +111,6 @@ html[dir="ltr"] .arrivals-direction-icon { transform: rotate(180deg); }
   .new-arrivals::after { animation: arrivals-light 6s ease-in-out infinite; }
   .new-arrival:nth-child(-n+5) img { animation: arrival-float 6s ease-in-out infinite; }
   .new-arrival:nth-child(even) img { animation-delay: -3s; }
-  .new-arrivals.arrivals-paused::after,
-  .new-arrivals.arrivals-paused .new-arrival img,
   .new-arrivals.arrivals-outside::after,
   .new-arrivals.arrivals-outside .new-arrival img { animation-play-state: paused; }
   @keyframes arrivals-unveil { from { opacity: 0; transform: translateY(10px) scaleX(.94); } }
@@ -122,7 +118,3 @@ html[dir="ltr"] .arrivals-direction-icon { transform: rotate(180deg); }
   @keyframes arrivals-light { 0%, 12% { transform: translateX(0); opacity: 0; } 25% { opacity: 1; } 75%, 100% { transform: translateX(400%); opacity: 0; } }
   @keyframes arrival-float { 0%, 100% { transform: translateY(1px) rotate(-1deg); } 50% { transform: translateY(-2px) rotate(1deg); } }
 }
-
-/* The motion control is separate from the adjacent previous/next arrows. */
-.new-arrivals-motion-toggle { display: flex; gap: 4px; width: auto; min-width: 58px; padding-inline: 7px; margin-inline-start: auto; font: inherit; font-size: 10px; }
-.new-arrivals-motion-toggle svg { width: 11px; height: 11px; flex: none; }
