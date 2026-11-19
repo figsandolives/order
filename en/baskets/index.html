@@ -33,7 +33,7 @@
   <link rel="stylesheet" href="payment.css?v=20260729-3">
   <link rel="stylesheet" href="account.css?v=20260731-3">
   <link rel="stylesheet" href="strip.css?v=1">
-  <link rel="stylesheet" href="new-arrivals.css?v=3">
+  <link rel="stylesheet" href="new-arrivals.css?v=20261119-display">
   <link rel="stylesheet" href="covers.css?v=20261102-strip-12">
   <link rel="stylesheet" href="showcase.css?v=3">
   <link rel="stylesheet" href="chrome.css?v=6">
@@ -166,8 +166,16 @@
     </div>
 
     <section class="new-arrivals hidden" id="newArrivals" aria-labelledby="newArrivalsTitle">
-      <h2 id="newArrivalsTitle">جديدنا</h2>
-      <div class="new-arrivals-track" id="newArrivalsTrack"></div>
+      <div class="new-arrivals-heading">
+        <h2><svg class="new-arrivals-emblem" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21V10M12 16C4 17 3 11 3 7c6 0 9 3 9 9ZM12 12c0-7 4-9 9-9 0 6-3 10-9 9Z"/></svg><span id="newArrivalsTitle">جديدنا</span></h2>
+        <div class="new-arrivals-navigation">
+          <span class="new-arrivals-position" id="newArrivalsPosition" aria-hidden="true"></span>
+          <button class="new-arrivals-control" type="button" data-arrivals-previous aria-label="المنتج السابق" aria-controls="newArrivalsTrack"><svg class="arrivals-direction-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
+          <button class="new-arrivals-control" type="button" data-arrivals-pause aria-label="إيقاف الحركة" aria-pressed="false"><svg class="arrivals-pause-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6v12M15 6v12"/></svg><svg class="arrivals-play-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 10 7-10 7Z"/></svg></button>
+          <button class="new-arrivals-control" type="button" data-arrivals-next aria-label="المنتج التالي" aria-controls="newArrivalsTrack"><svg class="arrivals-direction-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg></button>
+        </div>
+      </div>
+      <div class="new-arrivals-track" id="newArrivalsTrack" role="list"></div>
     </section>
 
     <section class="catalog-worlds" id="catalogWorlds" aria-label="تصفّح حسب النوع"><div class="catalog-worlds-grid sk-worlds" aria-hidden="true"><span class="sk-tile size-full"></span><span class="sk-tile"></span><span class="sk-tile"></span><span class="sk-tile"></span><span class="sk-tile"></span><span class="sk-tile size-full"></span><span class="sk-tile"></span><span class="sk-tile"></span></div></section>
@@ -297,7 +305,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="config.js?v=20261006-server-api-v1"></script>
-  <script src="script.js?v=20261118-new-arrivals-3"></script>
+  <script src="script.js?v=20261119-arrivals-display"></script>
   <script src="assistant.js?v=20261116-compact-1"></script>
 </body>
 </html>
