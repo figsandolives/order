@@ -122,3 +122,7 @@ html[dir="ltr"] .arrivals-direction-icon { transform: rotate(180deg); }
   @keyframes arrivals-light { 0%, 12% { transform: translateX(0); opacity: 0; } 25% { opacity: 1; } 75%, 100% { transform: translateX(400%); opacity: 0; } }
   @keyframes arrival-float { 0%, 100% { transform: translateY(1px) rotate(-1deg); } 50% { transform: translateY(-2px) rotate(1deg); } }
 }
+
+/* The motion control is separate from the adjacent previous/next arrows. */
+.new-arrivals-motion-toggle { display: flex; gap: 4px; width: auto; min-width: 58px; padding-inline: 7px; margin-inline-start: auto; font: inherit; font-size: 10px; }
+.new-arrivals-motion-toggle svg { width: 11px; height: 11px; flex: none; }

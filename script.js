@@ -1843,11 +1843,13 @@ const newArrivalsMotion = (() => {
   const overflowing = () => track.scrollWidth > track.clientWidth + 2;
   const running = () => !paused && visible && !document.hidden && !section.classList.contains("hidden");
   function schedule() {
-    clearTimeout(timer);
-    const photo = track.children[index]?.querySelector("img");
-    if (running() && overflowing() && track.children.length > 1 && photo?.complete && photo.naturalWidth > 0) {
-      timer = setTimeout(() => move(1), 5500);
+    if (!running() || !overflowing() || track.children.length < 2) {
+      clearTimeout(timer);
+      timer = null;
+      return;
     }
+    // Rendering or a slow/broken image must not keep restarting the countdown.
+    if (!timer) timer = setTimeout(() => { timer = null; move(1); }, 5500);
   }
   function sync() {
     const english = state.lang === "en";
@@ -1862,6 +1864,7 @@ const newArrivalsMotion = (() => {
     }
     const pause = section.querySelector("[data-arrivals-pause]");
     pause.setAttribute("aria-label", paused ? (english ? "Play motion" : "تشغيل الحركة") : (english ? "Pause motion" : "إيقاف الحركة"));
+    pause.querySelector("[data-arrivals-motion-label]").textContent = paused ? (english ? "Play" : "تشغيل") : (english ? "Pause" : "إيقاف");
     pause.setAttribute("aria-pressed", String(paused));
     section.classList.toggle("arrivals-paused", paused);
     section.classList.toggle("arrivals-outside", !visible || document.hidden);
@@ -1883,11 +1886,14 @@ const newArrivalsMotion = (() => {
     sync();
   }
   section.addEventListener("click", event => {
-    if (event.target.closest("[data-arrivals-pause]")) { paused = !paused; sync(); }
+    if (event.target.closest("[data-arrivals-pause]")) {
+      paused = !paused;
+      if (!paused && overflowing() && track.children.length > 1) move(1);
+      else sync();
+    }
     if (event.target.closest("[data-arrivals-next]")) { stop(); move(1); }
     if (event.target.closest("[data-arrivals-previous]")) { stop(); move(-1); }
   });
-  track.addEventListener("load", schedule, true);
   track.addEventListener("pointerdown", stop, { passive: true });
   track.addEventListener("wheel", stop, { passive: true });
   track.addEventListener("focusin", stop);
