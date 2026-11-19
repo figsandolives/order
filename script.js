@@ -4140,10 +4140,9 @@ function renderConfirmation() {
         ${cartItems().map(({product:item,quantity,options,note})=>`<div class="compact-item"><span><b>${escapeHtml(cartDisplayName(item, options))}</b>${options?.length ? `<small>${escapeHtml(options.filter(o=>!o.nameSuffix).map(optionSummary).join("، "))}</small>` : ""}${note?`<small>${escapeHtml(note)}</small>`:""}</span><span class="compact-quantity">×${quantity}</span><strong>${money(selectionFlowTotal(item,options,quantity))}</strong></div>`).join("")}
       </div>
       <div class="compact-totals">
-        <div><span>${tr("productsTotal")}</span><strong>${money(subtotal())}</strong></div>
-        <div><span>${tr("deliveryFee")}</span><strong>${money(deliveryFee())}</strong></div>
+        <div><span>${state.lang==='ar'?'الإجمالي':'Total'}</span><strong>${money(subtotal()+deliveryFee())}</strong></div>
         ${applied?`<div class="coupon-saving"><span>${state.lang==='ar'?'خصم الكوبون':'Coupon discount'} <bdi>${escapeHtml(applied.coupon.code)}</bdi></span><strong>−${money(applied.discount)}</strong></div>`:''}
-        <div class="compact-total"><span>${tr("total")}</span><strong>${money(total())}</strong></div>
+        <div class="compact-total"><span>${state.lang==='ar'?'الإجمالي النهائي':'Final total'}</span><strong>${money(total())}</strong></div>
       </div>
       ${typeof couponMarkup === "function" ? couponMarkup() : ""}
       <div class="compact-payment">${paymentChoices}<div class="actions"><button class="secondary" id="back2">${tr("back")}</button><button class="primary pay-now" id="finish" aria-label="${tr("payNow")}">${state.paymentMethod ? paymentMark(state.paymentMethod) : ""}<span>${tr("payNow")}</span><b>${money(total())}</b></button></div></div>
