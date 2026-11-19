@@ -1636,6 +1636,7 @@ const QUALITY_SEAL = `<svg viewBox="0 0 24 24" aria-hidden="true"><path class="s
 function normalizeQualityStrip(value) {
   const points = (Array.isArray(value?.points) ? value.points : []).map(point => String(point || "").trim()).filter(Boolean);
   return {
+    enabled: value?.enabled !== false,
     title: String(value?.title || "").trim(),
     points,
     speed: Math.min(10, Math.max(1, Number(value?.speed) || 5)),
@@ -1646,6 +1647,8 @@ function renderQualityStrip() {
   const track = $("#qualityStripTrack");
   if (!track) return;
   const settings = normalizeQualityStrip(state.qualityStrip);
+  track.closest(".quality-strip-host")?.classList.toggle("hidden", !settings.enabled);
+  if (!settings.enabled) return;
   const custom = state.lang === "ar" && settings.points.length;
   const points = custom ? settings.points : (QUALITY_POINTS[state.lang] || QUALITY_POINTS.ar);
   const title = $("#qualityStrip [data-i18n='qualityTitle']");
