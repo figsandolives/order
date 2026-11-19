@@ -79,8 +79,9 @@ html[lang="en"] .quality-strip-group li{direction:ltr}
 .quality-strip-group .seal{fill:var(--sc-leaf)}
 .quality-strip-group .tick{fill:none;stroke:#fff;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
 @media(prefers-reduced-motion:reduce){
-  .quality-strip-track{animation:none;width:auto}
-  .quality-strip-group{flex-wrap:wrap;row-gap:10px}
+  .quality-strip-viewport{overflow-x:auto;scrollbar-width:none}
+  .quality-strip-track{animation:none;width:max-content}
+  .quality-strip-group{flex-wrap:nowrap}
   .quality-strip-group[aria-hidden="true"]{display:none}
 }
 
