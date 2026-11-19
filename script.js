@@ -4126,28 +4126,33 @@ function renderConfirmation() {
     <button type="button" class="payment-choice ${state.paymentMethod === "knet" ? "selected" : ""}" data-payment-method="knet" role="radio" aria-checked="${state.paymentMethod === "knet"}"><span class="payment-radio"></span>${paymentMark("knet")}<strong>${tr("knet")}</strong></button>
   </div>` : "";
   $("#checkoutTitle").textContent = tr("confirmPay");
-  $("#checkoutModal").classList.add("coupon-confirming");
+  $("#checkoutModal").classList.remove("coupon-confirming");
   const applied = typeof currentCheckoutCoupon === "function" ? currentCheckoutCoupon() : null;
   $("#checkoutBody").innerHTML = `
-    <section class="confirmation-card coupon-confirmation">
-      <div class="compact-customer">
-        <div><small>${tr("customerName")}</small><strong>${escapeHtml(state.user.name)}</strong></div>
-        <div><small>${tr("phone")}</small><strong dir="ltr">${escapeHtml(state.user.phone)}</strong></div>
-        <div class="compact-address"><small>${tableReservationActive() ? "حجز طاولة" : tr("deliveryAddress")}</small><strong>${escapeHtml(tableReservationActive() ? `${state.tableReservation.people} أشخاص — ${state.tableReservation.date} ${state.tableReservation.hour}:${state.tableReservation.minute}` : deliverySummary())}</strong></div>
-        <div class="compact-address"><small>${tr("deliveryTime")}</small><strong>${escapeHtml(deliveryTimeSummary())}</strong></div>
+    <section class="confirmation-card">
+      <div class="confirmation-heading"><span class="detail-title-icon">${accountIcons.info}</span><div><small>${tr("customer")}</small><b>${tr("deliveryDetails")}</b></div></div>
+      <div class="customer-summary">
+        <div class="summary-box"><span class="summary-icon">${accountIcons.info}</span><span><small>${tr("customerName")}</small><strong>${escapeHtml(state.user.name)}</strong></span></div>
+        <div class="summary-box"><span class="summary-icon">${accountIcons.phone}</span><span><small>${tr("phone")}</small><strong class="phone">${escapeHtml(state.user.phone)}</strong></span></div>
+        ${tableReservationActive() ? `<div class="summary-box"><span class="summary-icon">⌂</span><span><small>حجز طاولة</small><strong>${escapeHtml(`${state.tableReservation.people} أشخاص — ${state.tableReservation.date} ${state.tableReservation.hour}:${state.tableReservation.minute} ${state.tableReservation.period === "am" ? "صباحاً" : "مساءً"}`)}</strong></span></div>` : `<div class="summary-box"><span class="summary-icon">${accountIcons.address}</span><span><small>${state.mode === "delivery" ? tr("deliveryAddress") : tr("pickupBranch")}</small><strong>${escapeHtml(deliverySummary())}</strong></span></div><div class="summary-box"><span class="summary-icon">${accountIcons.clock}</span><span><small>${state.mode === "pickup" ? tr("pickupTime") : tr("deliveryTime")}</small><strong class="delivery-time-lines">${deliveryTimeSummaryMarkup()}</strong></span></div>`}
       </div>
-      <div class="compact-items"><h3>${state.lang === "ar" ? "تفاصيل الأصناف" : "Order items"} <small>(${cartItems().length})</small></h3>
-        ${cartItems().map(({product:item,quantity,options,note})=>`<div class="compact-item"><span><b>${escapeHtml(cartDisplayName(item, options))}</b>${options?.length ? `<small>${escapeHtml(options.filter(o=>!o.nameSuffix).map(optionSummary).join("، "))}</small>` : ""}${note?`<small>${escapeHtml(note)}</small>`:""}</span><span class="compact-quantity">×${quantity}</span><strong>${money(selectionFlowTotal(item,options,quantity))}</strong></div>`).join("")}
-      </div>
-      <div class="compact-totals">
-        <div><span>${state.lang==='ar'?'الإجمالي':'Total'}</span><strong>${money(subtotal()+deliveryFee())}</strong></div>
-        ${applied?`<div class="coupon-saving"><span>${state.lang==='ar'?'خصم الكوبون':'Coupon discount'} <bdi>${escapeHtml(applied.coupon.code)}</bdi></span><strong>−${money(applied.discount)}</strong></div>`:''}
-        <div class="compact-total"><span>${state.lang==='ar'?'الإجمالي النهائي':'Final total'}</span><strong>${money(total())}</strong></div>
+      <div class="price-summary">
+        <button class="price-row products-toggle" id="productsToggle" type="button"><span><b class="arrow">‹</b> ${state.lang === "ar" ? "تفاصيل الأصناف" : "Order items"} (${cartItems().length})</span><strong>${money(subtotal())}</strong></button>
+        <div class="confirmation-products hidden" id="confirmationProducts">${cartItems().map(({ product: item, quantity, options }) => `<div class="confirmation-product"><img src="${escapeHtml(thumbnailUrl(productImages(item)[0]) || "logo.png")}" alt=""><span>${escapeHtml(productName(item))} × ${quantity}</span><b>${money(selectionFlowTotal(item, options, quantity))}</b></div>`).join("")}</div>
+        <div class="price-row"><span>${state.lang==='ar'?'الإجمالي':'Total'}</span><strong>${money(subtotal()+deliveryFee())}</strong></div>
+        ${applied?`<div class="price-row coupon-saving"><span>${state.lang==='ar'?'خصم الكوبون':'Coupon discount'} <bdi>${escapeHtml(applied.coupon.code)}</bdi></span><strong>−${money(applied.discount)}</strong></div>`:''}
+        <div class="price-row total-row"><span>${state.lang==='ar'?'الإجمالي النهائي':'Final total'}</span><strong>${money(total())}</strong></div>
       </div>
       ${typeof couponMarkup === "function" ? couponMarkup() : ""}
-      <div class="compact-payment">${paymentChoices}<div class="actions"><button class="secondary" id="back2">${tr("back")}</button><button class="primary pay-now" id="finish" aria-label="${tr("payNow")}">${state.paymentMethod ? paymentMark(state.paymentMethod) : ""}<span>${tr("payNow")}</span><b>${money(total())}</b></button></div></div>
+      <div class="confirmation-sticky-actions">${paymentChoices}<div class="actions"><button class="secondary" id="back2">${tr("back")}</button><button class="primary pay-now" id="finish" aria-label="${tr("payNow")}">${state.paymentMethod ? paymentMark(state.paymentMethod) : ""}<span>${tr("payNow")}</span></button></div></div>
     </section>`;
   if (typeof bindCheckoutCoupon === "function") bindCheckoutCoupon();
+  $("#productsToggle").onclick = () => {
+    const details = $("#confirmationProducts");
+    const open = details.classList.toggle("hidden") === false;
+    $("#productsToggle").classList.toggle("open", open);
+    $("#productsToggle").setAttribute("aria-label", open ? tr("hideProducts") : tr("showProducts"));
+  };
   $("#back2").onclick = () => { state.step = 3; renderCheckout(); };
   $$('[data-payment-method]').forEach(button => button.onclick = () => { state.paymentMethod = button.dataset.paymentMethod; state.paymentRequestId = ""; renderConfirmation(); });
   $("#finish").onclick = beginPayment;
