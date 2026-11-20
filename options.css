@@ -273,3 +273,9 @@
 .sale-price del{color:#a3a3a3;font-weight:700;text-decoration-color:#c0392b;text-decoration-thickness:1.5px}
 .sale-price b{color:#1f5a40;font-weight:900}
 .sale-price .sale-badge{padding:2px 8px;border-radius:999px;background:#c0392b;color:#fff;font-size:10px;font-style:normal;font-weight:900;white-space:nowrap}
+
+/* الحشوات الغنية: شارة زيادة الدينار وخلفية مميزة */
+.flow-option-group-title.is-rich{display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:#8a5a12}
+.rich-extra-badge{display:inline-block;padding:3px 10px;border-radius:999px;background:#b7791f;color:#fff;font-size:11px;font-weight:900;line-height:1.5;white-space:nowrap}
+.selection-flow-popover .flow-option-row.is-rich .product-option-choice{background:#fdf6e8;border-color:#efdcb4}
+.selection-flow-popover .flow-option-row.is-rich .product-option-choice:has(input:checked){background:#fbecd0;border-color:#b7791f;box-shadow:0 0 0 3px rgba(183,121,31,.14)}

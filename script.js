@@ -2601,6 +2601,18 @@ function selectionFlowPreviousSurcharge(flow, stepIndex) {
     .reduce((total, option) => total + Math.max(0, Number(option.price) || 0), 0);
 }
 
+// How much a rich filling adds over the regular price for the size already chosen
+// (e.g. +1 KD on boxes of 12, +0.5 on a single medium piece).
+function richFillingExtraText(option) {
+  const sizeOption = (pendingFlowSelections.size || [])[0];
+  const override = Number(option?.basePriceOverrideBySize?.[sizeOption?.id]);
+  const base = Number(sizeOption?.price);
+  const extra = Number.isFinite(override) && Number.isFinite(base) ? Math.round((override - base) * 1000) / 1000 : 1;
+  if (extra <= 0) return "";
+  if (state.lang !== "ar") return `+${money(extra)} extra`;
+  return extra === 1 ? "زيادة دينار" : `زيادة ${money(extra)}`;
+}
+
 function renderSelectionFlowStep() {
   const item = product(pendingOptionProductId);
   const flow = pendingSelectionFlow;
@@ -2625,15 +2637,17 @@ function renderSelectionFlowStep() {
   let previousGroup = "";
   const optionsMarkup = visibleItems.map(option => {
     const groupTitle = state.lang === "ar" ? option.groupAr : (option.groupEn || option.groupAr);
+    const isRichGroup = /غنية|rich/i.test(`${option.groupAr || ""} ${option.groupEn || ""} ${option.priceGroup || ""}`);
+    const richBadge = isRichGroup ? `<span class="rich-extra-badge">${escapeHtml(richFillingExtraText(option))}</span>` : "";
     const groupHeading = groupTitle && groupTitle !== previousGroup
-      ? `<h4 class="flow-option-group-title">${escapeHtml(groupTitle)}</h4>`
+      ? `<h4 class="flow-option-group-title${isRichGroup ? " is-rich" : ""}">${escapeHtml(groupTitle)}${richBadge.includes("></span>") ? "" : richBadge}</h4>`
       : "";
     if (groupTitle) previousGroup = groupTitle;
     const chosen = selected.find(selectedOption => selectedOption.id === option.id);
     const displayedPrice = Math.max(0, Number(option.price) || 0) + previousSurcharge;
     const showPrice = step.id !== "dough" && displayedPrice > 0;
     const perUnitHint = showPrice && option.priceGroup ? `<small class="per-unit-price">${state.lang === "ar" ? "* للكمية الواحدة" : "* per quantity"}</small>` : "";
-    return `${groupHeading}<div class="flow-option-row"><label class="product-option-choice"><input type="${type}" name="selection-flow-option" value="${escapeHtml(option.id)}" ${chosen ? "checked" : ""}><span><b>${escapeHtml(optionName(option))}</b><small>${escapeHtml(state.lang === "ar" ? option.nameEn : option.nameAr)}</small>${option.preparation ? `<i>◷ ${escapeHtml(preparationLabel(option.preparation))}</i>` : ""}</span>${showPrice ? `<em>+ ${money(displayedPrice)}${perUnitHint}</em>` : ""}${step.quantityEnabled && chosen ? `<div class="flow-choice-quantity-wrap"><small>${state.lang === "ar" ? "الكمية" : "Quantity"}</small><div class="qty flow-choice-quantity"><button type="button" data-flow-quantity="plus" data-flow-option-id="${escapeHtml(option.id)}">+</button><span>${new Intl.NumberFormat(state.lang === "ar" ? "ar-KW" : "en").format(chosen.quantity || 1)}</span><button type="button" data-flow-quantity="minus" data-flow-option-id="${escapeHtml(option.id)}">${chosen.quantity === 1 ? "×" : "−"}</button></div></div>` : ""}</label></div>`;
+    return `${groupHeading}<div class="flow-option-row${isRichGroup ? " is-rich" : ""}"><label class="product-option-choice"><input type="${type}" name="selection-flow-option" value="${escapeHtml(option.id)}" ${chosen ? "checked" : ""}><span><b>${escapeHtml(optionName(option))}</b><small>${escapeHtml(state.lang === "ar" ? option.nameEn : option.nameAr)}</small>${option.preparation ? `<i>◷ ${escapeHtml(preparationLabel(option.preparation))}</i>` : ""}</span>${showPrice ? `<em>+ ${money(displayedPrice)}${perUnitHint}</em>` : ""}${step.quantityEnabled && chosen ? `<div class="flow-choice-quantity-wrap"><small>${state.lang === "ar" ? "الكمية" : "Quantity"}</small><div class="qty flow-choice-quantity"><button type="button" data-flow-quantity="plus" data-flow-option-id="${escapeHtml(option.id)}">+</button><span>${new Intl.NumberFormat(state.lang === "ar" ? "ar-KW" : "en").format(chosen.quantity || 1)}</span><button type="button" data-flow-quantity="minus" data-flow-option-id="${escapeHtml(option.id)}">${chosen.quantity === 1 ? "×" : "−"}</button></div></div>` : ""}</label></div>`;
   }).join("");
   productOptionsPopover.innerHTML = `<header><div><small>${state.lang === "ar" ? `الخطوة ${new Intl.NumberFormat("ar-KW").format(pendingFlowStep + 1)} من ${new Intl.NumberFormat("ar-KW").format(flow.steps.length)}` : `Step ${pendingFlowStep + 1} of ${flow.steps.length}`}</small><strong>${escapeHtml(productName(item))}</strong></div><button type="button" data-close-options aria-label="${state.lang === "ar" ? "إغلاق" : "Close"}">×</button></header><div class="option-group-title"><strong>${escapeHtml(title)}</strong>${hint ? `<small>${escapeHtml(hint)}</small>` : ""}</div>${fillingStatus}<div class="product-options-list">${optionsMarkup}</div><div class="selection-flow-footer"><div class="selection-price"><span>${state.lang === "ar" ? "السعر الحالي" : "Current price"}</span><b>${money(currentPrice)}</b></div><button type="button" class="primary" data-flow-next ${selected.length ? "" : "disabled"}>${isLast ? (state.lang === "ar" ? "إضافة إلى السلة" : "Add to cart") : (state.lang === "ar" ? "التالي" : "Next")}</button></div>`;
   productOptionsPopover.place?.();
