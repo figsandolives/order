@@ -19,11 +19,11 @@ function couponPayloadFields() {
   const quote=currentCheckoutCoupon();
   return quote ? {couponCode:quote.coupon.code,couponRevision:quote.coupon.revision,couponExpectedTotal:quote.total} : {};
 }
-function couponDialog(title,lines) {
+function couponDialog(title,lines,actions) {
   let dialog=document.getElementById('couponMessage');
   if(!dialog){dialog=document.createElement('dialog');dialog.id='couponMessage';dialog.className='coupon-message';document.body.append(dialog);}
-  dialog.innerHTML=`<header><h2>${escapeHtml(title)}</h2><button type="button" aria-label="${couponText('إغلاق','Close')}">×</button></header><div class="coupon-message-body">${lines.map(line=>`<p>${escapeHtml(line).replace(/\n/g,'<br>')}</p>`).join('')}</div><button type="button" class="primary coupon-message-close">${couponText('حسناً','OK')}</button>`;
-  dialog.querySelectorAll('button').forEach(button=>button.onclick=()=>dialog.close());
+  dialog.innerHTML=`<header><h2>${escapeHtml(title)}</h2><button type="button" aria-label="${couponText('إغلاق','Close')}">×</button></header><div class="coupon-message-body">${lines.map(line=>`<p>${escapeHtml(line).replace(/\n/g,'<br>')}</p>`).join('')}</div>${actions?.length?`<div class="coupon-message-actions">${actions.map((action,index)=>`<button type="button" class="${action.primary?'primary':'secondary'}" data-coupon-action="${index}">${escapeHtml(action.label)}</button>`).join('')}</div>`:`<button type="button" class="primary coupon-message-close">${couponText('حسناً','OK')}</button>`}`;
+  dialog.querySelectorAll('button').forEach(button=>button.onclick=()=>{dialog.close();const action=actions?.[Number(button.dataset.couponAction)];if(action)action.onClick();});
   if(!dialog.open)dialog.showModal();
 }
 function couponMarkup() {
@@ -50,6 +50,36 @@ function couponInputGuard() {
   } else if(hint&&clean)hint.classList.add('hidden');
   button.disabled=!clean;
 }
+// يتحقق من الكوبون المكتوب ويطبقه. يرجع {applied:true} أو {error} أو {stale:true}
+async function applyTypedCoupon(code) {
+  const revision=++couponRequestRevision;
+  const signature=couponCartSignature();
+  const button=document.getElementById('applyCoupon');
+  if(button){button.disabled=true;button.classList.add('checking');button.textContent=couponText('جارٍ التحقق…','Checking…');}
+  try {
+    const body={...paymentPayload(state.paymentMethod||'knet'),idempotencyKey:requestId(),couponCode:code};
+    const quote=await orderingApi('/coupons/quote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)},true);
+    if(revision!==couponRequestRevision||signature!==couponCartSignature())return {stale:true};
+    if(!quote.ok||!quote.coupon||!Number.isFinite(quote.discount)||quote.discount<=0)throw Error(couponText('تعذر التحقق من الكوبون','Could not validate coupon'));
+    checkoutCoupon={...quote,signature};state.paymentRequestId='';renderConfirmation();couponCelebrate();
+    return {applied:true};
+  }catch(error){return revision===couponRequestRevision?{error:error.message||couponText('تعذر التحقق من الكوبون','Could not validate coupon')}:{stale:true};}
+  finally {if(button?.isConnected){button.classList.remove('checking');button.textContent=couponText('تطبيق','Apply');couponInputGuard();}}
+}
+// عند الضغط على «ادفع الآن» وفي الخانة كوبون مكتوب لم يُطبّق: نطبقه أولاً ونوقف ليرى الزبون المبلغ الجديد
+async function couponGateBeforePay(proceed) {
+  const input=document.getElementById('checkoutCouponCode');
+  const code=input&&!input.readOnly?input.value.trim():'';
+  if(!code||currentCheckoutCoupon())return proceed();
+  const pay=document.getElementById('finish');if(pay)pay.disabled=true;
+  const result=await applyTypedCoupon(code);
+  if(pay?.isConnected)pay.disabled=false;
+  if(result.applied||result.stale)return;
+  couponDialog(couponText('لم يتم تطبيق الكوبون','Coupon not applied'),[result.error],[
+    {label:couponText('تعديل الكوبون','Edit coupon'),onClick:()=>{const field=document.getElementById('checkoutCouponCode');field?.focus();field?.select();}},
+    {label:couponText('الدفع بدون كوبون','Pay without coupon'),primary:true,onClick:()=>{const field=document.getElementById('checkoutCouponCode');if(field){field.value='';couponInputGuard();}proceed();}}
+  ]);
+}
 function bindCheckoutCoupon() {
   const couponInput=document.getElementById('checkoutCouponCode');
   if(couponInput){couponInput.setAttribute('inputmode','latin');couponInput.setAttribute('lang','en');couponInput.oninput=couponInputGuard;couponInputGuard();}
@@ -58,17 +88,8 @@ function bindCheckoutCoupon() {
     if(currentCheckoutCoupon()){clearCheckoutCoupon();state.paymentRequestId='';renderConfirmation();return;}
     const code=document.getElementById('checkoutCouponCode').value.trim();
     if(!code||/[^A-Za-z0-9_-]/.test(code)){document.getElementById('checkoutCouponCode').focus();return;}
-    const revision=++couponRequestRevision;
-    const signature=couponCartSignature();
-    const button=document.getElementById('applyCoupon');button.disabled=true;button.classList.add('checking');button.textContent=couponText('جارٍ التحقق…','Checking…');
-    try {
-      const body={...paymentPayload(state.paymentMethod||'knet'),idempotencyKey:requestId(),couponCode:code};
-      const quote=await orderingApi('/coupons/quote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)},true);
-      if(revision!==couponRequestRevision||signature!==couponCartSignature())return;
-      if(!quote.ok||!quote.coupon||!Number.isFinite(quote.discount)||quote.discount<=0)throw Error(couponText('تعذر التحقق من الكوبون','Could not validate coupon'));
-      checkoutCoupon={...quote,signature};state.paymentRequestId='';renderConfirmation();couponCelebrate();
-    }catch(error){if(revision===couponRequestRevision)couponDialog(couponText('كوبون الخصم','Discount coupon'),[error.message]);}
-    finally {if(button.isConnected){button.classList.remove('checking');button.textContent=couponText('تطبيق','Apply');couponInputGuard();}}
+    const result=await applyTypedCoupon(code);
+    if(result.error)couponDialog(couponText('كوبون الخصم','Discount coupon'),[result.error]);
   };
   document.getElementById('couponTerms').onclick=async()=>{
     const quote=currentCheckoutCoupon();
@@ -80,7 +101,7 @@ function bindCheckoutCoupon() {
   };
 }
 
-// احتفال خفيف عند نجاح تطبيق الكوبون: قصاصات ملونة تتطاير ثم تختفي، بدون أي كتابة
+// احتفال خفيف عند نجاح تطبيق الكوبون: قصاصات ملونة تنطلق من خانة الكوبون، ثم تنزل ببطء من أعلى الشاشة وتتمايل، وتختفي بهدوء — بدون أي كتابة
 function couponCelebrate() {
   if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
   document.querySelector('.coupon-confetti')?.remove();
@@ -88,18 +109,34 @@ function couponCelebrate() {
   const colors=['#dca83e','#2d6a4f','#e9c46a','#8fbf9f','#f4a261','#ffffff','#e76f51'];
   const field=document.getElementById('couponForm')?.getBoundingClientRect();
   const originX=field?field.left+field.width/2:innerWidth/2, originY=field?field.top:innerHeight*.7;
-  for(let i=0;i<46;i++){
-    const piece=document.createElement('i');
-    const angle=(-90+(Math.random()*120-60))*Math.PI/180, power=180+Math.random()*260;
-    const dx=Math.cos(angle)*power, dy=Math.sin(angle)*power;
-    piece.style.cssText=`left:${originX}px;top:${originY}px;background:${colors[i%colors.length]};width:${5+Math.random()*5}px;height:${7+Math.random()*7}px;border-radius:${Math.random()<.35?'50%':'2px'}`;
-    piece.animate([
+  const piece=(i)=>{const el=document.createElement('i');el.style.cssText=`background:${colors[i%colors.length]};width:${6+Math.random()*5}px;height:${8+Math.random()*8}px;border-radius:${Math.random()<.35?'50%':'2px'}`;layer.append(el);return el;};
+  let longest=0;
+  // 1) انطلاقة من خانة الكوبون
+  for(let i=0;i<40;i++){
+    const el=piece(i);el.style.left=originX+'px';el.style.top=originY+'px';
+    const angle=(-90+(Math.random()*110-55))*Math.PI/180, power=220+Math.random()*300;
+    const dx=Math.cos(angle)*power, dy=Math.sin(angle)*power, duration=3200+Math.random()*1200;
+    longest=Math.max(longest,duration);
+    el.animate([
       {transform:'translate(0,0) rotate(0deg)',opacity:1},
-      {transform:`translate(${dx}px,${dy}px) rotate(${Math.random()*360}deg)`,opacity:1,offset:.45},
-      {transform:`translate(${dx*1.25}px,${dy+260+Math.random()*160}px) rotate(${360+Math.random()*540}deg)`,opacity:0}
-    ],{duration:1500+Math.random()*700,easing:'cubic-bezier(.2,.7,.4,1)',fill:'forwards'});
-    layer.append(piece);
+      {transform:`translate(${dx}px,${dy}px) rotate(${180+Math.random()*180}deg)`,opacity:1,offset:.3},
+      {transform:`translate(${dx*1.15+(Math.random()*60-30)}px,${dy+240}px) rotate(${420+Math.random()*300}deg)`,opacity:1,offset:.7},
+      {transform:`translate(${dx*1.3}px,${dy+380+Math.random()*160}px) rotate(${700+Math.random()*400}deg)`,opacity:0}
+    ],{duration,easing:'cubic-bezier(.15,.65,.35,1)',fill:'forwards'});
+  }
+  // 2) مطر قصاصات ينزل ببطء من أعلى الشاشة
+  for(let i=0;i<55;i++){
+    const el=piece(i+3);el.style.left=(Math.random()*innerWidth)+'px';el.style.top='-20px';
+    const delay=Math.random()*1400, duration=3600+Math.random()*1600, sway=40+Math.random()*50, fall=innerHeight*(.75+Math.random()*.3);
+    longest=Math.max(longest,delay+duration);
+    el.animate([
+      {transform:'translate(0,0) rotate(0deg)',opacity:0},
+      {transform:`translate(${sway}px,${fall*.25}px) rotate(120deg)`,opacity:1,offset:.15},
+      {transform:`translate(${-sway}px,${fall*.55}px) rotate(300deg)`,opacity:1,offset:.5},
+      {transform:`translate(${sway*.6}px,${fall*.8}px) rotate(480deg)`,opacity:.9,offset:.8},
+      {transform:`translate(0,${fall}px) rotate(620deg)`,opacity:0}
+    ],{duration,delay,easing:'linear',fill:'both'});
   }
   document.body.append(layer);
-  setTimeout(()=>layer.remove(),2400);
+  setTimeout(()=>layer.remove(),longest+200);
 }

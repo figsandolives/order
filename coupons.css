@@ -66,3 +66,4 @@
 }
 
 .coupon-confetti{position:fixed;inset:0;z-index:300;pointer-events:none;overflow:hidden}.coupon-confetti i{position:absolute;display:block;will-change:transform,opacity}
+.coupon-message-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.coupon-message-actions button{min-height:44px;font-size:12px}

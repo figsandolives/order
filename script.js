@@ -4171,7 +4171,7 @@ function renderConfirmation() {
   };
   $("#back2").onclick = () => { state.step = 3; renderCheckout(); };
   $$('[data-payment-method]').forEach(button => button.onclick = () => { state.paymentMethod = button.dataset.paymentMethod; state.paymentRequestId = ""; renderConfirmation(); });
-  $("#finish").onclick = beginPayment;
+  $("#finish").onclick = () => typeof couponGateBeforePay === "function" ? couponGateBeforePay(beginPayment) : beginPayment();
 }
 
 function requestId() {
@@ -4367,8 +4367,8 @@ async function watchPayment(pending) {
 function paymentDeclined() {
   state.paymentRequestId = "";
   $("#checkoutTitle").textContent = tr("declinedTitle");
-  $("#checkoutBody").innerHTML = `<div class="payment-error"><div class="error-mark">×</div><h3>${tr("declinedTitle")}</h3><p>${tr("declinedText")}</p><div class="actions"><button class="secondary" id="declinedBack">${tr("backToPayment")}</button><button class="primary" id="declinedRetry">${tr("retry")}</button></div></div>`;
-  $("#declinedBack").onclick = $("#declinedRetry").onclick = () => { state.step = 4; $("#steps").classList.remove("hidden"); renderCheckout(); };
+  $("#checkoutBody").innerHTML = `<div class="payment-error"><div class="error-mark">×</div><h3>${tr("declinedTitle")}</h3><p>${tr("declinedText")}</p><div class="actions" style="grid-template-columns:1fr"><button class="primary" id="declinedRetry">${tr("retry")}</button></div></div>`;
+  $("#declinedRetry").onclick = () => { state.step = 4; $("#steps").classList.remove("hidden"); renderCheckout(); };
 }
 
 function paymentPendingTimeout(pending) {
