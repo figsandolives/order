@@ -62,4 +62,7 @@
   #checkoutModal .checkout-confirmation .payment-choice{min-height:46px;padding-block:5px}
   #checkoutModal .checkout-confirmation .confirmation-sticky-actions{padding-top:4px}
   #checkoutModal .checkout-confirm-customer-row strong{line-height:1.45}
+  #checkoutModal .checkout-confirm-total-row{padding-block:clamp(6px,1dvh,9px)}
 }
+
+.coupon-confetti{position:fixed;inset:0;z-index:300;pointer-events:none;overflow:hidden}.coupon-confetti i{position:absolute;display:block;will-change:transform,opacity}

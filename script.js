@@ -4151,10 +4151,11 @@ function renderConfirmation() {
         </div>
       </section>
       <section class="checkout-confirm-totals" aria-label="${state.lang === "ar" ? "ملخص الطلب" : "Order summary"}">
-        <button class="checkout-confirm-total-row products-toggle" id="productsToggle" type="button" aria-expanded="false" aria-controls="confirmationProducts"><span><b class="arrow">‹</b> ${state.lang === "ar" ? "تفاصيل الأصناف" : "Order items"} (${cartItems().length})</span><strong>${money(subtotal())}</strong></button>
+        <button class="checkout-confirm-total-row products-toggle" id="productsToggle" type="button" aria-expanded="false" aria-controls="confirmationProducts"><span><b class="arrow">‹</b> ${state.lang === "ar" ? "تفاصيل الأصناف" : "Order items"} (${cartItems().length})</span></button>
         <div class="confirmation-products hidden" id="confirmationProducts">${cartItems().map(({ product: item, quantity, options }) => `<div class="confirmation-product"><img src="${escapeHtml(thumbnailUrl(productImages(item)[0]) || "logo.png")}" alt=""><span>${escapeHtml(productName(item))} × ${quantity}</span><b>${money(selectionFlowTotal(item, options, quantity))}</b></div>`).join("")}</div>
-        <div class="checkout-confirm-total-row"><span>${state.lang==='ar'?'الإجمالي':'Total'}</span><strong>${money(subtotal()+deliveryFee())}</strong></div>
+        <div class="checkout-confirm-total-row"><span>${state.lang==='ar'?'الإجمالي':'Total'}</span><strong>${money(subtotal())}</strong></div>
         ${applied?`<div class="checkout-confirm-total-row coupon-saving"><span>${state.lang==='ar'?'خصم الكوبون':'Coupon discount'} <bdi>${escapeHtml(applied.coupon.code)}</bdi></span><strong>−${money(applied.discount)}</strong></div>`:''}
+        ${state.mode==='delivery'&&!tableReservationActive()?`<div class="checkout-confirm-total-row"><span>${state.lang==='ar'?'رسوم التوصيل':'Delivery fee'}</span><strong>${money(deliveryFee())}</strong></div>`:''}
         <div class="checkout-confirm-total-row checkout-confirm-final-total"><span>${state.lang==='ar'?'الإجمالي النهائي':'Final total'}</span><strong>${money(total())}</strong></div>
       </section>
       ${typeof couponMarkup === "function" ? couponMarkup() : ""}

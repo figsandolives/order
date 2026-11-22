@@ -66,7 +66,7 @@ function bindCheckoutCoupon() {
       const quote=await orderingApi('/coupons/quote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)},true);
       if(revision!==couponRequestRevision||signature!==couponCartSignature())return;
       if(!quote.ok||!quote.coupon||!Number.isFinite(quote.discount)||quote.discount<=0)throw Error(couponText('تعذر التحقق من الكوبون','Could not validate coupon'));
-      checkoutCoupon={...quote,signature};state.paymentRequestId='';renderConfirmation();
+      checkoutCoupon={...quote,signature};state.paymentRequestId='';renderConfirmation();couponCelebrate();
     }catch(error){if(revision===couponRequestRevision)couponDialog(couponText('كوبون الخصم','Discount coupon'),[error.message]);}
     finally {if(button.isConnected){button.classList.remove('checking');button.textContent=couponText('تطبيق','Apply');couponInputGuard();}}
   };
@@ -78,4 +78,28 @@ function bindCheckoutCoupon() {
     try {const data=await orderingApi(`/coupons/${encodeURIComponent(code)}/terms`,{},true);couponDialog(couponText('شروط وأحكام الكوبون','Coupon terms & conditions'),state.lang==='en'?data.termsEn:data.termsAr);}
     catch(error){couponDialog(couponText('كوبون الخصم','Discount coupon'),[error.message]);}
   };
+}
+
+// احتفال خفيف عند نجاح تطبيق الكوبون: قصاصات ملونة تتطاير ثم تختفي، بدون أي كتابة
+function couponCelebrate() {
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+  document.querySelector('.coupon-confetti')?.remove();
+  const layer=document.createElement('div');layer.className='coupon-confetti';layer.setAttribute('aria-hidden','true');
+  const colors=['#dca83e','#2d6a4f','#e9c46a','#8fbf9f','#f4a261','#ffffff','#e76f51'];
+  const field=document.getElementById('couponForm')?.getBoundingClientRect();
+  const originX=field?field.left+field.width/2:innerWidth/2, originY=field?field.top:innerHeight*.7;
+  for(let i=0;i<46;i++){
+    const piece=document.createElement('i');
+    const angle=(-90+(Math.random()*120-60))*Math.PI/180, power=180+Math.random()*260;
+    const dx=Math.cos(angle)*power, dy=Math.sin(angle)*power;
+    piece.style.cssText=`left:${originX}px;top:${originY}px;background:${colors[i%colors.length]};width:${5+Math.random()*5}px;height:${7+Math.random()*7}px;border-radius:${Math.random()<.35?'50%':'2px'}`;
+    piece.animate([
+      {transform:'translate(0,0) rotate(0deg)',opacity:1},
+      {transform:`translate(${dx}px,${dy}px) rotate(${Math.random()*360}deg)`,opacity:1,offset:.45},
+      {transform:`translate(${dx*1.25}px,${dy+260+Math.random()*160}px) rotate(${360+Math.random()*540}deg)`,opacity:0}
+    ],{duration:1500+Math.random()*700,easing:'cubic-bezier(.2,.7,.4,1)',fill:'forwards'});
+    layer.append(piece);
+  }
+  document.body.append(layer);
+  setTimeout(()=>layer.remove(),2400);
 }
