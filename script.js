@@ -122,7 +122,7 @@ const translations = {
     nameRequired: "يرجى كتابة اسم المستخدم", myInfo: "معلوماتي", myAddresses: "عناويني", myOrders: "طلباتي",
     logout: "تسجيل خروج", save: "حفظ", edit: "تعديل", delete: "حذف", changePhone: "تغيير رقم الهاتف",
     infoSaved: "تم حفظ معلوماتك", addressesEmpty: "لا يوجد عناوين مسجلة", addAddress: "إضافة عنوان",
-    areaSearch: "ابحث عن منطقة", addressDetails: "تفاصيل العنوان", addressPlaceholder: "القطعة، الشارع، المنزل والدور…",
+    areaSearch: "الرجاء اختيار منطقة", addressDetails: "تفاصيل العنوان", addressPlaceholder: "القطعة، الشارع، المنزل والدور…",
     chooseArea: "اختر المنطقة", addressSaved: "تم حفظ العنوان", selectAddress: "اختر عنوان التوصيل",
     noAddedAddresses: "لا يوجد عناوين مضافة", ordersEmpty: "لا توجد طلبات سابقة",
     viewInvoice: "عرض / طباعة الفاتورة", viewOrderDetails: "عرض تفاصيل الطلب", orderDetails: "تفاصيل الطلب",
@@ -187,7 +187,7 @@ const translations = {
     nameRequired: "Please enter your username", myInfo: "My information", myAddresses: "My addresses",
     myOrders: "My orders", logout: "Logout", save: "Save", edit: "Edit", delete: "Delete",
     changePhone: "Change phone number", infoSaved: "Your information was saved", addressesEmpty: "No saved addresses",
-    addAddress: "Add address", areaSearch: "Search for an area", addressDetails: "Address details",
+    addAddress: "Add address", areaSearch: "Please choose an area", addressDetails: "Address details",
     addressPlaceholder: "Block, street, house and floor…", chooseArea: "Choose an area", addressSaved: "Address saved",
     selectAddress: "Select delivery address", noAddedAddresses: "No addresses added", ordersEmpty: "No previous orders",
     viewInvoice: "View / print invoice", viewOrderDetails: "View order details", orderDetails: "Order details",
@@ -3352,45 +3352,45 @@ function renderAddressForm(addressId = "") {
   const existing = (state.user.addresses || []).find(address => address.id === addressId);
   resetAccountDrawerScroll();
   let selectedArea = existing ? { name: existing.areaName, price: existing.price } : null;
-  let pendingArea = null;
-  let areaQuery = selectedArea?.name || "";
-  let areaResults = "";
-  let confirmedAreaName = selectedArea?.name || "";
-  const areaLabel = area => state.lang === "ar" ? (area.nameAr || area.name) : (area.nameEn || area.nameAr || area.name);
-  const areaFieldLabel = () => selectedArea
-    ? (state.lang === "ar" ? "المنطقة" : "Area")
-    : tr("areaSearch");
+  let areaMenuOpen = false;
+  let areaQuery = "";
+  const areaArabic = area => area.nameAr || area.name || "";
+  const areaEnglish = area => {
+    const english = String(area.nameEn || "").trim();
+    return english && english !== areaArabic(area) ? english : "";
+  };
+  const areaLabel = area => state.lang === "ar" ? areaArabic(area) : (areaEnglish(area) || areaArabic(area));
+  const areaFieldLabel = () => state.lang === "ar" ? "المنطقة" : "Area";
+  const normalizeAreaSearch = value => String(value || "").toLocaleLowerCase()
+    .replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي").replace(/[\s\-']+/g, " ").trim();
   const resultsHtml = query => {
-    const normalizedQuery = String(query || "").trim();
-    if (!normalizedQuery) return "";
-    return state.areas.filter(area => [area.name, area.nameAr, area.nameEn].filter(Boolean).some(name => name.toLocaleLowerCase().includes(normalizedQuery.toLocaleLowerCase()))).slice(0, 60).map(area =>
-      `<button type="button" class="${selectedArea?.name === area.name ? "selected" : ""}" data-pick-area="${escapeHtml(area.name)}"><span class="area-name">${selectedArea?.name === area.name ? "<i>✓</i>" : ""}${escapeHtml(areaLabel(area))}</span><b>${money(area.price)}</b></button>`
-    ).join("");
+    const needle = normalizeAreaSearch(query);
+    const matches = state.areas.filter(area => !needle || [area.name, area.nameAr, area.nameEn].filter(Boolean).some(name => normalizeAreaSearch(name).includes(needle)));
+    if (!matches.length) return `<p class="area-menu-empty">${state.lang === "ar" ? "لا توجد منطقة بهذا الاسم" : "No matching area"}</p>`;
+    return matches.map(area => {
+      const selected = selectedArea?.name === area.name;
+      const english = areaEnglish(area);
+      return `<button type="button" role="option" aria-selected="${selected}" class="${selected ? "selected" : ""}" data-pick-area="${escapeHtml(area.name)}"><span class="area-name">${escapeHtml(areaArabic(area))}${english ? `<span class="area-name-en"> - <bdi>${escapeHtml(english)}</bdi></span>` : ""}</span><b>${money(area.price)}</b></button>`;
+    }).join("");
   };
   const areaPickerHtml = () => {
-    const confirmedArea = selectedArea || (confirmedAreaName ? state.areas.find(area => area.name === confirmedAreaName) : null);
-    if (confirmedArea) return `
-    <div class="confirmed-area">
-      <span class="confirmed-area-check" aria-hidden="true">✓</span>
-      <div><strong>${escapeHtml(areaLabel(confirmedArea))}</strong><small>${tr("deliveryFee")}: ${money(confirmedArea.price)}</small></div>
-      <button type="button" class="edit-area-button" id="editAddressArea">${tr("edit")}</button>
-    </div>`;
+    const current = selectedArea ? (state.areas.find(area => area.name === selectedArea.name) || selectedArea) : null;
     return `
-    <input id="addressAreaSearch" value="${escapeHtml(areaQuery)}" placeholder="${tr("areaSearch")}" autocomplete="off">
-    <div class="area-results${areaResults ? "" : " hidden"}" id="addressAreaResults">${areaResults}</div>
-    ${pendingArea ? `<div class="area-confirmation" role="dialog" aria-modal="true" aria-labelledby="area-confirm-title">
-      <div class="area-confirm-card"><span class="area-confirm-icon" aria-hidden="true">⌖</span>
-        <h3 id="area-confirm-title">${state.lang === "ar" ? `هل تريد اختيار منطقة ${escapeHtml(areaLabel(pendingArea))}؟` : `Do you want to choose ${escapeHtml(areaLabel(pendingArea))}?`}</h3>
-        <p>${tr("deliveryFee")}: ${money(pendingArea.price)}</p>
-        <div class="area-confirm-actions"><button type="button" class="primary" id="confirmAddressArea" data-confirm-area="${escapeHtml(pendingArea.name)}">${state.lang === "ar" ? "نعم" : "Yes"}</button><button type="button" class="secondary" id="cancelAddressArea">${state.lang === "ar" ? "لا" : "No"}</button></div>
-      </div>
+    <button type="button" class="area-select${current ? " has-value" : ""}${areaMenuOpen ? " open" : ""}" id="addressAreaToggle" aria-haspopup="listbox" aria-expanded="${areaMenuOpen}">
+      <span>${current ? escapeHtml(areaLabel(current)) : (state.lang === "ar" ? "الرجاء اختيار منطقة" : "Please choose an area")}</span>
+      ${current ? `<small>${money(current.price)}</small>` : ""}
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+    </button>
+    ${areaMenuOpen ? `<div class="area-menu">
+      <input id="addressAreaSearch" type="search" value="${escapeHtml(areaQuery)}" placeholder="${state.lang === "ar" ? "ابحث بالعربي أو الإنجليزي" : "Search in Arabic or English"}" autocomplete="off" enterkeyhint="search">
+      <div class="area-menu-list" id="addressAreaResults" role="listbox">${resultsHtml(areaQuery)}</div>
     </div>` : ""}`;
   };
   $("#accountContent").innerHTML = `${drawerPageHeader(existing ? tr("edit") : tr("addAddress"))}
     <form class="address-form" id="addressForm">
-      <label><span id="addressAreaLabel">${areaFieldLabel()}</span>
+      <div class="address-area-field"><span id="addressAreaLabel">${areaFieldLabel()}</span>
         <div class="area-picker" id="addressAreaPicker">${areaPickerHtml()}</div>
-      </label>
+      </div>
       <label>${tr("addressDetails")}<textarea id="addressDetails" placeholder="${tr("addressPlaceholder")}">${escapeHtml(existing?.details || "")}</textarea></label>
       <p class="auth-message" id="addressMessage"></p>
       <button class="primary" type="submit">${tr("save")}</button>
@@ -3401,63 +3401,35 @@ function renderAddressForm(addressId = "") {
     } else renderAddresses();
   };
   const renderAreaPicker = () => {
-    const label = $("#addressAreaLabel");
-    if (label) label.textContent = areaFieldLabel();
     const picker = $("#addressAreaPicker");
     picker.innerHTML = areaPickerHtml();
-    const confirmPendingArea = areaName => {
-      const confirmedArea = state.areas.find(area => area.name === areaName) || pendingArea;
-      if (!confirmedArea) return;
-      selectedArea = { ...confirmedArea };
-      confirmedAreaName = confirmedArea.name;
-      pendingArea = null;
-      areaQuery = "";
-      areaResults = "";
-      renderAreaPicker();
-    };
     picker.onclick = event => {
       const target = event.target.closest("button");
       if (!target) return;
-
+      if (target.id === "addressAreaToggle") {
+        areaMenuOpen = !areaMenuOpen;
+        areaQuery = "";
+        renderAreaPicker();
+        if (areaMenuOpen) {
+          picker.querySelector(".area-menu-list .selected")?.scrollIntoView({ block: "nearest" });
+          picker.querySelector(".area-menu")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }
+        return;
+      }
       const pickedAreaName = target.dataset.pickArea;
       if (pickedAreaName) {
-        pendingArea = state.areas.find(area => area.name === pickedAreaName) || null;
-        renderAreaPicker();
-        return;
-      }
-
-      if (target.id === "confirmAddressArea") {
-        confirmPendingArea(target.dataset.confirmArea);
-        return;
-      }
-
-      if (target.id === "cancelAddressArea") {
-        pendingArea = null;
-        renderAreaPicker();
-        return;
-      }
-
-      if (target.id === "editAddressArea") {
-        selectedArea = null;
-        confirmedAreaName = "";
-        pendingArea = null;
+        const picked = state.areas.find(area => area.name === pickedAreaName);
+        if (!picked) return;
+        selectedArea = { ...picked };
+        areaMenuOpen = false;
         areaQuery = "";
-        areaResults = "";
+        $("#addressMessage").textContent = "";
         renderAreaPicker();
-        $("#addressAreaSearch")?.focus();
       }
     };
-    $("#confirmAddressArea")?.addEventListener("click", event => {
-      event.preventDefault();
-      event.stopPropagation();
-      confirmPendingArea(event.currentTarget.dataset.confirmArea);
-    });
     $("#addressAreaSearch")?.addEventListener("input", event => {
       areaQuery = event.target.value;
-      areaResults = resultsHtml(areaQuery);
-      const results = $("#addressAreaResults");
-      results.innerHTML = areaResults;
-      results.classList.toggle("hidden", !areaResults);
+      $("#addressAreaResults").innerHTML = resultsHtml(areaQuery);
     });
   };
   renderAreaPicker();
