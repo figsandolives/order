@@ -14,7 +14,7 @@
 .checkout-confirm-customer{display:grid;gap:10px;border:1px solid var(--line);border-radius:18px;padding:13px 15px;background:#f2f5f1}
 .checkout-confirm-customer-head{display:flex;align-items:center;gap:10px}.checkout-confirm-customer-head small{display:block;color:var(--muted);font-size:9px;margin-bottom:2px}.checkout-confirm-customer-head b{display:block;font-size:12px}.checkout-confirm-customer-head .detail-title-icon{width:34px;height:34px;border-radius:11px}
 .checkout-confirm-customer-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 12px}
-.checkout-confirm-customer-row{display:grid;gap:3px;min-inline-size:0;padding:8px 0;border-top:1px solid #dfe6e1}.checkout-confirm-customer-row:nth-child(-n+2){border-top:0;padding-top:0}.checkout-confirm-customer-row.full{grid-column:1/-1}.checkout-confirm-customer-row small{color:var(--muted);font-size:9px}.checkout-confirm-customer-row strong{font-size:11px;line-height:1.65;overflow-wrap:anywhere}.checkout-confirm-customer-row .phone{direction:ltr;text-align:start}
+.checkout-confirm-customer-row{display:grid;gap:3px;min-inline-size:0;padding:8px 0;border-top:1px solid #dfe6e1}.checkout-confirm-customer-row:nth-child(-n+2){border-top:0;padding-top:0}.checkout-confirm-customer-row.full{grid-column:1/-1}.checkout-confirm-customer-row small{color:var(--muted);font-size:9px}.checkout-confirm-customer-row strong{font-size:11px;line-height:1.65;overflow-wrap:anywhere}.checkout-confirm-customer-row .phone{direction:ltr;unicode-bidi:isolate;text-align:right}html[dir="ltr"] .checkout-confirm-customer-row .phone,html[lang="en"] .checkout-confirm-customer-row .phone{text-align:left}
 .checkout-confirm-totals{overflow:hidden;border:1px solid #dfe6e1;border-radius:18px;background:#fff;box-shadow:0 10px 26px #153a2b0a}.checkout-confirm-total-row{display:flex;align-items:center;justify-content:space-between;gap:12px;min-inline-size:0;padding:12px 14px;border:0;border-bottom:1px solid #eef0ec;background:#fff;color:var(--ink);font:inherit;font-size:11px;text-align:start}.checkout-confirm-total-row>span{min-inline-size:0;overflow-wrap:anywhere}.checkout-confirm-total-row>strong{flex:0 0 auto;white-space:nowrap}.checkout-confirm-total-row.products-toggle{width:100%;cursor:pointer}.checkout-confirm-total-row.products-toggle:hover{background:#f8faf7}.checkout-confirm-final-total{border-bottom:0;background:#174a37;color:#fff;padding-block:15px;font-size:16px;font-weight:900}.checkout-confirm-totals .confirmation-products{border-bottom:1px solid #eef0ec}
 
 @media (max-width:760px){
@@ -25,4 +25,41 @@
   #checkoutModal .checkout-confirm-customer-row{padding-block:7px}
   #checkoutModal .checkout-confirm-total-row{padding:11px 12px}
   #checkoutModal .checkout-confirm-final-total{padding-block:13px}
+}
+
+/* Coupon: Apply stays gray until a valid code is typed; Arabic letters/digits are rejected with a hint. */
+.coupon-field button:disabled{background:#c9cfca;color:#f4f6f3;opacity:1;cursor:not-allowed}
+.coupon-field button.checking:disabled{background:#194433;color:#fff;opacity:.6;cursor:wait}
+.coupon-hint{color:#b3261e;font-size:10px;font-weight:700;margin:5px 2px 0;line-height:1.6}
+.checkout-confirm-customer-row:nth-child(3),.checkout-confirm-customer-row:nth-child(4){border-top:1px solid #dfe6e1;padding-top:8px}
+
+/* Final step fits the whole screen on phones: no scrolling needed. */
+@media (max-width:760px){
+  #checkoutModal .checkout-panel:has(.checkout-confirmation){max-height:100dvh;padding:clamp(10px,1.8dvh,18px) 14px 0}
+  #checkoutModal .checkout-panel:has(.checkout-confirmation) .checkout-head h2{font-size:clamp(18px,3dvh,26px);margin:0}
+  #checkoutModal .checkout-panel:has(.checkout-confirmation) .checkout-head .kicker{font-size:10px}
+  #checkoutModal .checkout-panel:has(.checkout-confirmation) .checkout-head>button{width:36px;height:36px;font-size:21px}
+  #checkoutModal .checkout-panel:has(.checkout-confirmation) .steps{margin:clamp(6px,1.4dvh,16px) 0}
+  #checkoutModal .checkout-panel:has(.checkout-confirmation) .steps i{width:clamp(30px,4.4dvh,42px);height:clamp(30px,4.4dvh,42px)}
+  #checkoutModal .checkout-panel:has(.checkout-confirmation) .steps:before{top:clamp(15px,2.2dvh,20px)}
+  #checkoutModal .checkout-panel:has(.checkout-confirmation) .steps span{font-size:9px}
+  #checkoutModal .checkout-confirmation{gap:clamp(6px,1.2dvh,11px);padding-bottom:0}
+  #checkoutModal .checkout-confirm-customer{padding:clamp(7px,1.2dvh,11px) 12px;gap:clamp(4px,.8dvh,8px)}
+  #checkoutModal .checkout-confirm-customer-head .detail-title-icon{width:28px;height:28px}
+  #checkoutModal .checkout-confirm-customer-row{padding-block:clamp(4px,.8dvh,7px)}
+  #checkoutModal .checkout-confirm-customer-row:nth-child(-n+2){padding-top:0}
+  #checkoutModal .checkout-confirm-total-row{padding:clamp(7px,1.2dvh,11px) 12px}
+  #checkoutModal .checkout-confirm-final-total{padding-block:clamp(9px,1.5dvh,13px);font-size:15px}
+  #checkoutModal .checkout-confirmation .confirmation-products{max-height:28dvh;overflow:auto}
+  #checkoutModal .checkout-confirmation .checkout-coupon{padding-top:clamp(4px,.8dvh,8px)}
+  #checkoutModal .checkout-confirmation .confirmation-sticky-actions{bottom:0;padding:clamp(6px,1.2dvh,12px) 0 calc(clamp(8px,1.4dvh,12px) + env(safe-area-inset-bottom))}
+  #checkoutModal .checkout-confirmation .confirmation-sticky-actions .actions{margin-top:clamp(4px,.8dvh,10px)}
+  #checkoutModal .checkout-confirmation .confirmation-sticky-actions .primary,#checkoutModal .checkout-confirmation .confirmation-sticky-actions .secondary{min-height:clamp(42px,6dvh,50px)}
+}
+@media (max-width:760px) and (max-height:780px){
+  #checkoutModal .checkout-panel:has(.checkout-confirmation) .checkout-head .kicker{display:none}
+  #checkoutModal .checkout-confirm-customer-head{display:none}
+  #checkoutModal .checkout-confirmation .payment-choice{min-height:46px;padding-block:5px}
+  #checkoutModal .checkout-confirmation .confirmation-sticky-actions{padding-top:4px}
+  #checkoutModal .checkout-confirm-customer-row strong{line-height:1.45}
 }

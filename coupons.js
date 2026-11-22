@@ -29,18 +29,38 @@ function couponDialog(title,lines) {
 function couponMarkup() {
   const quote=currentCheckoutCoupon();
   return `<section class="checkout-coupon"><div class="coupon-label"><label for="checkoutCouponCode">${couponText('كوبون الخصم','Discount coupon')}</label><button type="button" id="couponTerms">${couponText('الشروط والأحكام','Terms & conditions')}</button></div>
-    <form class="coupon-field" id="couponForm"><input id="checkoutCouponCode" type="text" maxlength="30" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="${couponText('أدخل رمز الكوبون','Enter coupon code')}" value="${escapeHtml(quote?.coupon.code||'')}" ${quote?'readonly':''}><button type="submit" id="applyCoupon">${quote?couponText('إزالة','Remove'):couponText('تطبيق','Apply')}</button></form>
+    <form class="coupon-field" id="couponForm"><input id="checkoutCouponCode" type="text" maxlength="30" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="${couponText('أدخل رمز الكوبون','Enter coupon code')}" value="${escapeHtml(quote?.coupon.code||'')}" ${quote?'readonly':''}><button type="submit" id="applyCoupon" ${quote?'':'disabled'}>${quote?couponText('إزالة','Remove'):couponText('تطبيق','Apply')}</button></form>
+    <p class="coupon-hint hidden" id="couponHint" role="alert"></p>
     ${quote?`<p class="coupon-applied" role="status">${couponText('تم تطبيق','Applied')} <bdi>${escapeHtml(quote.coupon.code)}</bdi> · ${couponText('وفّرت','You saved')} ${money(quote.discount)}</p>`:''}</section>`;
 }
+// رمز الكوبون بالأحرف والأرقام الإنجليزية فقط؛ أي حرف أو رقم عربي يُرفض مع رسالة توضيح
+const COUPON_ALLOWED=/[^A-Za-z0-9_-]/g;
+function couponInputGuard() {
+  const input=document.getElementById('checkoutCouponCode'),button=document.getElementById('applyCoupon'),hint=document.getElementById('couponHint');
+  if(!input||!button||input.readOnly)return;
+  const raw=input.value;
+  const clean=raw.replace(COUPON_ALLOWED,'').toUpperCase();
+  if(clean!==raw){
+    const rejectedArabic=/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(raw);
+    input.value=clean;
+    if(clean!==raw.toUpperCase()&&hint){
+      hint.textContent=rejectedArabic?couponText('لا يقبل حروفاً أو أرقاماً عربية — اكتب الرمز بالإنجليزي','Coupon codes use English letters and numbers only'):couponText('اكتب رمز الكوبون بأحرف وأرقام إنجليزية فقط','Coupon codes use English letters and numbers only');
+      hint.classList.remove('hidden');
+    }
+  } else if(hint&&clean)hint.classList.add('hidden');
+  button.disabled=!clean;
+}
 function bindCheckoutCoupon() {
+  const couponInput=document.getElementById('checkoutCouponCode');
+  if(couponInput){couponInput.setAttribute('inputmode','latin');couponInput.setAttribute('lang','en');couponInput.oninput=couponInputGuard;couponInputGuard();}
   document.getElementById('couponForm').onsubmit=async event=>{
     event.preventDefault();
     if(currentCheckoutCoupon()){clearCheckoutCoupon();state.paymentRequestId='';renderConfirmation();return;}
     const code=document.getElementById('checkoutCouponCode').value.trim();
-    if(!code){document.getElementById('checkoutCouponCode').focus();return;}
+    if(!code||/[^A-Za-z0-9_-]/.test(code)){document.getElementById('checkoutCouponCode').focus();return;}
     const revision=++couponRequestRevision;
     const signature=couponCartSignature();
-    const button=document.getElementById('applyCoupon');button.disabled=true;button.textContent=couponText('جارٍ التحقق…','Checking…');
+    const button=document.getElementById('applyCoupon');button.disabled=true;button.classList.add('checking');button.textContent=couponText('جارٍ التحقق…','Checking…');
     try {
       const body={...paymentPayload(state.paymentMethod||'knet'),idempotencyKey:requestId(),couponCode:code};
       const quote=await orderingApi('/coupons/quote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)},true);
@@ -48,7 +68,7 @@ function bindCheckoutCoupon() {
       if(!quote.ok||!quote.coupon||!Number.isFinite(quote.discount)||quote.discount<=0)throw Error(couponText('تعذر التحقق من الكوبون','Could not validate coupon'));
       checkoutCoupon={...quote,signature};state.paymentRequestId='';renderConfirmation();
     }catch(error){if(revision===couponRequestRevision)couponDialog(couponText('كوبون الخصم','Discount coupon'),[error.message]);}
-    finally {if(button.isConnected){button.disabled=false;button.textContent=couponText('تطبيق','Apply');}}
+    finally {if(button.isConnected){button.classList.remove('checking');button.textContent=couponText('تطبيق','Apply');couponInputGuard();}}
   };
   document.getElementById('couponTerms').onclick=async()=>{
     const quote=currentCheckoutCoupon();

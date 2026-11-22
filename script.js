@@ -4147,7 +4147,7 @@ function renderConfirmation() {
         <div class="checkout-confirm-customer-grid">
           <div class="checkout-confirm-customer-row"><small>${tr("customerName")}</small><strong>${escapeHtml(state.user.name)}</strong></div>
           <div class="checkout-confirm-customer-row"><small>${tr("phone")}</small><strong class="phone">${escapeHtml(state.user.phone)}</strong></div>
-          ${tableReservationActive() ? `<div class="checkout-confirm-customer-row full"><small>حجز طاولة</small><strong>${escapeHtml(`${state.tableReservation.people} أشخاص — ${state.tableReservation.date} ${state.tableReservation.hour}:${state.tableReservation.minute} ${state.tableReservation.period === "am" ? "صباحاً" : "مساءً"}`)}</strong></div>` : `<div class="checkout-confirm-customer-row full"><small>${state.mode === "delivery" ? tr("deliveryAddress") : tr("pickupBranch")}</small><strong>${escapeHtml(deliverySummary())}</strong></div><div class="checkout-confirm-customer-row full"><small>${state.mode === "pickup" ? tr("pickupTime") : tr("deliveryTime")}</small><strong class="delivery-time-lines">${deliveryTimeSummaryMarkup()}</strong></div>`}
+          ${tableReservationActive() ? `<div class="checkout-confirm-customer-row full"><small>حجز طاولة</small><strong>${escapeHtml(`${state.tableReservation.people} أشخاص — ${state.tableReservation.date} ${state.tableReservation.hour}:${state.tableReservation.minute} ${state.tableReservation.period === "am" ? "صباحاً" : "مساءً"}`)}</strong></div>` : `<div class="checkout-confirm-customer-row"><small>${state.mode === "delivery" ? tr("deliveryAddress") : tr("pickupBranch")}</small><strong>${escapeHtml(deliverySummary())}</strong></div><div class="checkout-confirm-customer-row"><small>${state.mode === "pickup" ? tr("pickupTime") : tr("deliveryTime")}</small><strong class="delivery-time-lines">${deliveryTimeSummaryMarkup()}</strong></div>`}
         </div>
       </section>
       <section class="checkout-confirm-totals" aria-label="${state.lang === "ar" ? "ملخص الطلب" : "Order summary"}">
@@ -4240,13 +4240,22 @@ function pendingSnapshot(payment) {
   };
 }
 
+// يرجّع منطقة التوصيل من الاسم أو من العنوان المحفوظ، حتى لا تضيع بعد الرجوع من صفحة الدفع
+function resolveCheckoutArea(areaName) {
+  const savedAddress = (state.user?.addresses || []).find(address => address.id === state.addressId);
+  const name = areaName || savedAddress?.areaName || "";
+  if (!name) return null;
+  return state.areas.find(area => (area.name || area.nameAr) === name || area.nameAr === name)
+    || { name, price: Number(savedAddress?.areaName === name ? savedAddress.price : 0) || 0 };
+}
+
 function restorePending(pending) {
   const saved = pending.checkout || {};
   state.cart = saved.cart || state.cart;
   state.mode = saved.mode || state.mode;
-  state.area = state.areas.find(area => area.name === saved.areaName) || state.area;
   state.branch = saved.branch || state.branch;
   state.addressId = saved.addressId || state.addressId;
+  state.area = resolveCheckoutArea(saved.areaName) || state.area;
   state.address = saved.address || state.address;
   state.name = saved.name || state.name;
   state.phone = saved.phone || state.phone;
@@ -4273,6 +4282,7 @@ async function finishOrder() {
   if (cartItems().some(cartItemFillingIssue)) return paymentError(state.lang === "ar" ? "عدد الحشوات لا يطابق الحجم المختار. عدّل الصنف قبل متابعة الدفع." : "The fillings count does not match the selected size. Please correct the item before payment.");
   if (!orderingConfig.paymentWebhookUrl || !orderingConfig.paymentStatusWebhookUrl) return paymentError(tr("paymentUnavailable"));
   if (!state.paymentMethod) return toast(tr("choosePaymentMethod"));
+  if (state.mode === "delivery" && !state.area?.name) state.area = resolveCheckoutArea("");
   clearProductRoute();
   if (state.detailProductId) closeProductPage(false);
   state.paymentRequestId = state.paymentRequestId || requestId();
@@ -4979,7 +4989,7 @@ function applyCatalog(catalog, cache = true, fromServer = false) {
   state.areas = Array.isArray(catalog?.deliveryAreas) ? catalog.deliveryAreas : [];
   if (state.area) {
     const currentAreaName = state.area.name || state.area.nameAr;
-    state.area = state.areas.find(area => (area.name || area.nameAr) === currentAreaName) || null;
+    state.area = state.areas.find(area => (area.name || area.nameAr) === currentAreaName) || resolveCheckoutArea(currentAreaName);
   }
   applyStoreAppearance(catalog.appearance);
   renderProductFilters();
