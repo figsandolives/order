@@ -401,7 +401,7 @@ body.detail-open .category-menu{display:none}
 .pay-share-again svg circle{fill:currentColor;stroke:none}
 .primary.pay-share-cancel{background:#fff;color:#b32924;border:1.5px solid #e7b4b0}
 .floating-cart.share-waiting .cart-summary{display:none}
-.cart-share-waiting{border:0;background:transparent;color:#fff;display:flex;align-items:center;gap:10px;font-weight:800;font-size:13px;text-align:start;padding:0 6px;min-width:0}
+.cart-share-waiting{color:#fff;display:flex;align-items:center;gap:10px;font-weight:800;font-size:13px;text-align:start;padding:0 6px;min-width:0;cursor:default;user-select:none}
 .cart-share-waiting .pay-share-spinner{width:24px;height:24px;border-color:#ffffff40;border-top-color:var(--gold)}
 .floating-cart.share-waiting .checkout-btn{background:#fff;color:#b32924}
 @media(max-width:760px){.cart-share-waiting{font-size:11.5px;gap:7px}.cart-share-waiting .pay-share-spinner{width:20px;height:20px}}

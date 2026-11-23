@@ -4183,15 +4183,17 @@ function updateCartShareBar() {
   const active = !!currentPayShare();
   bar.classList.toggle("share-waiting", active);
   let box = $("#cartShareWaiting");
+  // بعد الإلغاء نشيل العنصر بالكامل حتى يرجع الشريط كما كان تماماً.
+  if (!active) box?.remove();
   if (active && !box) {
-    box = document.createElement("button");
-    box.type = "button";
+    // نص حالة فقط، لا يفتح السلة عند الضغط.
+    box = document.createElement("div");
     box.id = "cartShareWaiting";
     box.className = "cart-share-waiting";
-    box.onclick = openCheckout;
+    box.setAttribute("role", "status");
     bar.insertBefore(box, $("#checkoutBtn"));
   }
-  if (box) box.innerHTML = active ? `<span class="pay-share-spinner" aria-hidden="true"></span><span>${state.lang === "en" ? "Shared.. waiting for payment" : "تم المشاركة.. بانتظار الدفع"}</span>` : "";
+  if (active) box.innerHTML = `<span class="pay-share-spinner" aria-hidden="true"></span><span>${state.lang === "en" ? "Shared.. waiting for payment" : "تم المشاركة.. بانتظار الدفع"}</span>`;
   if (active) {
     $("#checkoutBtn").textContent = state.lang === "en" ? "Cancel sharing" : "إلغاء المشاركة";
     if (!payShareWatching) watchPayShare(readPayShare());
