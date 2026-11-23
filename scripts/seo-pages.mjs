@@ -14,7 +14,7 @@ const API = arg("api", "https://162-35-27-249.sslip.io/platform-api/catalog");
 const ROOT = path.resolve(arg("root", "."));
 const MANIFEST = path.join(ROOT, "seo-pages.json");
 // أسماء مجلدات موجودة في الموقع أصلاً، ما نكتب فوقها.
-const RESERVED = new Set(["en", "qr", "rest", "invoice-share", "scripts", "assets", "edara", "local-data", ".github", "404.html", "index.html"]);
+const RESERVED = new Set(["en", "qr", "rest", "invoice-share", "cart", "scripts", "assets", "edara", "local-data", ".github", "404.html", "index.html"]);
 const BRAND_AR = "مخبز التين والزيتون";
 const BRAND_EN = "Figs & Olives Bakery";
 
