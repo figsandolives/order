@@ -4,8 +4,10 @@
   const $ = selector => document.querySelector(selector);
   const apiBase = String(window.ORDERING_CONFIG?.apiBaseUrl || "").replace(/\/+$/, "");
   const params = new URLSearchParams(location.search);
-  const shareId = (location.hash.replace(/^#/, "") || params.get("s") || "").trim();
-  const returned = params.get("payment");
+  // الرجوع من البوابة: ?payment=success-<id> أو ?payment=failed-<id> (معامل واحد فقط).
+  const returnMatch = String(params.get("payment") || "").match(/^(success|failed)(?:-([A-Za-z0-9]{12}))?$/);
+  const shareId = (location.hash.replace(/^#/, "") || returnMatch?.[2] || params.get("s") || "").trim();
+  const returned = returnMatch?.[1] || "";
   const siteUrl = `${location.origin}/`;
   let method = "";
   let pollTimer = 0;
@@ -134,7 +136,9 @@
         const data = await api(`/pay-share/${encodeURIComponent(shareId)}`);
         if (data.status === "paid") return showPaid(data.orderId);
         if (data.status !== "active") return showStatus(data);
-      } catch {}
+      } catch (error) {
+        if (error.status === 404) return load();
+      }
       await new Promise(resolve => setTimeout(resolve, 3000));
     }
     return load("لم يتأكد الدفع بعد. إن خُصم المبلغ سيتأكد الطلب تلقائياً خلال دقائق.");

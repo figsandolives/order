@@ -2910,6 +2910,7 @@ function renderCartBar() {
   $("#headerCount").textContent = count;
   $("#cartTotal").innerHTML = state.lang === "ar" ? `<span class="cart-amount">${Number(subtotal()).toFixed(3)}</span><span class="cart-currency">د.ك</span>` : money(subtotal());
   $("#checkoutBtn").textContent = tableReservationActive() ? "إتمام الحجز ←" : tr("checkout");
+  updateCartShareBar();
 }
 
 function renderProductDetail(id) {
@@ -4161,6 +4162,7 @@ const PAY_SHARE_STORAGE = "figsPayShare";
 const payShareIcon = `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>`;
 let payShareWatchVersion = 0;
 let payShareLoadChecked = false;
+let payShareWatching = false;
 
 function payShareCartPayload() {
   const { idempotencyKey, attribution, paymentMethod, ...cart } = paymentPayload("knet");
@@ -4168,7 +4170,40 @@ function payShareCartPayload() {
 }
 
 function payShareSignature() {
-  return JSON.stringify(payShareCartPayload().cart);
+  try {
+    return JSON.stringify(cartItems().map(({ product: item, quantity, note, options }) => ({ id: String(item.id), quantity, note, options })));
+  } catch { return ""; }
+}
+
+// شريط السلة السفلي: بدل الإجمالي وزر إتمام الدفع يظهر «بانتظار الدفع» وزر «إلغاء المشاركة».
+function updateCartShareBar() {
+  const bar = $("#floatingCart");
+  if (!bar) return;
+  const active = !!currentPayShare();
+  bar.classList.toggle("share-waiting", active);
+  let box = $("#cartShareWaiting");
+  if (active && !box) {
+    box = document.createElement("button");
+    box.type = "button";
+    box.id = "cartShareWaiting";
+    box.className = "cart-share-waiting";
+    box.onclick = openCheckout;
+    bar.insertBefore(box, $("#checkoutBtn"));
+  }
+  if (box) box.innerHTML = active ? `<span class="pay-share-spinner" aria-hidden="true"></span><span>${state.lang === "en" ? "Shared.. waiting for payment" : "تم المشاركة.. بانتظار الدفع"}</span>` : "";
+  if (active) {
+    $("#checkoutBtn").textContent = state.lang === "en" ? "Cancel sharing" : "إلغاء المشاركة";
+    if (!payShareWatching) watchPayShare(readPayShare());
+  }
+}
+
+async function onCheckoutButton() {
+  const share = $("#floatingCart").classList.contains("share-waiting") ? readPayShare() : null;
+  if (!share) return openCheckout();
+  $("#checkoutBtn").disabled = true;
+  await cancelPayShare(share.id);
+  $("#checkoutBtn").disabled = false;
+  renderCartBar();
 }
 
 function readPayShare() {
@@ -4181,13 +4216,17 @@ function readPayShare() {
 
 function clearPayShare() {
   payShareWatchVersion++;
+  payShareWatching = false;
   try { localStorage.removeItem(PAY_SHARE_STORAGE); } catch {}
+  if (typeof renderCartBar === "function" && $("#floatingCart")) renderCartBar();
 }
 
 // رابط فعّال لنفس السلة. إن تغيّرت السلة بعد المشاركة نلغي الرابط القديم.
 function currentPayShare() {
   const saved = readPayShare();
   if (!saved) return null;
+  // السلة لم تُحمّل بعد (أو فارغة): لا نحكم على الرابط ولا نلغيه.
+  if (!cartItems().length) return null;
   if (saved.sig !== payShareSignature()) {
     cancelPayShare(saved.id, true);
     return null;
@@ -4246,6 +4285,7 @@ async function startPayShare(button) {
     }, true);
     localStorage.setItem(PAY_SHARE_STORAGE, JSON.stringify({ id: data.id, phone: normalizePhone(state.user.phone), sig: payShareSignature(), createdAt: Date.now() }));
     renderConfirmation();
+    renderCartBar();
     await sendPayShareLink(data.id);
   } catch (error) {
     if (button) { button.disabled = false; button.classList.remove("busy"); }
@@ -4284,16 +4324,24 @@ async function cancelPayShare(id, quiet = false) {
   }
 }
 
+// يراقب الرابط ما دام فعّالاً، سواء كانت صفحة الدفع مفتوحة أو الشريط السفلي فقط.
 async function watchPayShare(share) {
+  if (!share) return;
   const version = ++payShareWatchVersion;
+  payShareWatching = true;
   while (version === payShareWatchVersion) {
     await delay(4000);
-    if (version !== payShareWatchVersion || !$(".pay-share-waiting")) return;
+    if (version !== payShareWatchVersion) return;
+    if (readPayShare()?.id !== share.id) { payShareWatching = false; return; }
     try {
       const data = await orderingApi(`/pay-share/${encodeURIComponent(share.id)}/owner`, {}, true);
       if (version !== payShareWatchVersion) return;
       if (data.status === "paid") return payShareCompleted(share.id, data);
-      if (data.status !== "active") { clearPayShare(); return renderConfirmation(); }
+      if (data.status !== "active") {
+        clearPayShare();
+        if ($(".pay-share-waiting")) renderConfirmation();
+        return;
+      }
     } catch {}
   }
 }
@@ -5034,7 +5082,7 @@ if (closeProductOptionsButton) closeProductOptionsButton.onclick = closeProductO
 if (confirmProductOptionsButton) confirmProductOptionsButton.onclick = confirmProductOptions;
 if (productOptionsModal) productOptionsModal.onclick = event => { if (event.target === productOptionsModal) closeProductOptions(); };
 window.addEventListener("resize", () => { productOptionsPopover?.place?.(); syncHeadingNavigationOffset(); });
-$("#checkoutBtn").onclick = openCheckout;
+$("#checkoutBtn").onclick = onCheckoutButton;
 $("#cartSummary").onclick = openCheckout;
 $("#headerCart").onclick = openCheckout;
 $("#closeCheckout").onclick = () => {
