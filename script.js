@@ -4151,6 +4151,7 @@ function renderConfirmation() {
   };
   $("#back2").onclick = () => { state.step = 3; renderCheckout(); };
   if (activeShare) return bindPayShareWaiting(activeShare);
+  if (typeof cartOfferAfterConfirmation === "function") cartOfferAfterConfirmation();
   $$('[data-payment-method]').forEach(button => button.onclick = () => { state.paymentMethod = button.dataset.paymentMethod; state.paymentRequestId = ""; renderConfirmation(); });
   $("#payShareStart").onclick = event => { const button = event.currentTarget; return typeof couponGateBeforePay === "function" ? couponGateBeforePay(() => startPayShare(button)) : startPayShare(button); };
   $("#finish").onclick = () => typeof couponGateBeforePay === "function" ? couponGateBeforePay(beginPayment) : beginPayment();
@@ -5338,6 +5339,7 @@ async function initializeStoreData() {
   if (!hasCatalog) hasCatalog = applyCatalog(await loadLocalCatalog());
   if (hasCatalog) resumePendingPayment();
   if (hasCatalog) checkPayShareOnLoad();
+  if (hasCatalog && typeof openCartOfferFromLink === "function") openCartOfferFromLink();
   if (state.user?.phone) {
     rememberSession(state.user.phone);
     requestPersistentStorage();

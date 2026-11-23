@@ -1,0 +1,20 @@
+/* نافذة «تم تطبيق خصم السلة»: تطلع من أسفل الشاشة إلى منتصفها مع عداد أحمر. */
+.cart-offer-overlay{position:fixed;inset:0;z-index:180;background:#0d211900;display:flex;align-items:flex-end;justify-content:center;transition:background .3s ease}
+.cart-offer-overlay.open{background:#0d21198c}
+.cart-offer-sheet{width:min(560px,100%);min-height:min(50dvh,460px);background:var(--paper);border-radius:28px 28px 0 0;padding:14px 22px calc(22px + env(safe-area-inset-bottom));display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;box-shadow:0 -20px 60px #071c1433;transform:translateY(100%);transition:transform .45s cubic-bezier(.2,.9,.25,1.05)}
+.cart-offer-overlay.open .cart-offer-sheet{transform:translateY(0)}
+.cart-offer-handle{width:44px;height:5px;border-radius:99px;background:#d8ddd6;margin-bottom:10px}
+.cart-offer-badge{width:78px;height:78px;border-radius:50%;display:grid;place-items:center;font-size:40px;background:radial-gradient(circle at 35% 30%,#fff6dc,#f3dc9c);box-shadow:0 0 0 10px #dca83e1f;animation:cartOfferPop .6s .2s cubic-bezier(.2,1.6,.4,1) both}
+.cart-offer-sheet h2{margin:14px 0 0;font-size:27px;color:var(--dark)}
+.cart-offer-sheet p{margin:0;font-size:17px;font-weight:800;color:var(--green);line-height:1.8}
+.cart-offer-actions{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:auto;padding-top:20px}
+.cart-offer-actions .primary{background:var(--gold);color:var(--ink)}
+.cart-offer-actions .secondary,.cart-offer-actions .primary{min-height:54px;font-size:14px;line-height:1.4}
+.cart-offer-timer{width:100%;margin-top:12px;display:flex;align-items:center;justify-content:center;gap:10px;padding:11px 14px;border-radius:15px;background:#fff0ee;border:1px solid #f1c9c5;color:#c0262d;font-weight:800;font-size:13px}
+.cart-offer-timer strong{font-size:21px;font-variant-numeric:tabular-nums;letter-spacing:.06em;font-family:Arial,sans-serif}
+.cart-offer-timer.expired,.cart-offer-inline.expired{opacity:.55}
+.cart-offer-inline{margin:8px 0 0;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;border-radius:12px;background:#fff0ee;color:#c0262d;font-size:12px;font-weight:800}
+.cart-offer-inline strong{font-size:15px;font-variant-numeric:tabular-nums;font-family:Arial,sans-serif;letter-spacing:.05em}
+@keyframes cartOfferPop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+@media(max-width:420px){.cart-offer-actions .secondary,.cart-offer-actions .primary{font-size:12.5px;padding:0 8px}}
+@media(prefers-reduced-motion:reduce){.cart-offer-sheet,.cart-offer-overlay{transition:none}.cart-offer-badge{animation:none}}
