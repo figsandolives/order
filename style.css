@@ -380,3 +380,23 @@ body.detail-open .category-menu{display:none}
   .checkout-btn{padding:9px 8px;border-radius:11px;font-size:13px}
   .whatsapp-widget{bottom:72px!important}
 }
+
+.payment-method-choices.single{grid-template-columns:1fr}
+.payment-choice.payment-share{grid-column:1/-1;justify-content:flex-start;min-height:54px;padding-inline:12px;gap:10px;text-align:start}
+.share-mark{width:36px;height:36px;border-radius:50%;background:#eaf3ec;color:var(--green,#2f6b3f);display:grid;place-items:center;flex:0 0 auto}
+.share-mark svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.share-mark circle{fill:currentColor;stroke:none}
+.share-mark.small{width:30px;height:30px;background:#ffffff66;color:var(--ink)}
+.share-text{display:flex;flex-direction:column;gap:2px;min-width:0}
+.payment-share .share-text strong{font-size:13px}
+.payment-share .share-text small{font-size:11px;color:var(--muted);font-weight:500;line-height:1.4}
+@media(max-width:760px){.payment-share .share-text strong{font-size:12px}.payment-share .share-text small{font-size:10.5px}}
+.payment-share.busy{opacity:.6;pointer-events:none}
+.pay-share-waiting{display:flex;align-items:center;gap:12px;border:1px dashed #2d6a4f66;background:#f1f7f3;border-radius:15px;padding:12px 14px;margin-bottom:10px}
+.pay-share-spinner{width:28px;height:28px;border:3px solid #d5e3da;border-top-color:var(--green);border-radius:50%;animation:spin .9s linear infinite;flex:0 0 auto}
+.pay-share-waiting-text{display:grid;gap:5px;min-width:0}
+.pay-share-waiting-text strong{font-size:13px;color:var(--dark)}
+.pay-share-again{border:0;background:none;color:var(--green);font-size:11px;font-weight:800;padding:0;display:inline-flex;align-items:center;gap:5px;width:max-content}
+.pay-share-again svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+.pay-share-again svg circle{fill:currentColor;stroke:none}
+.primary.pay-share-cancel{background:#fff;color:#b32924;border:1.5px solid #e7b4b0}

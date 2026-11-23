@@ -1,0 +1,18 @@
+/* صفحة «رابط دفع لطلب»: نفس صفحة التأكيد في المتجر لكن كصفحة مستقلة بلا رجوع. */
+body.share-pay-body{min-height:100dvh;background:var(--paper);padding:0!important;margin:0}
+.modal.share-page{position:static;inset:auto;min-height:100dvh;background:var(--paper);backdrop-filter:none;padding:24px 16px;place-items:start center}
+.share-page .checkout-panel{max-height:none;overflow:visible;box-shadow:0 20px 60px #071c1414}
+.share-logo{width:48px;height:48px;object-fit:contain}
+#checkoutModal.share-page .confirmation-sticky-actions .actions{grid-template-columns:1fr}
+.share-notice{display:flex;align-items:center;gap:8px;border-radius:13px;padding:10px 12px;font-size:12px;font-weight:800;background:#fff0ee;color:#b32924;border:1px solid #f1c9c5}
+.share-state{min-height:430px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px}
+.share-state h3{font-size:24px;margin:22px 0 4px}
+.share-state p{margin:0;color:var(--muted);line-height:1.9;max-width:420px}
+.share-state .order-no{margin:4px 0 22px}
+.share-state .primary{width:min(320px,100%);margin-top:14px}
+.share-state .error-mark{width:84px;height:84px;border-radius:50%;background:#fff0ee;color:#b32924;display:grid;place-items:center;font-size:48px;font-weight:900;box-shadow:0 0 0 12px #fff7f5}
+.share-state.cancelled h3{color:#b32924}
+@media(max-width:760px){
+  .modal.share-page{padding:0}
+  .share-page .checkout-panel{border-radius:0;min-height:100dvh;padding:18px 14px calc(18px + env(safe-area-inset-bottom));box-shadow:none}
+}

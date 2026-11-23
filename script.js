@@ -129,6 +129,7 @@ const translations = {
     paid: "مدفوع", customerName: "الاسم", choosePaymentMethod: "اختر طريقة الدفع",
     deliveryAddress: "عنوان التوصيل", pickupBranch: "فرع الاستلام", payNow: "ادفع الآن",
     showProducts: "عرض تفاصيل المنتجات", hideProducts: "إخفاء تفاصيل المنتجات",
+    sharePay: "مشاركة", sharePayHint: "شخص آخر سيدفع؟.. ارسل له مشاركة من هنا",
     knet: "كي نت", knetHint: "الانتقال إلى صفحة الدفع الآمنة من KNET", applePay: "Apple Pay",
     loginServiceUnavailable: "خدمة تسجيل الدخول غير مربوطة حالياً", sendFailed: "تعذر إرسال رمز الدخول",
     verifyFailed: "تعذر التحقق من الرمز", accountSyncFailed: "تعذر فتح بيانات حسابك المحفوظة. حاول تسجيل الدخول مرة أخرى.",
@@ -194,6 +195,7 @@ const translations = {
     paid: "Paid", customerName: "Name", choosePaymentMethod: "Choose a payment method", deliveryAddress: "Delivery address",
     pickupBranch: "Pickup branch", payNow: "Pay now", showProducts: "Show product details",
     hideProducts: "Hide product details", loginServiceUnavailable: "Login service is not connected",
+    sharePay: "Share", sharePayHint: "Someone else paying? Send them a link from here",
     knet: "KNET", knetHint: "Continue to the secure KNET payment page", applePay: "Apple Pay",
     sendFailed: "Could not send login code", verifyFailed: "Could not verify the code",
     accountSyncFailed: "Could not open your saved account data. Please log in again.", loggedOut: "Logged out",
@@ -4103,13 +4105,18 @@ function deliveryTimeSummaryMarkup(source = state) {
 function renderConfirmation() {
   const appleSafari = isIphoneSafari();
   if (!appleSafari) state.paymentMethod = "knet";
+  else if (state.paymentMethod !== "knet") state.paymentMethod = "applepay";
+  const activeShare = currentPayShare();
   const paymentMark = method => method === "applepay"
     ? `<span class="apple-pay-mark" aria-label="Apple Pay"> Pay</span>`
     : `<span class="knet-mark"><img src="knet-logo.png" alt="KNET"></span>`;
-  const paymentChoices = appleSafari ? `<div class="payment-method-choices" role="radiogroup" aria-label="${tr("choosePaymentMethod")}">
-    <button type="button" class="payment-choice ${state.paymentMethod === "applepay" ? "selected" : ""}" data-payment-method="applepay" role="radio" aria-checked="${state.paymentMethod === "applepay"}"><span class="payment-radio"></span>${paymentMark("applepay")}<strong>${tr("applePay")}</strong></button>
-    <button type="button" class="payment-choice ${state.paymentMethod === "knet" ? "selected" : ""}" data-payment-method="knet" role="radio" aria-checked="${state.paymentMethod === "knet"}"><span class="payment-radio"></span>${paymentMark("knet")}<strong>${tr("knet")}</strong></button>
-  </div>` : "";
+  const shareIcon = payShareIcon;
+  const shareChoice = `<button type="button" class="payment-choice payment-share" id="payShareStart"><span class="share-mark">${shareIcon}</span><span class="share-text"><strong>${tr("sharePay")}</strong><small>${tr("sharePayHint")}</small></span></button>`;
+  const paymentChoices = `<div class="payment-method-choices ${appleSafari ? "" : "single"}" role="radiogroup" aria-label="${tr("choosePaymentMethod")}">
+    ${appleSafari ? `<button type="button" class="payment-choice ${state.paymentMethod === "applepay" ? "selected" : ""}" data-payment-method="applepay" role="radio" aria-checked="${state.paymentMethod === "applepay"}"><span class="payment-radio"></span>${paymentMark("applepay")}<strong>${tr("applePay")}</strong></button>` : ""}
+    ${appleSafari ? `<button type="button" class="payment-choice ${state.paymentMethod === "knet" ? "selected" : ""}" data-payment-method="knet" role="radio" aria-checked="${state.paymentMethod === "knet"}"><span class="payment-radio"></span>${paymentMark("knet")}<strong>${tr("knet")}</strong></button>` : ""}
+    ${shareChoice}
+  </div>`;
   $("#checkoutTitle").textContent = tr("confirmPay");
   const applied = typeof currentCheckoutCoupon === "function" ? currentCheckoutCoupon() : null;
   $("#checkoutBody").innerHTML = `
@@ -4130,10 +4137,10 @@ function renderConfirmation() {
         ${state.mode==='delivery'&&!tableReservationActive()?`<div class="checkout-confirm-total-row"><span>${state.lang==='ar'?'رسوم التوصيل':'Delivery fee'}</span><strong>${money(deliveryFee())}</strong></div>`:''}
         <div class="checkout-confirm-total-row checkout-confirm-final-total"><span>${state.lang==='ar'?'الإجمالي النهائي':'Final total'}</span><strong>${money(total())}</strong></div>
       </section>
-      ${typeof couponMarkup === "function" ? couponMarkup() : ""}
-      <div class="confirmation-sticky-actions">${paymentChoices}<div class="actions"><button class="secondary" id="back2">${tr("back")}</button><button class="primary pay-now" id="finish" aria-label="${tr("payNow")}">${state.paymentMethod ? paymentMark(state.paymentMethod) : ""}<span>${tr("payNow")}</span></button></div></div>
+      ${!activeShare && typeof couponMarkup === "function" ? couponMarkup() : ""}
+      <div class="confirmation-sticky-actions">${activeShare ? payShareWaitingMarkup() : `${paymentChoices}<div class="actions"><button class="secondary" id="back2">${tr("back")}</button><button class="primary pay-now" id="finish" aria-label="${tr("payNow")}">${state.paymentMethod ? paymentMark(state.paymentMethod) : ""}<span>${tr("payNow")}</span></button></div>`}</div>
     </section>`;
-  if (typeof bindCheckoutCoupon === "function") bindCheckoutCoupon();
+  if (!activeShare && typeof bindCheckoutCoupon === "function") bindCheckoutCoupon();
   $("#productsToggle").onclick = () => {
     const details = $("#confirmationProducts");
     const open = details.classList.toggle("hidden") === false;
@@ -4142,8 +4149,186 @@ function renderConfirmation() {
     $("#productsToggle").setAttribute("aria-label", open ? tr("hideProducts") : tr("showProducts"));
   };
   $("#back2").onclick = () => { state.step = 3; renderCheckout(); };
+  if (activeShare) return bindPayShareWaiting(activeShare);
   $$('[data-payment-method]').forEach(button => button.onclick = () => { state.paymentMethod = button.dataset.paymentMethod; state.paymentRequestId = ""; renderConfirmation(); });
+  $("#payShareStart").onclick = event => { const button = event.currentTarget; return typeof couponGateBeforePay === "function" ? couponGateBeforePay(() => startPayShare(button)) : startPayShare(button); };
   $("#finish").onclick = () => typeof couponGateBeforePay === "function" ? couponGateBeforePay(beginPayment) : beginPayment();
+}
+
+// «مشاركة الدفع»: صاحب الطلب يرسل رابطاً لشخص آخر يدفع عنه.
+// الرابط نسخة ثابتة من السلة على السيرفر؛ هنا نعرض «بانتظار الدفع» حتى يُدفع أو يُلغى.
+const PAY_SHARE_STORAGE = "figsPayShare";
+const payShareIcon = `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>`;
+let payShareWatchVersion = 0;
+let payShareLoadChecked = false;
+
+function payShareCartPayload() {
+  const { idempotencyKey, attribution, paymentMethod, ...cart } = paymentPayload("knet");
+  return { cart, attribution };
+}
+
+function payShareSignature() {
+  return JSON.stringify(payShareCartPayload().cart);
+}
+
+function readPayShare() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(PAY_SHARE_STORAGE) || "null");
+    if (!saved?.id || saved.phone !== normalizePhone(state.user?.phone || "")) return null;
+    return saved;
+  } catch { return null; }
+}
+
+function clearPayShare() {
+  payShareWatchVersion++;
+  try { localStorage.removeItem(PAY_SHARE_STORAGE); } catch {}
+}
+
+// رابط فعّال لنفس السلة. إن تغيّرت السلة بعد المشاركة نلغي الرابط القديم.
+function currentPayShare() {
+  const saved = readPayShare();
+  if (!saved) return null;
+  if (saved.sig !== payShareSignature()) {
+    cancelPayShare(saved.id, true);
+    return null;
+  }
+  return saved;
+}
+
+function payShareUrl(id) {
+  return `${location.origin}/invoice-share/#${id}`;
+}
+
+function payShareMessage(id) {
+  const name = String(state.user?.name || "").trim();
+  return state.lang === "en"
+    ? `Hello,\n${name} would like you to pay the attached invoice.. please tap the link below to complete the payment:\n${payShareUrl(id)}`
+    : `مرحباً،\nيرغب ${name} بدفع الفاتورة المرفقة.. يرجى الضغط على الرابط التالي وإتمام الدفع:\n${payShareUrl(id)}`;
+}
+
+async function sendPayShareLink(id) {
+  const text = payShareMessage(id);
+  const title = state.lang === "en" ? "Order payment link" : "رابط دفع لطلب";
+  if (navigator.share) {
+    try { await navigator.share({ title, text }); return true; }
+    catch (error) { if (error?.name === "AbortError") return true; }
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    toast(state.lang === "en" ? "Payment link copied" : "تم نسخ رابط الدفع");
+    return true;
+  } catch {
+    window.prompt(state.lang === "en" ? "Copy the payment link" : "انسخ رابط الدفع", payShareUrl(id));
+    return false;
+  }
+}
+
+async function startPayShare(button) {
+  if (!cartCount()) return toast(state.lang === "ar" ? "السلة فارغة" : "Your cart is empty");
+  if (!state.user?.name || normalizePhone(state.user.phone).length !== 8) return openAuth("login");
+  const incompleteItem = cartItems().find(cartItemMissingRequiredChoice);
+  if (incompleteItem) return resolveMissingCartChoice(incompleteItem);
+  if (cartItems().some(cartItemMinimumIssue)) return toast(state.lang === "ar" ? "ارجو إكمال كمية المنتج المطلوبة" : "Please complete the required product quantity");
+  if (cartItems().some(cartItemFillingIssue)) return toast(state.lang === "ar" ? "عدد الحشوات لا يطابق الحجم المختار" : "The fillings count does not match the selected size");
+  if (state.mode === "delivery" && !state.area?.name) state.area = resolveCheckoutArea("");
+  if (button) { button.disabled = true; button.classList.add("busy"); }
+  try {
+    const { cart, attribution } = payShareCartPayload();
+    const display = {
+      deliverySummary: tableReservationActive() ? "" : deliverySummary(),
+      deliveryTimeLines: tableReservationActive() ? [] : deliveryTimeSummaryLines(),
+      deliveryLabel: state.mode === "delivery" ? tr("deliveryAddress") : tr("pickupBranch"),
+      timeLabel: state.mode === "pickup" ? tr("pickupTime") : tr("deliveryTime")
+    };
+    const data = await orderingApi("/pay-share", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ payload: { ...cart, ...(attribution ? { attribution } : {}) }, display, lang: state.lang })
+    }, true);
+    localStorage.setItem(PAY_SHARE_STORAGE, JSON.stringify({ id: data.id, phone: normalizePhone(state.user.phone), sig: payShareSignature(), createdAt: Date.now() }));
+    renderConfirmation();
+    await sendPayShareLink(data.id);
+  } catch (error) {
+    if (button) { button.disabled = false; button.classList.remove("busy"); }
+    toast(error.message || (state.lang === "ar" ? "تعذر إنشاء رابط المشاركة" : "Could not create the share link"));
+  }
+}
+
+function payShareWaitingMarkup() {
+  const ar = state.lang !== "en";
+  return `<div class="pay-share-waiting" role="status">
+      <span class="pay-share-spinner" aria-hidden="true"></span>
+      <div class="pay-share-waiting-text"><strong>${ar ? "تم المشاركة.. بانتظار الدفع" : "Shared.. waiting for payment"}</strong><button type="button" class="pay-share-again" id="payShareAgain">${payShareIcon}<span>${ar ? "مشاركة الرابط مرة أخرى" : "Share the link again"}</span></button></div>
+    </div>
+    <div class="actions"><button class="secondary" id="back2">${tr("back")}</button><button class="primary pay-share-cancel" id="payShareCancel">${ar ? "إلغاء المشاركة" : "Cancel sharing"}</button></div>`;
+}
+
+function bindPayShareWaiting(share) {
+  $("#payShareAgain").onclick = () => sendPayShareLink(share.id);
+  $("#payShareCancel").onclick = async event => {
+    event.currentTarget.disabled = true;
+    await cancelPayShare(share.id);
+    renderConfirmation();
+  };
+  watchPayShare(share);
+}
+
+async function cancelPayShare(id, quiet = false) {
+  clearPayShare();
+  try {
+    const data = await orderingApi(`/pay-share/${encodeURIComponent(id)}/cancel`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }, true);
+    // دُفع قبل لحظة الإلغاء: الطلب صار مدفوعاً.
+    if (data.status === "paid") return payShareCompleted(id);
+    if (!quiet) toast(state.lang === "ar" ? "تم إلغاء المشاركة" : "Sharing cancelled");
+  } catch (error) {
+    if (!quiet) toast(error.message);
+  }
+}
+
+async function watchPayShare(share) {
+  const version = ++payShareWatchVersion;
+  while (version === payShareWatchVersion) {
+    await delay(4000);
+    if (version !== payShareWatchVersion || !$(".pay-share-waiting")) return;
+    try {
+      const data = await orderingApi(`/pay-share/${encodeURIComponent(share.id)}/owner`, {}, true);
+      if (version !== payShareWatchVersion) return;
+      if (data.status === "paid") return payShareCompleted(share.id, data);
+      if (data.status !== "active") { clearPayShare(); return renderConfirmation(); }
+    } catch {}
+  }
+}
+
+// الطرف الآخر دفع: يصير الطلب مدفوعاً عند صاحبه وتُفرغ السلة.
+async function payShareCompleted(id, data = null) {
+  clearPayShare();
+  if (!data) {
+    try { data = await orderingApi(`/pay-share/${encodeURIComponent(id)}/owner`, {}, true); } catch { data = {}; }
+  }
+  state.order = data.orderId || state.order;
+  state.paidOrder = data.order || null;
+  if (typeof trackStoreEvent === "function") trackStoreEvent("checkout_complete", { orderId: state.order, via: "pay-share" });
+  if (!$("#checkoutModal").classList.contains("hidden")) {
+    $("#steps").classList.add("hidden");
+    return showSuccess();
+  }
+  state.cart = {};
+  persistCart();
+  renderCartBar();
+  syncAllProductQuantityControls();
+  toast(state.lang === "ar" ? `تم دفع طلبك ${state.order} عن طريق رابط المشاركة` : `Your order ${state.order} was paid through the shared link`);
+}
+
+// عند فتح المتجر: إن دُفع الرابط أثناء غياب صاحبه نُفرغ السلة ونبلغه.
+async function checkPayShareOnLoad() {
+  if (payShareLoadChecked) return;
+  payShareLoadChecked = true;
+  const saved = readPayShare();
+  if (!saved) return;
+  try {
+    const data = await orderingApi(`/pay-share/${encodeURIComponent(saved.id)}/owner`, {}, true);
+    if (data.status === "paid") return payShareCompleted(saved.id, data);
+    if (data.status !== "active") clearPayShare();
+  } catch {}
 }
 
 function requestId() {
@@ -5104,6 +5289,7 @@ async function initializeStoreData() {
   if (!hasCatalog) hasCatalog = catalogReady || applyCatalog(cachedCatalog, false);
   if (!hasCatalog) hasCatalog = applyCatalog(await loadLocalCatalog());
   if (hasCatalog) resumePendingPayment();
+  if (hasCatalog) checkPayShareOnLoad();
   if (state.user?.phone) {
     rememberSession(state.user.phone);
     requestPersistentStorage();
