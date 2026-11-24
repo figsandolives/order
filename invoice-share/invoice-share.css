@@ -16,3 +16,6 @@ body.share-pay-body{min-height:100dvh;background:var(--paper);padding:0!importan
   .modal.share-page{padding:0}
   .share-page .checkout-panel{border-radius:0;min-height:100dvh;padding:18px 14px calc(18px + env(safe-area-inset-bottom));box-shadow:none}
 }
+.checkout-confirm-total-row.cart-offer-saving strong{color:#c0262d}
+.checkout-confirm-final-total .final-amount{display:inline-flex;flex-direction:column-reverse;align-items:flex-end;line-height:1.25}
+.checkout-confirm-final-total .before-discount{font-size:12px;font-weight:700;opacity:.8;text-decoration:line-through;text-decoration-color:#ff4b52;text-decoration-thickness:2px}

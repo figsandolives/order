@@ -78,9 +78,9 @@
           <button class="checkout-confirm-total-row products-toggle" id="productsToggle" type="button" aria-expanded="false" aria-controls="confirmationProducts"><span><b class="arrow">‹</b> تفاصيل الأصناف (${(data.items || []).length})</span></button>
           <div class="confirmation-products hidden" id="confirmationProducts">${(data.items || []).map(item => `<div class="confirmation-product"><img src="${escapeHtml(thumb(item.image) || "/logo.png")}" alt="" onerror="this.src='/logo.png'"><span>${escapeHtml(item.name)} × ${Number(item.quantity)}</span><b>${money(item.total)}</b></div>`).join("")}</div>
           <div class="checkout-confirm-total-row"><span>الإجمالي</span><strong>${money(data.subtotal)}</strong></div>
-          ${data.couponCode ? `<div class="checkout-confirm-total-row coupon-saving"><span>${data.discountLabelAr ? escapeHtml(data.discountLabelAr) : `خصم الكوبون <bdi>${escapeHtml(data.couponCode)}</bdi>`}</span><strong>−${money(data.discount)}</strong></div>` : ""}
+          ${data.couponCode ? `<div class="checkout-confirm-total-row coupon-saving${data.discountLabelAr ? " cart-offer-saving" : ""}"><span>${data.discountLabelAr ? escapeHtml(data.discountLabelAr) : `خصم الكوبون <bdi>${escapeHtml(data.couponCode)}</bdi>`}</span><strong>−${money(data.discount)}</strong></div>` : ""}
           ${data.mode === "delivery" ? `<div class="checkout-confirm-total-row"><span>رسوم التوصيل</span><strong>${money(data.deliveryFee)}</strong></div>` : ""}
-          <div class="checkout-confirm-total-row checkout-confirm-final-total"><span>الإجمالي النهائي</span><strong>${money(data.total)}</strong></div>
+          <div class="checkout-confirm-total-row checkout-confirm-final-total"><span>الإجمالي النهائي</span><strong class="final-amount">${money(data.total)}${data.discountLabelAr ? `<s class="before-discount" aria-label="المبلغ قبل الخصم">${money(Number(data.total) + Number(data.discount || 0))}</s>` : ""}</strong></div>
         </section>
         ${notice ? `<div class="share-notice" role="alert">${escapeHtml(notice)}</div>` : ""}
         <div class="confirmation-sticky-actions">

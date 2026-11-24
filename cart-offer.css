@@ -37,3 +37,8 @@ body:has(#checkoutModal:not(.hidden)) .cart-offer-banner,body:has(#authModal:not
 @keyframes cartOfferGlow{0%,100%{opacity:0}50%{opacity:1}}
 @keyframes cartOfferDigits{0%,100%{text-shadow:none}50%{text-shadow:0 0 10px #e0383f66}}
 @media(prefers-reduced-motion:reduce){.cart-offer-banner::before,.cart-offer-banner strong{animation:none}}
+/* مبلغ خصم السلة بالأحمر */
+.checkout-confirm-total-row.cart-offer-saving strong{color:#c0262d}
+/* المبلغ قبل الخصم تحت الإجمالي النهائي */
+.checkout-confirm-final-total .final-amount{display:inline-flex;flex-direction:column-reverse;align-items:flex-end;line-height:1.25}
+.checkout-confirm-final-total .before-discount{font-size:12px;font-weight:700;opacity:.8;text-decoration:line-through;text-decoration-color:#ff4b52;text-decoration-thickness:2px}
