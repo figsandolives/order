@@ -21,12 +21,12 @@ function clearCartOffer() {
   try { localStorage.removeItem(CART_OFFER_KEY); } catch {}
 }
 
-// الخصم لصاحب الرقم فقط؛ زائر غير مسجل يراه حتى يسجل دخوله.
+// الخصم لصاحب الرقم فقط، ويظهر بعد تسجيل دخوله بنفس الرقم.
 function cartOfferForUser() {
   const offer = readCartOffer();
   if (!offer) return null;
   const phone = normalizePhone(state.user?.phone || "");
-  return !phone || phone === offer.phone ? offer : null;
+  return phone && phone === offer.phone ? offer : null;
 }
 
 function cartOfferRemaining(offer) {
@@ -88,22 +88,55 @@ function showCartOfferSheet(offer) {
   startCartOfferCountdown();
 }
 
+// رابط الخصم: لا نعرض السلة ولا الخصم إلا لصاحب الرقم بعد تسجيل دخوله.
+// زائر غير مسجل: نطلب منه تسجيل الدخول أولاً، ثم نكمل تلقائياً بعد الدخول.
+const CART_OFFER_PENDING_KEY = "figsCartOfferPending";
+
+function cartOfferPendingToken() {
+  try { return sessionStorage.getItem(CART_OFFER_PENDING_KEY) || ""; } catch { return ""; }
+}
+function setCartOfferPendingToken(token) {
+  try { token ? sessionStorage.setItem(CART_OFFER_PENDING_KEY, token) : sessionStorage.removeItem(CART_OFFER_PENDING_KEY); } catch {}
+}
+
 async function openCartOfferFromLink() {
   if (cartOfferLinkHandled) return;
-  const token = new URLSearchParams(location.search).get("cart");
+  const token = (new URLSearchParams(location.search).get("cart") || "").toUpperCase();
   if (!token) return;
   cartOfferLinkHandled = true;
   const clean = new URL(location.href);
   clean.searchParams.delete("cart");
   history.replaceState(history.state, "", `${clean.pathname}${clean.search}${clean.hash}`);
   if (!/^[A-Z0-9]{16}$/.test(token)) return;
+  if (!state.user?.phone) {
+    setCartOfferPendingToken(token);
+    return typeof couponDialog === "function"
+      ? couponDialog(cartOfferText("خصم السلة", "Cart discount"), [cartOfferText("سجّل دخولك برقمك اللي وصلته الرسالة عشان تفتح سلتك والخصم.", "Log in with the number that received the message to open your cart and discount.")], [
+          { label: cartOfferText("تسجيل الدخول", "Log in"), primary: true, onClick: () => openAuth("login") }
+        ])
+      : openAuth("login");
+  }
+  return claimCartOffer(token);
+}
+
+// بعد تسجيل الدخول: نكمل رابط الخصم المعلّق إن وُجد.
+function cartOfferAfterLogin() {
+  const token = cartOfferPendingToken();
+  if (token) return claimCartOffer(token);
+  syncCartOffer(true);
+  renderCartOfferBanner();
+}
+
+async function claimCartOffer(token) {
+  setCartOfferPendingToken("");
   let data;
-  try { data = await orderingApi(`/cart-offer/${encodeURIComponent(token)}`); }
-  catch (error) { return toast(error.message || cartOfferText("تعذر فتح رابط السلة", "Could not open the cart link")); }
-  const phone = normalizePhone(state.user?.phone || "");
-  const sameCustomer = !phone || phone === data.phone;
+  try { data = await orderingApi(`/cart-offer/${encodeURIComponent(token)}/claim`, { method: "POST" }, true); }
+  catch (error) {
+    if (/خاص بحساب/.test(error.message || "")) return toast(cartOfferText("هذا الخصم خاص بحساب آخر", "This discount belongs to another account"));
+    return toast(error.message || cartOfferText("تعذر فتح رابط السلة", "Could not open the cart link"));
+  }
   // نرجع السلة إن كانت فارغة على هذا الجهاز؛ السلة الحالية أحدث إن وُجدت.
-  if (sameCustomer && data.cart && typeof data.cart === "object" && !cartCount()) {
+  if (data.cart && typeof data.cart === "object" && !cartCount()) {
     state.cart = { ...data.cart };
     persistCart();
     renderCartBar();
@@ -115,12 +148,12 @@ async function openCartOfferFromLink() {
       ? couponDialog(cartOfferText("خصم السلة", "Cart discount"), [data.status === "used" ? cartOfferText("تم استخدام هذا الخصم مسبقاً.", "This discount was already used.") : cartOfferText("انتهت مدة خصم السلة، وسلتك ما زالت بانتظارك.", "The cart discount has ended, but your cart is still waiting.")])
       : null;
   }
-  if (!sameCustomer) return toast(cartOfferText("هذا الخصم خاص بحساب آخر", "This discount belongs to another account"));
   // نضبط وقت الانتهاء على ساعة الجهاز حتى لو كانت ساعته غير دقيقة.
   const expiresAt = Date.now() + (data.expiresAt - data.serverNow);
   localStorage.setItem(CART_OFFER_KEY, JSON.stringify({ token, code: data.code, phone: data.phone, percent: data.percent, labelAr: data.labelAr, labelEn: data.labelEn, expiresAt, ...cartOfferTermsFields(data) }));
   cartOfferError = "";
   cartOfferAutoSignature = "";
+  cartOfferSyncedAt = Date.now();
   if (typeof couponCelebrate === "function") couponCelebrate();
   showCartOfferSheet({ percent: data.percent, labelAr: data.labelAr, labelEn: data.labelEn, expiresAt });
   renderCartOfferBanner();
@@ -309,10 +342,10 @@ async function syncCartOffer(force = false) {
   if (force && Date.now() - cartOfferSyncedAt < 20000) return;
   cartOfferSynced = true;
   cartOfferSyncedAt = Date.now();
-  const offer = readCartOffer();
+  const offer = cartOfferForUser();
   if (!offer?.token) return;
   try {
-    const data = await orderingApi(`/cart-offer/${encodeURIComponent(offer.token)}`);
+    const data = await orderingApi(`/cart-offer/${encodeURIComponent(offer.token)}/claim`, { method: "POST" }, true);
     if (data.status !== "active") return cartOfferEnded();
     const expiresAt = Date.now() + (data.expiresAt - data.serverNow);
     const before = JSON.stringify(offer.terms || null);
@@ -321,7 +354,7 @@ async function syncCartOffer(force = false) {
     // وصلت الشروط أو تغيّرت: نحدّث الأسعار المعروضة.
     if (before !== JSON.stringify(data.terms || null)) cartOfferRefreshTotals();
   } catch (error) {
-    if (/غير صحيح/.test(error.message || "")) cartOfferEnded();
+    if (/غير صحيح|خاص بحساب/.test(error.message || "")) cartOfferEnded();
   }
 }
 

@@ -3198,6 +3198,8 @@ function completeLogin() {
   reportVisitorPresence();
   renderCartBar();
   syncAllProductQuantityControls();
+  // رابط خصم السلة فُتح قبل تسجيل الدخول: نكمله الحين لصاحب الرقم فقط.
+  if (typeof cartOfferAfterLogin === "function") cartOfferAfterLogin();
   if (pendingCartProductId) {
     const id = pendingCartProductId;
     const anchor = pendingCartAnchor;
