@@ -1162,9 +1162,21 @@ function trackStoreEvent(type, details = {}) {
     method: "POST",
     headers: { "Content-Type": "application/json", "Accept": "application/json" },
     body: JSON.stringify({ type, visitorId, customer: state.user?.name ? { name: state.user.name, phone: state.user.phone } : null, details, ...attributionEventFields() }),
-    cache: "no-store"
+    cache: "no-store",
+    // ضغطة الواتساب قد تفتح التطبيق وتترك الصفحة، فالطلب يكمل حتى لو انقفلت.
+    keepalive: type === "whatsapp_clicked"
   }).catch(() => undefined);
 }
+
+// ضغطة أي زر واتساب في المتجر (قائمة الفروع، أسفل الصفحة، المساعد): أي فرع ومن وين.
+const WHATSAPP_BRANCHES = { "96566906605": "delivery", "96565162277": "yarmouk", "96599176512": "abu_hasaniya" };
+document.addEventListener("click", event => {
+  const link = event.target.closest?.('a[href*="wa.me/"], a[href*="api.whatsapp.com/"]');
+  if (!link) return;
+  const phone = (String(link.getAttribute("href")).match(/(?:wa\.me\/|phone=)(\d{8,15})/) || [])[1] || "";
+  const place = link.closest("#whatsappMenu") ? "menu" : link.closest(".footer-contacts") ? "footer" : link.closest("[class*='assistant']") ? "assistant" : "other";
+  trackStoreEvent("whatsapp_clicked", { branch: WHATSAPP_BRANCHES[phone] || "other", place });
+}, true);
 
 function analyticsCartSnapshot() {
   return {
