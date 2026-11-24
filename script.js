@@ -967,11 +967,6 @@ function orderHasLongPreparationItems(order) {
   });
 }
 
-function invoicePreparationNotice(order) {
-  if (!orderHasLongPreparationItems(order)) return "";
-  return `<p class="a4-preparation-notice">ملاحظة: يوجد في طلبك أصناف تأخذ وقت للتجهيز.. لذا يرجى العلم أنه قد يتأخر طلبك أو يتم تأجيله.</p>`;
-}
-
 function cartItems() {
   return Object.entries(state.cart).map(([cartKey, value]) => {
     const entry = typeof value === "object" && value ? value : { quantity: value };
@@ -3479,6 +3474,13 @@ function renderOrders({ refresh = true } = {}) {
   $$("[data-order-details]").forEach(button => button.onclick = () => renderOrderDetails(button.dataset.orderDetails));
 }
 
+// خصم السلة المتروكة ليس كوبوناً: يظهر باسمه «خصم السلة ١٠٪» بدل رمز عشوائي.
+function orderDiscountLabel(order, bidi = true) {
+  const coupon = order.coupon || {};
+  if (coupon.cartOffer) return `<bdi>${escapeHtml(state.lang === 'ar' ? coupon.labelAr || 'خصم السلة' : coupon.labelEn || 'Cart discount')}</bdi>`;
+  const code = escapeHtml(coupon.code || '');
+  return `${state.lang === 'ar' ? 'خصم الكوبون' : 'Coupon discount'} ${bidi ? `<bdi>${code}</bdi>` : code}`;
+}
 function orderDestination(order) {
   if (order.mode === "delivery") return `${order.areaName || ""} — ${order.address || ""}`;
   const branch = branches.find(item => item.id === order.branchId);
@@ -3512,7 +3514,7 @@ async function renderOrderDetails(orderId, fromSuccess = false) {
         <div class="order-detail-totals">
           <span>${tr("productsTotal")} <b>${money(order.subtotal)}</b></span>
           <span>${tr("deliveryFee")} <b>${money(order.deliveryFee)}</b></span>
-          ${order.coupon?`<span>${state.lang==='ar'?'خصم الكوبون':'Coupon discount'} <bdi>${escapeHtml(order.coupon.code)}</bdi><b>−${money(order.discount)}</b></span>`:""}
+          ${order.coupon?`<span>${orderDiscountLabel(order)}<b>−${money(order.discount)}</b></span>`:""}
           <strong>${tr("total")} <b>${money(order.total)}</b></strong>
           <small>${accountIcons.card} ${tr("payOnline")}</small>
         </div>
@@ -4680,8 +4682,7 @@ function showSuccess() {
   const order = currentInvoiceModel();
   state.lastInvoice = order;
   saveCompletedOrder(order);
-  buildInvoice(order);
-  // لا ننتظر الإرسال حتى لا تتأخر صفحة نجاح الطلب؛ الفاتورة نفسها تُولّد من قالب A4 الحالي.
+  // لا ننتظر الإرسال حتى لا تتأخر صفحة نجاح الطلب؛ الفاتورة تُولّد من الملف الموحّد online-invoice.js.
   sendInvoiceToWhatsApp(order);
   state.cart = {};
   persistCart();
@@ -4707,65 +4708,18 @@ function orderItemName(item) {
   return state.lang === "ar" ? (item.nameAr || item.nameEn) : (item.nameEn || item.nameAr);
 }
 
-function invoiceDeliveryTime(order) {
-  if (!order.scheduledAt) return escapeHtml(deliveryTimeSummary(order));
-  const end = new Date(order.scheduledAt), start = new Date(end.getTime() - 60 * 60 * 1000);
-  const date = new Intl.DateTimeFormat("ar-KW", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(end);
-  const time = value => new Intl.DateTimeFormat("ar-KW", { hour: "numeric", minute: "2-digit" }).format(value);
-  // Same day as the invoice: the hours alone are clear.
-  return sameCalendarDay(end, order.createdAt || Date.now())
-    ? `وقت التوصيل المحدد:<br>بين ${time(start)} إلى ${time(end)}`
-    : `وقت التوصيل المحدد:<br>${date}،<br>بين ${time(start)} إلى ${time(end)}`;
-}
-
-function buildInvoice(order) {
-  const pickup = branches.find(branch => branch.id === order.branchId);
-  const destination = order.mode === "delivery" ? `${order.areaName || ""} - ${order.address || ""}` : `${state.lang === "ar" ? "استلام من" : "Pickup from"} ${pickup ? branchField(pickup, "name") : ""}`;
-  const locale = state.lang === "ar" ? "ar-KW" : "en-GB";
-  const createdAt = new Date(order.createdAt);
-  const customerLine = [order.customerName || tr("customer"), order.phone || "—", destination].filter(Boolean).map(escapeHtml).join("&nbsp; · &nbsp;");
-  const deliveryTime = invoiceDeliveryTime(order);
-  const productsValue = Number.isFinite(Number(order.subtotal)) ? Number(order.subtotal) : Math.max(0, Number(order.total || 0) - Number(order.deliveryFee || 0));
-  $("#invoice").innerHTML = `<section class="a4-invoice"><header class="a4-head"><img src="logo.png" alt=""><div><h1>فاتورة شراء</h1><p>Purchase Invoice</p></div></header><section class="a4-meta"><div><b>رقم الفاتورة</b><strong>#${escapeHtml(order.orderId)}</strong><b>تاريخ الإصدار</b><strong>${createdAt.toLocaleDateString(locale)}</strong></div><div class="a4-company">شركة صحي ولذيذ للتجهيزات الغذائية<br>حولي، شارع تونس، مجمع علي فهد الخالد، دور الميزانين<br><span dir="ltr">66906605 · 22085888</span></div></section><p class="a4-customer-line">${customerLine}</p><table class="a4-items"><thead><tr><th>#</th><th>الصنف</th><th>الملاحظات</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead><tbody>${order.items.map((item, index) => { const detailOptions = (item.options || []).filter(option => !option?.nameSuffix); return `<tr><td>${index + 1}</td><td><b>${escapeHtml(item.nameAr || item.nameEn || item.id)}</b><small dir="ltr">${escapeHtml(item.nameEn || item.nameAr || item.id)}</small>${detailOptions.length ? `<small>${escapeHtml(detailOptions.map(optionSummary).join("، "))}</small>` : ""}</td><td>${escapeHtml(item.note || "—")}</td><td>${item.quantity}</td><td>${money(item.unitPrice || (item.total / item.quantity))}</td><td><b>${money(item.total)}</b></td></tr>`; }).join("")}</tbody></table>${invoicePreparationNotice(order)}<section class="a4-summary-row"><section class="a4-delivery-time"><small>${order.mode === "pickup" ? tr("pickup") : tr("deliveryTime")}</small><strong>${order.mode === "pickup" ? destination : deliveryTime}</strong></section><section class="a4-total"><span><b>${tr("productsTotal")}</b><strong>${money(productsValue)}</strong></span><span><b>${tr("deliveryFee")}</b><strong>${money(order.deliveryFee)}</strong></span>${order.coupon?`<span><b>${state.lang==='ar'?'خصم الكوبون':'Coupon discount'} ${escapeHtml(order.coupon.code)}</b><strong>−${money(order.discount)}</strong></span>`:""}<span class="a4-grand-total"><b>${tr("total")}</b><strong>${money(order.total)}</strong></span></section></section><div class="a4-paid">✓&nbsp; مدفوع: ${escapeHtml(String(order.paymentMethod || "KNET").toUpperCase())}</div></section>`;
-  $("#invoice").setAttribute("dir", state.lang === "ar" ? "rtl" : "ltr");
-  const phoneLabel = $("#invoice .a4-phone");
-  if (phoneLabel) phoneLabel.textContent = `☎︎ ${order.phone || "—"}`;
+// الفاتورة (التحميل والإرسال بالواتساب) من الملف الموحّد online-invoice.js — نفس تصميم شاشة متابعة الطلبات.
+function invoiceProductImage(id) {
+  const item = product(id);
+  const image = item ? productImages(item)[0] : "";
+  return /^https:\/\//.test(String(image || "")) ? image : "";
 }
 
 async function createInvoiceFile(order) {
-    const cacheKey = `${order.orderId}:${order.paymentMethod || "knet"}:${order.updatedAt || order.paidAt || ""}:${state.lang}`;
-    if (invoiceFileCache.has(cacheKey)) return invoiceFileCache.get(cacheKey);
-    const promise = (async () => {
-      buildInvoice(order);
-      if (!window.html2canvas || !window.jspdf?.jsPDF) throw new Error("PDF libraries unavailable");
-      await document.fonts?.ready;
-    const invoiceNode = $("#invoice .a4-invoice");
-    if (!invoiceNode) throw new Error("Invoice template unavailable");
-    const logo = invoiceNode.querySelector("img");
-    if (logo?.decode) await logo.decode().catch(() => undefined);
-    const canvas = await html2canvas(invoiceNode, { scale: 2, backgroundColor: "#fff", useCORS: true, logging: false });
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF("p", "mm", "a4");
-    const pageWidth = 190;
-    const pageHeight = 277;
-    const imageHeight = canvas.height * pageWidth / canvas.width;
-    const image = canvas.toDataURL("image/jpeg", .94);
-    let remaining = imageHeight;
-    let y = 10;
-    pdf.addImage(image, "JPEG", 10, y, pageWidth, imageHeight, undefined, "FAST");
-    remaining -= pageHeight;
-    while (remaining > 0.5) {
-      pdf.addPage();
-      // The first page starts at 10mm. Subsequent pages start at the exact
-      // next image position, otherwise the last 10mm is duplicated.
-      y = -(imageHeight - remaining);
-      pdf.addImage(image, "JPEG", 10, y, pageWidth, imageHeight, undefined, "FAST");
-      remaining -= pageHeight;
-    }
-    const filename = `invoice-${order.orderId}.pdf`;
-    const blob = pdf.output("blob");
-    return new File([blob], filename, { type: "application/pdf" });
-  })();
+  const cacheKey = `${order.orderId}:${order.paymentMethod || "knet"}:${order.updatedAt || order.paidAt || ""}:${state.lang}`;
+  if (invoiceFileCache.has(cacheKey)) return invoiceFileCache.get(cacheKey);
+  const promise = OnlineInvoice.pdf(order, { productImage: invoiceProductImage })
+    .then(pdf => new File([pdf.output("blob")], `invoice-${order.orderId}.pdf`, { type: "application/pdf" }));
   invoiceFileCache.set(cacheKey, promise);
   try {
     return await promise;
