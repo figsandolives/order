@@ -130,6 +130,7 @@ async function openCartOfferFromLink() {
 // الخصم خاص (ليس كوبوناً): يُسعّر من السيرفر ويُرسل مع الدفع كـ cartOffer.
 let cartOfferError = "";
 let cartOfferQuoteRevision = 0;
+let cartOfferQuoting = false;
 
 function cartOfferLabel(offer) {
   return state.lang === "en" ? (offer.labelEn || `${offer.percent}%`) : (offer.labelAr || `${cartOfferDigits(offer.percent)}٪`);
@@ -149,6 +150,7 @@ function cartOfferAfterConfirmation() {
   const offer = cartOfferForUser();
   if (!offer || !state.user?.phone) return;
   startCartOfferCountdown();
+  syncCartOffer(true);
   const termsButton = document.getElementById("cartOfferTerms");
   if (termsButton) termsButton.onclick = () => {
     const quote = currentCheckoutCoupon();
@@ -159,12 +161,14 @@ function cartOfferAfterConfirmation() {
   const current = currentCheckoutCoupon();
   if (current?.coupon?.cartOffer) return;
   if (current) clearCheckoutCoupon();
+  // نعيد التسعير كلما رجع لصفحة الدفع بدون خصم مطبّق؛ نتوقف فقط إن فشلت نفس السلة قبل قليل.
   const signature = couponCartSignature();
-  if (cartOfferAutoSignature === signature) return;
+  if (cartOfferAutoSignature === signature && (cartOfferError || cartOfferQuoting)) return;
   cartOfferAutoSignature = signature;
+  cartOfferQuoting = true;
   const revision = ++cartOfferQuoteRevision;
   const body = { ...paymentPayload(state.paymentMethod || "knet"), idempotencyKey: requestId(), cartOffer: offer.token };
-  orderingApi("/cart-offer-quote", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, true).then(quote => {
+  orderingApi("/cart-offer-quote", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, true).finally(() => { if (revision === cartOfferQuoteRevision) cartOfferQuoting = false; }).then(quote => {
     if (revision !== cartOfferQuoteRevision || signature !== couponCartSignature()) return;
     if (!quote?.ok || !(quote.discount > 0)) throw Error(cartOfferText("تعذر تطبيق خصم السلة", "Could not apply the cart discount"));
     cartOfferError = "";
@@ -175,7 +179,7 @@ function cartOfferAfterConfirmation() {
     if (revision !== cartOfferQuoteRevision) return;
     cartOfferError = error.message || cartOfferText("تعذر تطبيق خصم السلة", "Could not apply the cart discount");
     // خصم مستخدم أو منتهٍ أو لحساب آخر: نرجع للوضع العادي (خانة الكوبون).
-    if (/استخدام|انتهت|خاص بحساب|غير صحيح|إيقاف/.test(cartOfferError)) { clearCartOffer(); cartOfferError = ""; renderCartOfferBanner(); }
+    if (/استخدام|انتهت|خاص بحساب|غير صحيح|إيقاف/.test(cartOfferError)) return cartOfferEnded();
     if (!$("#checkoutModal").classList.contains("hidden") && document.querySelector(".cart-offer-terms")) renderConfirmation();
   });
 }
@@ -207,21 +211,36 @@ function renderCartOfferBanner() {
 
 // عند فتح الموقع: نتأكد من السيرفر أن الخصم ما زال فعّالاً (قد تكون الإدارة أوقفته أو عدّلته).
 let cartOfferSynced = false;
-async function syncCartOffer() {
-  if (cartOfferSynced || new URLSearchParams(location.search).get("cart")) return;
+let cartOfferSyncedAt = 0;
+async function syncCartOffer(force = false) {
+  if ((cartOfferSynced && !force) || new URLSearchParams(location.search).get("cart")) return;
+  if (force && Date.now() - cartOfferSyncedAt < 20000) return;
   cartOfferSynced = true;
+  cartOfferSyncedAt = Date.now();
   const offer = readCartOffer();
   if (!offer?.token) return;
   try {
     const data = await orderingApi(`/cart-offer/${encodeURIComponent(offer.token)}`);
-    if (data.status !== "active") { clearCartOffer(); renderCartOfferBanner(); return; }
+    if (data.status !== "active") return cartOfferEnded();
     const expiresAt = Date.now() + (data.expiresAt - data.serverNow);
     localStorage.setItem(CART_OFFER_KEY, JSON.stringify({ ...offer, percent: data.percent, labelAr: data.labelAr, labelEn: data.labelEn, expiresAt }));
     renderCartOfferBanner();
   } catch (error) {
-    if (/غير صحيح/.test(error.message || "")) { clearCartOffer(); renderCartOfferBanner(); }
+    if (/غير صحيح/.test(error.message || "")) cartOfferEnded();
   }
 }
+
+// أوقفته/حذفته الإدارة أو انتهى: نخفي اللافتة، ونرجع صفحة الدفع لوضعها العادي فوراً.
+function cartOfferEnded() {
+  clearCartOffer();
+  cartOfferError = "";
+  if (currentCheckoutCoupon()?.coupon?.cartOffer) clearCheckoutCoupon();
+  renderCartOfferBanner();
+  if (!$("#checkoutModal").classList.contains("hidden") && document.querySelector(".cart-offer-terms")) renderConfirmation();
+}
+
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && readCartOffer()) syncCartOffer(true); });
+setInterval(() => { if (document.visibilityState === "visible" && readCartOffer()) syncCartOffer(true); }, 60000);
 
 // إن وصل الرابط والكتالوج محمّل مسبقاً.
 if (typeof state !== "undefined" && Array.isArray(state.products) && state.products.length) { openCartOfferFromLink(); renderCartOfferBanner(); }
