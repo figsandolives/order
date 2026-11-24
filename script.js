@@ -4163,6 +4163,7 @@ function renderConfirmation() {
         <div class="confirmation-products hidden" id="confirmationProducts">${cartItems().map(({ product: item, quantity, options }) => `<div class="confirmation-product"><img src="${escapeHtml(thumbnailUrl(productImages(item)[0]) || "logo.png")}" alt=""><span>${escapeHtml(productName(item))} × ${quantity}</span><b>${money(selectionFlowTotal(item, options, quantity))}</b></div>`).join("")}</div>
         <div class="checkout-confirm-total-row"><span>${state.lang==='ar'?'الإجمالي':'Total'}</span><strong>${money(subtotal())}</strong></div>
         ${applied?`<div class="checkout-confirm-total-row coupon-saving${applied.coupon.cartOffer?' cart-offer-saving':''}"><span>${applied.coupon.cartOffer?escapeHtml(state.lang==='ar'?applied.coupon.labelAr:applied.coupon.labelEn):`${state.lang==='ar'?'خصم الكوبون':'Coupon discount'} <bdi>${escapeHtml(applied.coupon.code)}</bdi>`}</span><strong>−${money(applied.discount)}</strong></div>`:''}
+        ${!applied&&typeof cartOfferPendingRow==="function"?cartOfferPendingRow():''}
         ${state.mode==='delivery'&&!tableReservationActive()?`<div class="checkout-confirm-total-row"><span>${state.lang==='ar'?'رسوم التوصيل':'Delivery fee'}</span><strong>${money(deliveryFee())}</strong></div>`:''}
         <div class="checkout-confirm-total-row checkout-confirm-final-total"><span>${state.lang==='ar'?'الإجمالي النهائي':'Final total'}</span><strong class="final-amount">${money(total())}${applied?.coupon?.cartOffer?`<s class="before-discount" aria-label="${state.lang==='ar'?'المبلغ قبل الخصم':'Before discount'}">${money(subtotal()+deliveryFee())}</s>`:''}</strong></div>
       </section>
@@ -4181,8 +4182,13 @@ function renderConfirmation() {
   if (activeShare) return bindPayShareWaiting(activeShare);
   if (typeof cartOfferAfterConfirmation === "function") cartOfferAfterConfirmation();
   $$('[data-payment-method]').forEach(button => button.onclick = () => { state.paymentMethod = button.dataset.paymentMethod; state.paymentRequestId = ""; renderConfirmation(); });
-  $("#payShareStart").onclick = event => { const button = event.currentTarget; return typeof couponGateBeforePay === "function" ? couponGateBeforePay(() => startPayShare(button)) : startPayShare(button); };
-  $("#finish").onclick = () => typeof couponGateBeforePay === "function" ? couponGateBeforePay(beginPayment) : beginPayment();
+  // خصم السلة أولاً (ننتظر تسعيره من السيرفر)، ثم خانة الكوبون، ثم الدفع.
+  const discountGate = proceed => {
+    const coupon = () => typeof couponGateBeforePay === "function" ? couponGateBeforePay(proceed) : proceed();
+    return typeof cartOfferGateBeforePay === "function" ? cartOfferGateBeforePay(coupon) : coupon();
+  };
+  $("#payShareStart").onclick = event => { const button = event.currentTarget; return discountGate(() => startPayShare(button)); };
+  $("#finish").onclick = () => discountGate(beginPayment);
 }
 
 // «مشاركة الدفع»: صاحب الطلب يرسل رابطاً لشخص آخر يدفع عنه.

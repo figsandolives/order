@@ -42,3 +42,7 @@ body:has(#checkoutModal:not(.hidden)) .cart-offer-banner,body:has(#authModal:not
 /* المبلغ قبل الخصم تحت الإجمالي النهائي */
 .checkout-confirm-final-total .final-amount{display:inline-flex;flex-direction:column-reverse;align-items:flex-end;line-height:1.25}
 .checkout-confirm-final-total .before-discount{font-size:12px;font-weight:700;opacity:.8;text-decoration:line-through;text-decoration-color:#ff4b52;text-decoration-thickness:2px}
+
+/* زر الدفع أثناء انتظار تسعير خصم السلة */
+.pay-now.cart-offer-waiting{opacity:.55;cursor:progress}
+.cart-offer-pending strong{font-weight:500;opacity:.75}

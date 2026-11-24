@@ -12,6 +12,8 @@ function couponCartSignature() {
 }
 function currentCheckoutCoupon() {
   if (checkoutCoupon && checkoutCoupon.signature !== couponCartSignature()) clearCheckoutCoupon();
+  // خصم السلة يُحسب فوراً على الجهاز من شروطه؛ السيرفر يعيد التحقق عند الدفع.
+  if (!checkoutCoupon && typeof cartOfferLocalQuote === "function") return cartOfferLocalQuote();
   return checkoutCoupon;
 }
 function couponAmount() { return Number(currentCheckoutCoupon()?.discount || 0); }
