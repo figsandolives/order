@@ -3446,6 +3446,7 @@ function renderAddressForm(addressId = "") {
     persistUser();
     toast(tr("addressSaved"));
     if (accountReturnToCheckout) {
+      rememberAddress(saved.id);
       state.addressId = saved.id;
       state.area = state.areas.find(area => area.name === saved.areaName) || { name: saved.areaName, price: saved.price };
       state.address = saved.details;
@@ -3616,12 +3617,35 @@ function renderReview() {
   };
 }
 
-function selectSavedAddress(addressId) {
-  const saved = (state.user.addresses || []).find(address => address.id === addressId);
-  if (!saved) return;
+// آخر عنوان اختاره العميل يبقى مختاراً في طلباته القادمة حتى يغيّره هو (محفوظ على هذا الجهاز لكل رقم).
+const LAST_ADDRESS_KEY = "figsOlivesLastAddressV1";
+function lastAddressId() {
+  try { return JSON.parse(localStorage.getItem(LAST_ADDRESS_KEY) || "{}")[state.user?.phone || ""] || ""; } catch { return ""; }
+}
+function rememberAddress(addressId) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(LAST_ADDRESS_KEY) || "{}");
+    saved[state.user?.phone || ""] = addressId;
+    localStorage.setItem(LAST_ADDRESS_KEY, JSON.stringify(saved));
+  } catch {}
+}
+function applySavedAddress(saved) {
   state.addressId = saved.id;
   state.area = state.areas.find(area => area.name === saved.areaName) || { name: saved.areaName, price: saved.price };
   state.address = saved.details;
+}
+// عنوان التوصيل ما يبقى فاضي: آخر عنوان اختاره العميل، وإلا أول عنوان (وإذا عنده عنوان واحد يكون هو).
+function ensureCheckoutAddress() {
+  const addresses = state.user?.addresses || [];
+  if (!addresses.length || addresses.some(address => address.id === state.addressId)) return;
+  applySavedAddress(addresses.find(address => address.id === lastAddressId()) || addresses[0]);
+}
+
+function selectSavedAddress(addressId) {
+  const saved = (state.user.addresses || []).find(address => address.id === addressId);
+  if (!saved) return;
+  applySavedAddress(saved);
+  rememberAddress(saved.id);
   state.paymentRequestId = "";
   renderDelivery();
 }
@@ -3632,6 +3656,7 @@ function renderDelivery() {
   if (state.mode === "pickup" && !branches.some(branch => branch.id === state.branch)) state.branch = "";
   const restaurantPickup = state.mode === "pickup" && cartHasRestaurantItems();
   if (restaurantPickup && state.branch !== "abu") state.branch = "";
+  if (state.mode === "delivery") ensureCheckoutAddress();
   const addresses = state.user.addresses || [];
   const deliveryForm = addresses.length ? `
     <h3>${tr("selectAddress")}</h3><div class="checkout-addresses">${addresses.map(address => `
