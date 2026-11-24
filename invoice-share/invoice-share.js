@@ -78,7 +78,7 @@
           <button class="checkout-confirm-total-row products-toggle" id="productsToggle" type="button" aria-expanded="false" aria-controls="confirmationProducts"><span><b class="arrow">‹</b> تفاصيل الأصناف (${(data.items || []).length})</span></button>
           <div class="confirmation-products hidden" id="confirmationProducts">${(data.items || []).map(item => `<div class="confirmation-product"><img src="${escapeHtml(thumb(item.image) || "/logo.png")}" alt="" onerror="this.src='/logo.png'"><span>${escapeHtml(item.name)} × ${Number(item.quantity)}</span><b>${money(item.total)}</b></div>`).join("")}</div>
           <div class="checkout-confirm-total-row"><span>الإجمالي</span><strong>${money(data.subtotal)}</strong></div>
-          ${data.couponCode ? `<div class="checkout-confirm-total-row coupon-saving"><span>خصم الكوبون <bdi>${escapeHtml(data.couponCode)}</bdi></span><strong>−${money(data.discount)}</strong></div>` : ""}
+          ${data.couponCode ? `<div class="checkout-confirm-total-row coupon-saving"><span>${data.discountLabelAr ? escapeHtml(data.discountLabelAr) : `خصم الكوبون <bdi>${escapeHtml(data.couponCode)}</bdi>`}</span><strong>−${money(data.discount)}</strong></div>` : ""}
           ${data.mode === "delivery" ? `<div class="checkout-confirm-total-row"><span>رسوم التوصيل</span><strong>${money(data.deliveryFee)}</strong></div>` : ""}
           <div class="checkout-confirm-total-row checkout-confirm-final-total"><span>الإجمالي النهائي</span><strong>${money(data.total)}</strong></div>
         </section>

@@ -2910,6 +2910,7 @@ function renderCartBar() {
   $("#headerCount").textContent = count;
   $("#cartTotal").innerHTML = state.lang === "ar" ? `<span class="cart-amount">${Number(subtotal()).toFixed(3)}</span><span class="cart-currency">د.ك</span>` : money(subtotal());
   $("#checkoutBtn").textContent = tableReservationActive() ? "إتمام الحجز ←" : tr("checkout");
+  if (typeof renderCartOfferBanner === "function") renderCartOfferBanner();
   updateCartShareBar();
 }
 
@@ -4134,11 +4135,11 @@ function renderConfirmation() {
         <button class="checkout-confirm-total-row products-toggle" id="productsToggle" type="button" aria-expanded="false" aria-controls="confirmationProducts"><span><b class="arrow">‹</b> ${state.lang === "ar" ? "تفاصيل الأصناف" : "Order items"} (${cartItems().length})</span></button>
         <div class="confirmation-products hidden" id="confirmationProducts">${cartItems().map(({ product: item, quantity, options }) => `<div class="confirmation-product"><img src="${escapeHtml(thumbnailUrl(productImages(item)[0]) || "logo.png")}" alt=""><span>${escapeHtml(productName(item))} × ${quantity}</span><b>${money(selectionFlowTotal(item, options, quantity))}</b></div>`).join("")}</div>
         <div class="checkout-confirm-total-row"><span>${state.lang==='ar'?'الإجمالي':'Total'}</span><strong>${money(subtotal())}</strong></div>
-        ${applied?`<div class="checkout-confirm-total-row coupon-saving"><span>${state.lang==='ar'?'خصم الكوبون':'Coupon discount'} <bdi>${escapeHtml(applied.coupon.code)}</bdi></span><strong>−${money(applied.discount)}</strong></div>`:''}
+        ${applied?`<div class="checkout-confirm-total-row coupon-saving"><span>${applied.coupon.cartOffer?escapeHtml(state.lang==='ar'?applied.coupon.labelAr:applied.coupon.labelEn):`${state.lang==='ar'?'خصم الكوبون':'Coupon discount'} <bdi>${escapeHtml(applied.coupon.code)}</bdi>`}</span><strong>−${money(applied.discount)}</strong></div>`:''}
         ${state.mode==='delivery'&&!tableReservationActive()?`<div class="checkout-confirm-total-row"><span>${state.lang==='ar'?'رسوم التوصيل':'Delivery fee'}</span><strong>${money(deliveryFee())}</strong></div>`:''}
         <div class="checkout-confirm-total-row checkout-confirm-final-total"><span>${state.lang==='ar'?'الإجمالي النهائي':'Final total'}</span><strong>${money(total())}</strong></div>
       </section>
-      ${!activeShare && typeof couponMarkup === "function" ? couponMarkup() : ""}
+      ${activeShare ? "" : (typeof cartOfferCheckoutMarkup === "function" && cartOfferCheckoutMarkup()) || (typeof couponMarkup === "function" ? couponMarkup() : "")}
       <div class="confirmation-sticky-actions">${activeShare ? payShareWaitingMarkup() : `${paymentChoices}<div class="actions"><button class="secondary" id="back2">${tr("back")}</button><button class="primary pay-now" id="finish" aria-label="${tr("payNow")}">${state.paymentMethod ? paymentMark(state.paymentMethod) : ""}<span>${tr("payNow")}</span></button></div>`}</div>
     </section>`;
   if (!activeShare && typeof bindCheckoutCoupon === "function") bindCheckoutCoupon();
@@ -4357,6 +4358,7 @@ async function payShareCompleted(id, data = null) {
   }
   state.order = data.orderId || state.order;
   state.paidOrder = data.order || null;
+  if (typeof cartOfferPaid === "function") cartOfferPaid(data.order);
   if (typeof trackStoreEvent === "function") trackStoreEvent("checkout_complete", { orderId: state.order, via: "pay-share" });
   if (!$("#checkoutModal").classList.contains("hidden")) {
     $("#steps").classList.add("hidden");
@@ -4555,6 +4557,7 @@ async function watchPayment(pending) {
         paymentWatchVersion++;
         sessionStorage.removeItem("pendingBedeOrder");
         history.replaceState({}, "", location.pathname);
+        if (typeof cartOfferPaid === "function") cartOfferPaid(data.order);
         return showSuccess();
       }
       if (data.status === "failed") {

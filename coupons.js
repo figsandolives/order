@@ -17,6 +17,7 @@ function currentCheckoutCoupon() {
 function couponAmount() { return Number(currentCheckoutCoupon()?.discount || 0); }
 function couponPayloadFields() {
   const quote=currentCheckoutCoupon();
+  if (quote?.cartOffer) return {cartOffer:quote.cartOffer,cartOfferExpectedTotal:quote.total};
   return quote ? {couponCode:quote.coupon.code,couponRevision:quote.coupon.revision,couponExpectedTotal:quote.total} : {};
 }
 function couponDialog(title,lines,actions) {
@@ -81,6 +82,7 @@ async function couponGateBeforePay(proceed) {
   ]);
 }
 function bindCheckoutCoupon() {
+  if(!document.getElementById('couponForm'))return;
   const couponInput=document.getElementById('checkoutCouponCode');
   if(couponInput){couponInput.setAttribute('inputmode','latin');couponInput.setAttribute('lang','en');couponInput.oninput=couponInputGuard;couponInputGuard();}
   document.getElementById('couponForm').onsubmit=async event=>{
