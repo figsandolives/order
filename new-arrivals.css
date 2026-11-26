@@ -116,11 +116,11 @@ html[dir="ltr"] .arrivals-direction-icon { transform: rotate(180deg); }
 [dir="ltr"] .new-badge { --badge-turn: -45deg; --badge-away: -140%; }
 .new-badge b { display: inline-block; font-weight: 900; transform: rotate(-6deg); }
 .new-badge::after { content: ""; position: absolute; inset-block: 0; inset-inline-start: 0; width: 30%; background: #ffffff75; transform: translateX(-140%) skewX(-20deg); opacity: 0; }
-.new-arrival.is-current .new-badge { visibility: visible; transform: rotate(var(--badge-turn)); }
+.new-arrival.is-current .new-badge, .product-card.badge-in-view .new-badge { visibility: visible; transform: rotate(var(--badge-turn)); }
 @media (prefers-reduced-motion: no-preference) {
-  .new-arrival.is-current .new-badge { animation: badge-sash .6s .35s cubic-bezier(.2,1.35,.4,1) both; }
-  .new-arrival.is-current .new-badge b { animation: badge-stamp .4s .9s cubic-bezier(.3,1.6,.5,1) both; }
-  .new-arrival.is-current .new-badge::after { animation: badge-shine .9s 1.3s ease-in-out; }
+  .new-arrival.is-current .new-badge, .product-card.badge-in-view .new-badge { animation: badge-sash .6s .35s cubic-bezier(.2,1.35,.4,1) both; }
+  .new-arrival.is-current .new-badge b, .product-card.badge-in-view .new-badge b { animation: badge-stamp .4s .9s cubic-bezier(.3,1.6,.5,1) both; }
+  .new-arrival.is-current .new-badge::after, .product-card.badge-in-view .new-badge::after { animation: badge-shine .9s 1.3s ease-in-out; }
   @keyframes badge-sash { from { transform: rotate(var(--badge-turn)) translateX(var(--badge-away)); } to { transform: rotate(var(--badge-turn)) translateX(0); } }
   @keyframes badge-stamp { from { opacity: 0; transform: scale(1.9) rotate(-6deg); } to { opacity: 1; transform: scale(1) rotate(-6deg); } }
   @keyframes badge-shine { 0% { opacity: 1; transform: translateX(-140%) skewX(-20deg); } 100% { opacity: 1; transform: translateX(420%) skewX(-20deg); } }
@@ -129,3 +129,9 @@ html[dir="ltr"] .arrivals-direction-icon { transform: rotate(180deg); }
 .new-arrivals-heading { position: absolute; width: 1px; height: 1px; margin: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .new-arrivals-navigation { display: none !important; }
 .new-arrivals { padding-block: 10px; }
+/* Grid cards: a larger sash on the bigger photo; the feature pill and «in cart» tag move out of its corner. */
+.product-card .new-badge { inset-block-start: 16px; inset-inline-start: -34px; width: 132px; padding: 3px 0; font-size: 13px; }
+.product-image:has(.new-badge) .product-feature-badge { top: auto; bottom: 8px; max-width: calc(100% - 16px); }
+.product-image:has(.new-badge) .in-cart { top: auto !important; bottom: 8px; white-space: nowrap; }
+.product-image:has(.new-badge):has(.in-cart:not(.hidden)) .product-feature-badge { bottom: 36px; }
+@media (max-width: 760px) { .product-card .new-badge { inset-block-start: 12px; inset-inline-start: -32px; width: 116px; font-size: 12px; } }

@@ -1620,6 +1620,7 @@ function productCard(item, category) {
   return `
     <article class="product-card ${availabilityText ? "unavailable" : ""}" data-product="${escapeHtml(item.id)}" tabindex="0">
       <div class="product-image">
+        ${item.isNew === true ? `<span class="new-badge" aria-hidden="true"><b>${state.lang === "ar" ? "جديد" : "NEW"}</b></span>` : ""}
         <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" data-src="${escapeHtml(thumbnailUrl(source))}" data-full="${escapeHtml(source)}" width="640" height="580" alt="${escapeHtml(productName(item))}" decoding="async" fetchpriority="low">
         ${badge ? `<span class="product-feature-badge">${escapeHtml(badge)}</span>` : ""}
         ${availabilityText ? `<b class="availability-overlay">${availabilityText}</b>` : ""}
@@ -2393,6 +2394,17 @@ function observeImages() {
     }
   }, { rootMargin: "650px 0px" });
   $$("img[data-src]").forEach(image => imageObserver.observe(image));
+  observeNewBadges();
+}
+
+// New products in the grid replay the «جديد» ribbon every time they scroll into view.
+let newBadgeObserver;
+function observeNewBadges() {
+  newBadgeObserver?.disconnect();
+  newBadgeObserver = new IntersectionObserver(entries => {
+    for (const entry of entries) entry.target.classList.toggle("badge-in-view", entry.isIntersecting);
+  }, { threshold: .55 });
+  $$(".product-card .new-badge").forEach(badge => newBadgeObserver.observe(badge.closest(".product-card")));
 }
 
 function scrollToCategory(categoryId, { track = true, instant = false } = {}) {
