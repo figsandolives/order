@@ -1863,7 +1863,8 @@ const newArrivalsMotion = (() => {
   const overflowing = () => track.scrollWidth > track.clientWidth + 2;
   const running = () => !pointerHeld && visible && !document.hidden && !section.classList.contains("hidden");
   function schedule() {
-    if (!running() || !overflowing() || track.children.length < 2) {
+    // The 3.5s count starts once the product has stopped, so every product (the first included) stays the same time.
+    if (sliding || !running() || !overflowing() || track.children.length < 2) {
       clearTimeout(timer);
       timer = null;
       return;
