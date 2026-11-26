@@ -1869,7 +1869,7 @@ const newArrivalsMotion = (() => {
       resumeAt = 0;
       manualScroll = false;
       move(1);
-    }, resumeAt > Date.now() ? resumeAt - Date.now() : 1500);
+    }, resumeAt > Date.now() ? resumeAt - Date.now() : 2500);
   }
   function sync() {
     const english = state.lang === "en";
@@ -1877,6 +1877,8 @@ const newArrivalsMotion = (() => {
     const multiple = count > 1 && overflowing();
     const number = new Intl.NumberFormat(english ? "en" : "ar");
     $("#newArrivalsPosition").textContent = multiple ? `${number.format(index + 1)} / ${number.format(count)}` : "";
+    // Replay the «جديد» ribbon on the product that has just come into view.
+    cards().forEach((card, i) => card.classList.toggle("is-current", visible && i === index));
     for (const [selector, label] of [["[data-arrivals-previous]", english ? "Previous product" : "المنتج السابق"], ["[data-arrivals-next]", english ? "Next product" : "المنتج التالي"]]) {
       const button = section.querySelector(selector);
       button.hidden = !multiple;
@@ -1982,6 +1984,7 @@ function renderNewArrivals() {
     return `<article class="new-arrival" role="listitem">
       <a class="new-arrival-link" href="${escapeHtml(href)}" data-new-arrival="${id}" title="${escapeHtml(productName(item))}">
         <span class="new-arrival-image">
+          <span class="new-badge" aria-hidden="true"><b>${state.lang === "ar" ? "جديد" : "NEW"}</b></span>
           ${image ? `<img data-src="${escapeHtml(thumbnailUrl(image))}" data-full="${escapeHtml(image)}" alt="" decoding="async">` : '<img src="logo.png" alt="" loading="lazy" decoding="async">'}
         </span>
         <h3>${escapeHtml(productName(item))}</h3>

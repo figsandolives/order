@@ -111,3 +111,21 @@ html[dir="ltr"] .arrivals-direction-icon { transform: rotate(180deg); }
   @keyframes arrivals-light { 0%, 12% { transform: translateX(0); opacity: 0; } 25% { opacity: 1; } 75%, 100% { transform: translateX(400%); opacity: 0; } }
   @keyframes arrival-float { 0%, 100% { transform: translateY(1px) rotate(-1deg); } 50% { transform: translateY(-2px) rotate(1deg); } }
 }
+/* «جديد» ribbon: only the product on show wears it — the red sash slides in across the photo corner, then the word stamps on. */
+.new-badge { --badge-turn: 45deg; --badge-away: 140%; position: absolute; z-index: 2; inset-block-start: 11px; inset-inline-start: -27px; width: 96px; padding: 2px 0; overflow: hidden; background: #d62828; color: #fff; text-align: center; font-size: 11px; font-weight: 900; line-height: 1.5; letter-spacing: .02em; box-shadow: 0 2px 5px #7a0f0f40; transform: rotate(var(--badge-turn)) translateX(var(--badge-away)); visibility: hidden; pointer-events: none; }
+[dir="ltr"] .new-badge { --badge-turn: -45deg; --badge-away: -140%; }
+.new-badge b { display: inline-block; font-weight: 900; transform: rotate(-6deg); }
+.new-badge::after { content: ""; position: absolute; inset-block: 0; inset-inline-start: 0; width: 30%; background: #ffffff75; transform: translateX(-140%) skewX(-20deg); opacity: 0; }
+.new-arrival.is-current .new-badge { visibility: visible; transform: rotate(var(--badge-turn)); }
+@media (prefers-reduced-motion: no-preference) {
+  .new-arrival.is-current .new-badge { animation: badge-sash .6s .35s cubic-bezier(.2,1.35,.4,1) both; }
+  .new-arrival.is-current .new-badge b { animation: badge-stamp .4s .9s cubic-bezier(.3,1.6,.5,1) both; }
+  .new-arrival.is-current .new-badge::after { animation: badge-shine .9s 1.3s ease-in-out; }
+  @keyframes badge-sash { from { transform: rotate(var(--badge-turn)) translateX(var(--badge-away)); } to { transform: rotate(var(--badge-turn)) translateX(0); } }
+  @keyframes badge-stamp { from { opacity: 0; transform: scale(1.9) rotate(-6deg); } to { opacity: 1; transform: scale(1) rotate(-6deg); } }
+  @keyframes badge-shine { 0% { opacity: 1; transform: translateX(-140%) skewX(-20deg); } 100% { opacity: 1; transform: translateX(420%) skewX(-20deg); } }
+}
+/* The moving «جديد» ribbon says it all: no title row, counter or arrows — the title stays for screen readers only. */
+.new-arrivals-heading { position: absolute; width: 1px; height: 1px; margin: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.new-arrivals-navigation { display: none !important; }
+.new-arrivals { padding-block: 10px; }
