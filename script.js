@@ -1870,7 +1870,7 @@ const newArrivalsMotion = (() => {
       resumeAt = 0;
       manualScroll = false;
       move(1);
-    }, resumeAt > Date.now() ? resumeAt - Date.now() : 2500);
+    }, resumeAt > Date.now() ? resumeAt - Date.now() : 3500);
   }
   function sync() {
     const english = state.lang === "en";
