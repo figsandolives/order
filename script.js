@@ -5,6 +5,14 @@ const orderingConfig = window.ORDERING_CONFIG || {};
 // كل الأقسام تبين، والضغط على المنتج يحدده بدل ما يفتحه، وما ينرسل شي للسيرفر غير قراءة الكتالوج.
 const PICKER_MODE = window.FO_PICKER === true || new URLSearchParams(location.search).has("picker");
 if (PICKER_MODE) document.documentElement.classList.add("picker-mode");
+// رابط «خصم المنتج» من الواتساب يكون على صفحة المنتج (/اسم-المنتج/?offer=) عشان تظهر صورته بالمعاينة.
+// نحوّله للرئيسية قبل ما تنفتح صفحة المنتج، وخصم المنتج (cart-offer.js) ينقل العميل لمكان المنتج في قسمه.
+(() => {
+  const offer = new URLSearchParams(location.search).get("offer");
+  if (!offer || PICKER_MODE) return;
+  const base = document.querySelector("base")?.getAttribute("href") || "/";
+  history.replaceState(null, "", `${base.endsWith("/") ? base : `${base}/`}?offer=${encodeURIComponent(offer)}`);
+})();
 const orderingApiBaseUrl = String(orderingConfig.apiBaseUrl || "").replace(/\/+$/, "");
 let customerSessionToken = localStorage.getItem("figsOlivesCustomerSession") || "";
 
@@ -900,6 +908,9 @@ function productPriceLabel(item) {
 }
 
 function productPriceMarkup(item) {
+  // خصم المنتج الخاص بهذا العميل (رابط «خصم تصفح المنتجات»).
+  const offerPrice = typeof cartOfferPriceMarkup === "function" ? cartOfferPriceMarkup(item) : "";
+  if (offerPrice) return offerPrice;
   const current = productPriceLabel(item);
   const original = Number(item?.originalPrice || 0);
   if (original > Number(item?.price || 0) && !productOptions(item)?.priceBased && !productSelectionFlow(item)) {
@@ -1620,7 +1631,7 @@ function productCard(item, category) {
   return `
     <article class="product-card ${availabilityText ? "unavailable" : ""}" data-product="${escapeHtml(item.id)}" tabindex="0">
       <div class="product-image">
-        ${item.isNew === true ? `<span class="new-badge" aria-hidden="true"><b>${state.lang === "ar" ? "جديد" : "NEW"}</b></span>` : ""}
+        ${(typeof cartOfferBadgeMarkup === "function" && cartOfferBadgeMarkup(item)) || (item.isNew === true ? `<span class="new-badge" aria-hidden="true"><b>${state.lang === "ar" ? "جديد" : "NEW"}</b></span>` : "")}
         <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" data-src="${escapeHtml(thumbnailUrl(source))}" data-full="${escapeHtml(source)}" width="640" height="580" alt="${escapeHtml(productName(item))}" decoding="async" fetchpriority="low">
         ${badge ? `<span class="product-feature-badge">${escapeHtml(badge)}</span>` : ""}
         ${availabilityText ? `<b class="availability-overlay">${availabilityText}</b>` : ""}
@@ -2970,9 +2981,20 @@ function renderProductDetail(id) {
     </div>`;
 }
 
+// «خصومات تصفح المنتجات»: نسجّل للعميل المسجّل المنتجات اللي فتحها (مرة كل ١٠ دقائق لنفس المنتج).
+const productViewSentAt = new Map();
+function recordProductView(id) {
+  if (PICKER_MODE || !state.user?.phone || !customerSessionToken || !orderingApiBaseUrl) return;
+  const key = String(id);
+  if (Date.now() - (productViewSentAt.get(key) || 0) < 600000) return;
+  productViewSentAt.set(key, Date.now());
+  orderingApi("/customer/product-view", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ productId: key }), keepalive: true }, true).catch(() => productViewSentAt.delete(key));
+}
+
 function openProductPage(id, push = true) {
   const trackedProduct = product(id);
   if (trackedProduct) trackStoreEvent("product_click", { productId: trackedProduct.id, productName: trackedProduct.name || trackedProduct.nameEn || "" });
+  if (trackedProduct) recordProductView(trackedProduct.id);
   if (!state.detailProductId && push) catalogScrollPosition = window.scrollY;
   state.detailProductId = String(id);
   renderProductDetail(id);

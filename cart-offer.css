@@ -46,3 +46,22 @@ body:has(#checkoutModal:not(.hidden)) .cart-offer-banner,body:has(#authModal:not
 /* زر الدفع أثناء انتظار تسعير خصم السلة */
 .pay-now.cart-offer-waiting{opacity:.55;cursor:progress}
 .cart-offer-pending strong{font-weight:500;opacity:.75}
+
+/* احتفال بزر واحد (بدون «إضافة المزيد من المنتجات») */
+.cart-offer-actions.single{grid-template-columns:1fr}
+/* «خصم تصفح المنتجات»: احتفال فيه كادر المنتج بشريط «خصم ١٠٪» */
+.product-offer-sheet{gap:4px;max-height:92dvh;overflow-y:auto}
+.product-offer-sheet h2{margin-top:2px}
+.product-offer-card{width:min(250px,72vw);margin:10px auto 0;text-align:start}
+.product-offer-card .product-card{pointer-events:none;cursor:default;box-shadow:0 14px 34px #0d21191f;animation:cartOfferPop .55s .15s cubic-bezier(.2,1.4,.4,1) both}
+.product-offer-card .product-quantity-slot,.product-offer-card .in-cart{display:none}
+.product-offer-sheet .cart-offer-actions{padding-top:14px}
+/* شريط «خصم ١٠٪»: نفس شريط «جديد» وحركته، والكلمة أطول شوي */
+.new-badge.offer-badge{font-size:10.5px;letter-spacing:0}
+/* السعر بعد خصم المنتج */
+.offer-price del{opacity:.7}
+.offer-price b{color:#c0262d}
+/* مكان المنتج بعد الاحتفال: وميض أحمر خفيف حول الكادر */
+.product-card.offer-spot{animation:offerSpot 1.6s .3s ease-out 2}
+@keyframes offerSpot{0%{box-shadow:0 0 0 0 #d6282866}70%{box-shadow:0 0 0 12px #d6282800}100%{box-shadow:0 0 0 0 #d6282800}}
+@media(prefers-reduced-motion:reduce){.product-offer-card .product-card,.product-card.offer-spot{animation:none}}
