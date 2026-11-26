@@ -1855,6 +1855,10 @@ const newArrivalsMotion = (() => {
   let index = 0;
   let timer;
   let settleTimer;
+  // While the track is sliding (worst case: the long jump from the last product back to the first)
+  // no card wears the ribbon, so its motion always starts once the product has arrived.
+  let sliding = false;
+  let slideGuard;
   const cards = () => [...track.children];
   const overflowing = () => track.scrollWidth > track.clientWidth + 2;
   const running = () => !pointerHeld && visible && !document.hidden && !section.classList.contains("hidden");
@@ -1879,7 +1883,7 @@ const newArrivalsMotion = (() => {
     const number = new Intl.NumberFormat(english ? "en" : "ar");
     $("#newArrivalsPosition").textContent = multiple ? `${number.format(index + 1)} / ${number.format(count)}` : "";
     // Replay the «جديد» ribbon on the product that has just come into view.
-    cards().forEach((card, i) => card.classList.toggle("is-current", visible && i === index));
+    cards().forEach((card, i) => card.classList.toggle("is-current", visible && !sliding && i === index));
     for (const [selector, label] of [["[data-arrivals-previous]", english ? "Previous product" : "المنتج السابق"], ["[data-arrivals-next]", english ? "Next product" : "المنتج التالي"]]) {
       const button = section.querySelector(selector);
       button.hidden = !multiple;
@@ -1906,6 +1910,9 @@ const newArrivalsMotion = (() => {
     const box = track.getBoundingClientRect();
     const rtl = getComputedStyle(track).direction === "rtl";
     const offset = rtl ? card.right - box.right + 1 : card.left - box.left - 1;
+    sliding = Math.abs(offset) > 2;
+    clearTimeout(slideGuard);
+    if (sliding) slideGuard = setTimeout(() => { sliding = false; sync(); }, 1500);
     track.scrollTo({ left: track.scrollLeft + offset, behavior: reduced.matches ? "instant" : "smooth" });
     sync();
   }
@@ -1938,6 +1945,8 @@ const newArrivalsMotion = (() => {
     if (manualScroll) manualInteraction();
     clearTimeout(settleTimer);
     settleTimer = setTimeout(() => {
+      sliding = false;
+      clearTimeout(slideGuard);
       const box = track.getBoundingClientRect();
       const rtl = getComputedStyle(track).direction === "rtl";
       let closest = Infinity;

@@ -135,3 +135,9 @@ html[dir="ltr"] .arrivals-direction-icon { transform: rotate(180deg); }
 .product-image:has(.new-badge) .in-cart { top: auto !important; bottom: 8px; white-space: nowrap; }
 .product-image:has(.new-badge):has(.in-cart:not(.hidden)) .product-feature-badge { bottom: 36px; }
 @media (max-width: 760px) { .product-card .new-badge { inset-block-start: 12px; inset-inline-start: -32px; width: 116px; font-size: 12px; } }
+/* In the slider the ribbon now starts after the slide has stopped, so it needs no head start. */
+@media (prefers-reduced-motion: no-preference) {
+  .new-arrival.is-current .new-badge { animation-delay: .05s; }
+  .new-arrival.is-current .new-badge b { animation-delay: .6s; }
+  .new-arrival.is-current .new-badge::after { animation-delay: 1s; }
+}
